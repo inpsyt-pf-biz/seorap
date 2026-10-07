@@ -1,7 +1,10 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { api, ApiError } from './api'
 
-afterEach(() => vi.restoreAllMocks())
+afterEach(() => {
+  vi.restoreAllMocks()
+  vi.unstubAllGlobals()
+})
 
 describe('api', () => {
   it('성공하면 JSON을 돌려준다', async () => {
@@ -17,5 +20,19 @@ describe('api', () => {
     const e = (await api('box').catch((x) => x)) as ApiError
     expect(e).toBeInstanceOf(ApiError)
     expect(e.code).toBe('UPSTREAM_FAILED')
+  })
+  it('전송 자체가 실패하면(fetch 거부) status 0 인 UPSTREAM_FAILED', async () => {
+    vi.stubGlobal('fetch', vi.fn(async () => { throw new TypeError('Failed to fetch') }))
+    const e = (await api('box').catch((x) => x)) as ApiError
+    expect(e).toBeInstanceOf(ApiError)
+    expect(e.code).toBe('UPSTREAM_FAILED')
+    expect(e.status).toBe(0)
+  })
+  it('오류 응답의 본문이 null 이어도 UPSTREAM_FAILED', async () => {
+    vi.stubGlobal('fetch', vi.fn(async () => new Response('null', { status: 500 })))
+    const e = (await api('box').catch((x) => x)) as ApiError
+    expect(e).toBeInstanceOf(ApiError)
+    expect(e.code).toBe('UPSTREAM_FAILED')
+    expect(e.status).toBe(500)
   })
 })

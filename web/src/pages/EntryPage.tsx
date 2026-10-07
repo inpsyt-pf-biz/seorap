@@ -57,9 +57,9 @@ export default function EntryPage() {
   }
   const verify = async () => {
     setBusy(true); setMessage(null)
+    // 성공하면 화면이 바뀌므로 busy 를 풀지 않는다 (옛 화면에서 버튼이 다시 살아나지 않게)
     try { await api('otp/verify', { token, code }); navigate('/box', { replace: true }) }
-    catch (e) { setMessage(errorText(e)) }
-    finally { setBusy(false) }
+    catch (e) { setMessage(errorText(e)); setBusy(false) }
   }
 
   return (
