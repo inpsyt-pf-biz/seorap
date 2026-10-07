@@ -2,6 +2,10 @@
 // 필요 환경변수: SEED_SUPABASE_URL, SEED_SERVICE_ROLE_KEY, SEED_KEYS_FILE(함수 비밀값 .env 경로)
 import { createClient } from '@supabase/supabase-js'
 
+// 대상이 운영 프로젝트면 키 파일과 상관없이 멈춘다 (키 파일의 SEORAP_ENV 만으로는 대상 주소를 막지 못한다)
+const PROD_REF = 'huthfuxytygdbytxrdhf'
+if ((Deno.env.get('SEED_SUPABASE_URL') ?? '').includes(PROD_REF)) throw new Error('seed refuses to run against the production project')
+
 const keysFile = Deno.env.get('SEED_KEYS_FILE') ?? 'supabase/functions/.env'
 for (const line of (await Deno.readTextFile(keysFile)).split(/\r?\n/)) {
   const m = line.match(/^([A-Z_]+)=(.*)$/)
