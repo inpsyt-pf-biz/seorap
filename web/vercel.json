@@ -5,11 +5,11 @@
     {
       "source": "/api/:path*",
       "has": [{ "type": "host", "value": "seorap.inpsyt.co.kr" }],
-      "destination": "https://huthfuxytygdbytxrdhf.supabase.co/functions/v1/:path*"
+      "destination": "https://huthfuxytygdbytxrdhf.supabase.co/functions/v1/api/:path*"
     },
     {
       "source": "/api/:path*",
-      "destination": "https://wmbjnwmfqoquanrpgiqh.supabase.co/functions/v1/:path*"
+      "destination": "https://wmbjnwmfqoquanrpgiqh.supabase.co/functions/v1/api/:path*"
     },
     { "source": "/((?!api/).*)", "destination": "/index.html" }
   ],
