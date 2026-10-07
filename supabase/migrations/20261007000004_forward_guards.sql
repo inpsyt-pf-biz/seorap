@@ -69,12 +69,13 @@ begin
   end if;
 
   -- 잠금 순서는 항상 수취인 → 발송권 (교착 방지). 같은 서랍의 전달·다시 보내기는 여기서 한 줄로 선다.
+  -- 수취인 잠금은 no key update: 이 함수끼리는 서로 기다리지만, 수취인을 참조하는 외래 키 삽입(주문·세션·OTP)은 막지 않는다.
   select o.recipient_id into v_recipient_id
     from app.vouchers v join app.orders o on o.id = v.order_id where v.id = p_voucher_id;
   if v_recipient_id is null then
     raise exception 'NOT_FORWARDABLE';
   end if;
-  perform 1 from app.recipients where id = v_recipient_id for update;
+  perform 1 from app.recipients where id = v_recipient_id for no key update;
   select * into v_voucher from app.vouchers where id = p_voucher_id for update;
   if not found then
     raise exception 'NOT_FORWARDABLE';
@@ -85,9 +86,10 @@ begin
     raise exception 'ALREADY_FORWARDED';
   end if;
   -- 새로 보내는 전달은 잠금 아래에서 자격을 다시 본다 (그사이 실시·취소·잠금이 생겼을 수 있다)
+  -- 취소 신청이 거절된 발송권은 그대로 쓸 수 있다 (lineStatus 도 전달하기를 내어 준다)
   if p_action in ('forward', 'direct_share') and not (
     v_voucher.issue_status = 'issued'
-    and v_voucher.cancel_status = 'none'
+    and v_voucher.cancel_status in ('none', 'rejected')
     and v_voucher.first_launched_at is null
     and v_voucher.platform_deleted_at is null
     and cardinality(v_voucher.lock_reasons) = 0

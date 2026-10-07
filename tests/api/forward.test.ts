@@ -238,3 +238,16 @@ Deno.test('실시하기와 전달하기가 동시에 와도 한쪽만 된다 (�
     assert(!(v!.first_launched_at && v!.current_forward_id), '실시 기록과 전달이 함께 있으면 안 된다')
   }
 })
+
+// 취소 신청이 거절된 줄은 그대로 쓸 수 있는 줄이다 (lineStatus 가 전달하기를 내어 주므로 DB 도 받아야 한다)
+Deno.test('취소가 거절된 줄도 전달할 수 있다', async () => {
+  const c = await login('S9', '9753')
+  const target = (await lines(c)).find((l: any) => l.status.actions.includes('forward'))
+  assert(target, 'S9 에 전달 전인 줄이 남아 있어야 한다')
+  const { error } = await adminDb().from('vouchers').update({ cancel_status: 'rejected' }).eq('id', target.voucherId)
+  assertEquals(error, null)
+  const shown = (await lines(c)).find((l: any) => l.voucherId === target.voucherId)
+  assert(shown.status.actions.includes('forward'))
+  const r = await c.call('forward/create', { voucherId: target.voucherId, name: '거절', phone: '01050030001', clientRequestId: rid() })
+  assertEquals([r.status, r.body.created], [200, true])
+})
