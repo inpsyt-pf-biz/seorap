@@ -26,11 +26,15 @@ export function json(status: number, body: unknown, headers: Record<string, stri
 }
 
 export async function readJson<T>(req: Request): Promise<T> {
+  let body: unknown
   try {
-    return (await req.json()) as T
+    body = await req.json()
   } catch {
     throw new ApiError('VALIDATION', { field: 'body' })
   }
+  // 본문은 일반 객체여야 한다 (null·배열·문자열·숫자는 구조 분해에서 500 이 되므로 여기서 막는다)
+  if (typeof body !== 'object' || body === null || Array.isArray(body)) throw new ApiError('VALIDATION', { field: 'body' })
+  return body as T
 }
 
 export function getCookie(req: Request, name: string): string | null {

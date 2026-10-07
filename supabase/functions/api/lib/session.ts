@@ -1,5 +1,5 @@
 import { hmac, randomToken } from '../../_shared/crypto.ts'
-import { db } from './db.ts'
+import { db, must } from './db.ts'
 import { ApiError, getCookie, isMobile } from './http.ts'
 import { getSettings } from './settings.ts'
 
@@ -20,7 +20,7 @@ export async function createSession(recipientId: string, linkId: string, req: Re
   const idleMin = mobile ? s.session_mobile_idle_min : s.session_desktop_idle_min
   const absMs = mobile ? s.session_mobile_max_hours * 3_600_000 : idleMin * 60_000 * 4
   const id = randomToken(32)
-  await db().from('customer_sessions').insert({
+  must(await db().from('customer_sessions').insert({
     id_hash: await hmac(`sid:${id}`),
     scope: 'box',
     recipient_id: recipientId,
@@ -29,7 +29,7 @@ export async function createSession(recipientId: string, linkId: string, req: Re
     idle_expires_at: new Date(now + idleMin * 60_000).toISOString(),
     absolute_expires_at: new Date(now + absMs).toISOString(),
     last_otp_at: new Date(now).toISOString(),
-  })
+  }), 'session insert')
   return cookie(id, mobile ? s.session_mobile_max_hours * 3600 : null)
 }
 

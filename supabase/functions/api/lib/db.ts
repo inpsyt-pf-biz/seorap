@@ -17,3 +17,9 @@ export function must<T>(res: { data: T | null; error: { message: string } | null
   if (res.error) throw new Error(`${what}: ${res.error.message}`)
   return res.data as T
 }
+
+// 개수 조회(head + count). 오류를 0건으로 바꿔 한도를 통과시키지 않도록 같은 방식으로 던진다
+export function mustCount(res: { count: number | null; error: { message: string } | null }, what: string): number {
+  if (res.error) throw new Error(`${what}: ${res.error.message}`)
+  return res.count ?? 0
+}

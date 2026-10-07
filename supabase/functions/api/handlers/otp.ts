@@ -1,7 +1,7 @@
 import { mockAdapters } from '../../_shared/adapters/mock.ts'
 import type { OtpRequestResponse, OtpVerifyResponse } from '../../_shared/core/apiTypes.ts'
 import { decrypt, hmac, sixDigits } from '../../_shared/crypto.ts'
-import { db, must } from '../lib/db.ts'
+import { db, must, mustCount } from '../lib/db.ts'
 import { logEvent } from '../lib/events.ts'
 import { ApiError, json, readJson } from '../lib/http.ts'
 import { findBoxLink } from '../lib/links.ts'
@@ -14,8 +14,11 @@ export async function otpRequest(req: Request): Promise<Response> {
   const s = await getSettings()
   const now = Date.now()
 
-  const { data: recent } = await db().from('otp_challenges').select('created_at, locked_until')
-    .eq('access_link_id', link.id).order('created_at', { ascending: false }).limit(1)
+  const recent = must(
+    await db().from('otp_challenges').select('created_at, locked_until')
+      .eq('access_link_id', link.id).order('created_at', { ascending: false }).limit(1),
+    'otp recent read',
+  )
   const last = recent?.[0]
   if (last?.locked_until && Date.parse(last.locked_until) > now) throw new ApiError('OTP_LOCKED', { until: last.locked_until })
   if (last && Date.parse(last.created_at) + s.otp_resend_seconds * 1000 > now) {
@@ -23,11 +26,17 @@ export async function otpRequest(req: Request): Promise<Response> {
   }
   const hourAgo = new Date(now - 3_600_000).toISOString()
   const dayAgo = new Date(now - 86_400_000).toISOString()
-  const { count: hourCount } = await db().from('otp_challenges').select('id', { count: 'exact', head: true })
-    .eq('target_phone_hash', recipient.phone_hash).gte('created_at', hourAgo)
-  const { count: dayCount } = await db().from('otp_challenges').select('id', { count: 'exact', head: true })
-    .eq('target_phone_hash', recipient.phone_hash).gte('created_at', dayAgo)
-  if ((hourCount ?? 0) >= s.otp_per_phone_hour || (dayCount ?? 0) >= s.otp_per_phone_day) {
+  const hourCount = mustCount(
+    await db().from('otp_challenges').select('id', { count: 'exact', head: true })
+      .eq('target_phone_hash', recipient.phone_hash).gte('created_at', hourAgo),
+    'otp hour count',
+  )
+  const dayCount = mustCount(
+    await db().from('otp_challenges').select('id', { count: 'exact', head: true })
+      .eq('target_phone_hash', recipient.phone_hash).gte('created_at', dayAgo),
+    'otp day count',
+  )
+  if (hourCount >= s.otp_per_phone_hour || dayCount >= s.otp_per_phone_day) {
     throw new ApiError('RATE_LIMITED', { retryAt: new Date(now + 3_600_000).toISOString() })
   }
 
@@ -65,9 +74,12 @@ export async function otpVerify(req: Request): Promise<Response> {
   const s = await getSettings()
 
   // 가장 최근 번호만 받는다 (Review Focus 1)
-  const { data: rows } = await db().from('otp_challenges')
-    .select('id, code_hash, expires_at, attempt_count, max_attempts, locked_until, consumed_at')
-    .eq('access_link_id', link.id).order('created_at', { ascending: false }).limit(1)
+  const rows = must(
+    await db().from('otp_challenges')
+      .select('id, code_hash, expires_at, attempt_count, max_attempts, locked_until, consumed_at')
+      .eq('access_link_id', link.id).order('created_at', { ascending: false }).limit(1),
+    'otp latest read',
+  )
   const ch = rows?.[0]
   if (!ch || ch.consumed_at) throw new ApiError('OTP_EXPIRED')
   if (ch.locked_until && Date.parse(ch.locked_until) > Date.now()) throw new ApiError('OTP_LOCKED', { until: ch.locked_until })

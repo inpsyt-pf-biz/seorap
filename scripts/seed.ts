@@ -7,7 +7,9 @@ for (const line of (await Deno.readTextFile(keysFile)).split(/\r?\n/)) {
   const m = line.match(/^([A-Z_]+)=(.*)$/)
   if (m) Deno.env.set(m[1], m[2])
 }
-if (Deno.env.get('SEORAP_ENV') === 'production') throw new Error('seed is not allowed in production')
+// 허용 목록: 읽어 들인 SEORAP_ENV 가 local·preview 일 때만 시드한다 (비었거나 오타면 중단)
+const { isDevEnv } = await import('../supabase/functions/_shared/env.ts')
+if (!isDevEnv()) throw new Error('seed is only allowed when SEORAP_ENV is local or preview')
 
 const { encrypt, hmac, phoneHash, randomToken } = await import('../supabase/functions/_shared/crypto.ts')
 const { last4, maskName } = await import('../supabase/functions/_shared/core/phone.ts')

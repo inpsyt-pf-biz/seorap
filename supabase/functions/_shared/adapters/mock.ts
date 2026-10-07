@@ -1,11 +1,12 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
 import { t } from '../core/copy.ko.ts'
 import { last4 } from '../core/phone.ts'
+import { isDevEnv } from '../env.ts'
 import type { Adapters } from './types.ts'
 
-// 가짜 문자·알림톡. 운영(SEORAP_ENV=production)에서는 만들 수 없다.
+// 가짜 문자·알림톡. SEORAP_ENV 가 local·preview 일 때만 만들 수 있다(허용 목록).
 export function mockAdapters(db: SupabaseClient, mode: 'success' | 'fallback' | 'fail'): Adapters {
-  if (Deno.env.get('SEORAP_ENV') === 'production') throw new Error('mock adapters are not allowed in production')
+  if (!isDevEnv()) throw new Error('mock adapters are only allowed in local/preview')
   return {
     sms: {
       async sendOtp({ messageId, toPhone, code }) {
