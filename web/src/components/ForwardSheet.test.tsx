@@ -1,4 +1,4 @@
-import { act, cleanup, render, screen, waitFor } from '@testing-library/react'
+import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import type { BoxLine } from '@core/apiTypes.ts'
@@ -17,7 +17,10 @@ afterEach(() => {
 })
 
 const noop = () => {}
-const json = (status: number, body: unknown) => new Response(JSON.stringify(body), { status })
+const GENERIC = '잠시 문제가 생겼어요. 잠시 후 다시 시도해 주세요'
+const INVALID_NAME = '이름 또는 호칭을 1~20자로 입력해 주세요'
+const INVALID_PHONE = '휴대폰 번호를 확인해 주세요 (예: 010-1234-5678)'
+const json =(status: number, body: unknown) => new Response(JSON.stringify(body), { status })
 
 async function fillAndConfirm() {
   await userEvent.type(screen.getByLabelText('이름 또는 호칭'), '홍길동')
@@ -157,5 +160,126 @@ describe('ForwardSheet', () => {
     await userEvent.click(screen.getByRole('button', { name: '번호 없이 링크 복사하기' }))
     expect(await screen.findByText('[인싸이트 서랍] 링크 https://x.test/a')).toBeTruthy()
     expect(onDone).not.toHaveBeenCalled()
+  })
+
+  // 서버는 요청 ID 가 같으면 내용을 보기 전에 먼저 이전 결과를 돌려준다. 내용이 바뀌었는데 ID 가 같으면 엉뚱한 성공이 보인다.
+  it('실패한 뒤 번호를 고쳐 보내면 새 요청 ID, 그대로 다시 보내면 같은 ID 로 간다', async () => {
+    const ids: string[] = []
+    let calls = 0
+    vi.stubGlobal('fetch', vi.fn(async (_url: string, init: RequestInit) => {
+      ids.push(JSON.parse(String(init.body)).clientRequestId)
+      return calls++ < 2 ? json(502, { error: { code: 'UPSTREAM_FAILED' } }) : json(200, { forwardId: 'f1', created: true })
+    }))
+    render(<ForwardSheet line={line} onClose={noop} onDone={noop} onExpired={noop} />)
+    await fillAndConfirm()
+    await userEvent.click(screen.getByRole('button', { name: '보내기' }))
+    expect(await screen.findByText(GENERIC)).toBeTruthy()
+    await userEvent.click(screen.getByRole('button', { name: '고치기' }))
+    expect(screen.queryByText(GENERIC)).toBeNull() // 고치기는 지난 오류를 지운다
+    const phone = screen.getByLabelText('휴대폰 번호')
+    await userEvent.clear(phone)
+    await userEvent.type(phone, '01098765432')
+    await userEvent.click(screen.getByRole('button', { name: '다음' }))
+    await userEvent.click(screen.getByRole('button', { name: '보내기' }))
+    expect(await screen.findByText(GENERIC)).toBeTruthy()
+    await userEvent.click(screen.getByRole('button', { name: '보내기' })) // 내용이 그대로인 재시도
+    await waitFor(() => expect(ids).toHaveLength(3))
+    expect(ids[1]).not.toBe(ids[0])
+    expect(ids[2]).toBe(ids[1])
+  })
+
+  it('보내기에 성공하면 onDone 에 성공 문구를 넘긴다', async () => {
+    vi.stubGlobal('fetch', vi.fn(async () => json(200, { forwardId: 'f1', created: true })))
+    const onDone = vi.fn()
+    render(<ForwardSheet line={line} onClose={noop} onDone={onDone} onExpired={noop} />)
+    await fillAndConfirm()
+    await userEvent.click(screen.getByRole('button', { name: '보내기' }))
+    await waitFor(() => expect(onDone).toHaveBeenCalledWith('홍길동님께 보냈어요'))
+  })
+
+  it('그사이 줄 상태가 바뀌어 409 가 오면 막다른 화면 대신 onDone 으로 서랍을 새로 부른다', async () => {
+    vi.stubGlobal('fetch', vi.fn(async () => json(409, { error: { code: 'CONFLICT', extra: { reason: 'not_forwardable' } } })))
+    const onDone = vi.fn()
+    render(<ForwardSheet line={line} onClose={noop} onDone={onDone} onExpired={noop} />)
+    await fillAndConfirm()
+    await userEvent.click(screen.getByRole('button', { name: '보내기' }))
+    await waitFor(() => expect(onDone).toHaveBeenCalledTimes(1))
+  })
+
+  it('직접 공유 중 409 가 와도 onDone 으로 서랍을 새로 부른다', async () => {
+    vi.stubGlobal('fetch', vi.fn(async () => json(409, { error: { code: 'CONFLICT', extra: { reason: 'not_forwardable' } } })))
+    const onDone = vi.fn()
+    render(<ForwardSheet line={line} onClose={noop} onDone={onDone} onExpired={noop} />)
+    await userEvent.click(screen.getByRole('button', { name: '더보기' }))
+    await userEvent.click(screen.getByRole('button', { name: '번호 없이 링크 복사하기' }))
+    await waitFor(() => expect(onDone).toHaveBeenCalledTimes(1))
+  })
+
+  it('시트를 닫았다 새 줄로 다시 열면 입력·단계·요청 ID 가 처음으로 돌아간다', async () => {
+    const ids: string[] = []
+    vi.stubGlobal('fetch', vi.fn(async (_url: string, init: RequestInit) => {
+      ids.push(JSON.parse(String(init.body)).clientRequestId)
+      return json(200, { forwardId: 'f1', created: true })
+    }))
+    const props = { onClose: noop, onDone: noop, onExpired: noop }
+    const { rerender } = render(<ForwardSheet line={line} {...props} />)
+    await fillAndConfirm()
+    await userEvent.click(screen.getByRole('button', { name: '보내기' }))
+    await waitFor(() => expect(ids).toHaveLength(1))
+
+    rerender(<ForwardSheet line={null} {...props} />)
+    expect(screen.queryByText('이 번호가 맞나요?')).toBeNull()
+    rerender(<ForwardSheet line={{ ...line }} {...props} />)
+    expect((screen.getByLabelText('이름 또는 호칭') as HTMLInputElement).value).toBe('')
+    expect((screen.getByLabelText('휴대폰 번호') as HTMLInputElement).value).toBe('')
+    expect(screen.getByRole('button', { name: '다음' })).toBeTruthy()
+
+    // 같은 내용을 다시 넣어도 새로 연 시트는 새 요청 ID 를 쓴다 (예: 다른 분께 보내기에서 같은 분에게 다시 보내는 경우)
+    await fillAndConfirm()
+    await userEvent.click(screen.getByRole('button', { name: '보내기' }))
+    await waitFor(() => expect(ids).toHaveLength(2))
+    expect(ids[1]).not.toBe(ids[0])
+  })
+
+  it('서버가 번호가 잘못됐다고 하면 입력 단계로 돌아가 번호 칸에 오류를 붙인다', async () => {
+    vi.stubGlobal('fetch', vi.fn(async () => json(422, { error: { code: 'VALIDATION', extra: { field: 'phone' } } })))
+    render(<ForwardSheet line={line} onClose={noop} onDone={noop} onExpired={noop} />)
+    await fillAndConfirm()
+    await userEvent.click(screen.getByRole('button', { name: '보내기' }))
+    expect(await screen.findByText(INVALID_PHONE)).toBeTruthy() // 한 번만 (getByText 는 둘이면 던진다)
+    expect(screen.queryByText('이 번호가 맞나요?')).toBeNull()
+    expect(screen.getByRole('button', { name: '다음' })).toBeTruthy()
+    expect(screen.getByLabelText('휴대폰 번호').getAttribute('aria-invalid')).toBe('true')
+    expect(screen.getByLabelText('이름 또는 호칭').getAttribute('aria-invalid')).not.toBe('true')
+  })
+
+  it('이름이 비면 이름 칸에 오류를 붙이고, 그 칸을 고치기 시작하면 오류가 사라진다', async () => {
+    render(<ForwardSheet line={line} onClose={noop} onDone={noop} onExpired={noop} />)
+    await userEvent.type(screen.getByLabelText('휴대폰 번호'), '01012345678')
+    await userEvent.click(screen.getByRole('button', { name: '다음' }))
+    expect(screen.getByText(INVALID_NAME)).toBeTruthy()
+    expect(screen.getByLabelText('이름 또는 호칭').getAttribute('aria-invalid')).toBe('true')
+    expect(screen.getByLabelText('휴대폰 번호').getAttribute('aria-invalid')).not.toBe('true')
+    await userEvent.type(screen.getByLabelText('이름 또는 호칭'), '홍')
+    expect(screen.queryByText(INVALID_NAME)).toBeNull()
+    expect(screen.getByLabelText('이름 또는 호칭').getAttribute('aria-invalid')).not.toBe('true')
+  })
+
+  it('처리 중에는 바깥을 누르거나 Esc 를 눌러도 닫히지 않고, 끝나면 닫힌다', async () => {
+    let release: (r: Response) => void = () => {}
+    vi.stubGlobal('fetch', vi.fn(() => new Promise<Response>((resolve) => { release = resolve })))
+    const onClose = vi.fn()
+    render(<ForwardSheet line={line} onClose={onClose} onDone={noop} onExpired={noop} />)
+    await fillAndConfirm()
+    await userEvent.click(screen.getByRole('button', { name: '보내기' }))
+    // 버튼이 막히면 포커스가 시트 밖으로 나가 키 입력이 시트에 닿지 않을 수 있어, 닫기 요청이 들어오는 자리에 직접 보낸다
+    const backdrop = () => document.querySelector('.MuiBackdrop-root') as HTMLElement
+    fireEvent.click(backdrop())
+    fireEvent.keyDown(document.querySelector('.MuiDrawer-root') as HTMLElement, { key: 'Escape' })
+    expect(onClose).not.toHaveBeenCalled()
+    await act(async () => { release(json(502, { error: { code: 'UPSTREAM_FAILED' } })) })
+    expect(await screen.findByText(GENERIC)).toBeTruthy()
+    fireEvent.click(backdrop())
+    expect(onClose).toHaveBeenCalledTimes(1)
   })
 })

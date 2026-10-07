@@ -173,7 +173,17 @@ export default function BoxPage() {
         }}
         onCancel={() => setPending(null)}
       />
-      <ForwardSheet line={sheetLine} onClose={() => setSheetLine(null)} onDone={async () => { setSheetLine(null); await load() }} onExpired={() => setExpired(true)} />
+      <ForwardSheet
+        line={sheetLine}
+        onClose={() => setSheetLine(null)}
+        onDone={async (done) => {
+          setSheetLine(null)
+          await load()
+          // 전달에 성공했다면 시트가 보여 주던 성공 안내를 서랍 위에 이어서 보인다 (다시 보내기와 같은 안내)
+          if (done) setMessage({ text: done, severity: 'success' })
+        }}
+        onExpired={() => setExpired(true)}
+      />
     </Box>
   )
 }

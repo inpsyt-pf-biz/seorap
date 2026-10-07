@@ -109,3 +109,19 @@ describe('BoxPage 다시 보내기 결과 안내', () => {
     expect(screen.queryByText('홍길동님께 보냈어요')).toBeNull()
   })
 })
+
+describe('BoxPage 전달 시트 결과', () => {
+  it('전달에 성공하면 시트를 닫고 서랍을 새로 불러온 뒤 성공 안내를 보인다', async () => {
+    const calls = stubApi([launchable], { 'forward/create': async () => json(200, { forwardId: 'f1', created: true }) })
+    open()
+    await userEvent.click(await screen.findByRole('button', { name: '전달하기' }))
+    await userEvent.type(screen.getByLabelText('이름 또는 호칭'), '홍길동')
+    await userEvent.type(screen.getByLabelText('휴대폰 번호'), '01012345678')
+    await userEvent.click(screen.getByRole('button', { name: '다음' }))
+    await userEvent.click(screen.getByRole('button', { name: '보내기' }))
+    const text = await screen.findByText('홍길동님께 보냈어요')
+    expect(text.closest('[role="alert"]')?.className).toContain('MuiAlert-colorSuccess')
+    expect(screen.queryByLabelText('이름 또는 호칭')).toBeNull() // 시트는 닫혔다
+    expect(count(calls, 'box')).toBe(2) // 처음 한 번 + 전달 뒤 새로고침
+  })
+})
