@@ -4,6 +4,7 @@ import { entry } from './handlers/entry.ts'
 import { history } from './handlers/history.ts'
 import { logout } from './handlers/logout.ts'
 import { otpRequest, otpVerify } from './handlers/otp.ts'
+import { voucherCode, voucherLaunch } from './handlers/voucher.ts'
 import { ApiError, json } from './lib/http.ts'
 
 type Handler = (req: Request) => Promise<Response>
@@ -14,6 +15,8 @@ export const routes: Record<string, Handler> = {
   'POST logout': logout,
   'GET box': box,
   'GET history': history,
+  'POST voucher/launch': voucherLaunch,
+  'POST voucher/code': voucherCode,
   'GET dev/outbox': devOutbox,
 }
 
