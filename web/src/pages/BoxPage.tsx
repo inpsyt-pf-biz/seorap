@@ -93,7 +93,10 @@ export default function BoxPage() {
   }, true)
 
   const onAction = (a: LineAction | 'code', line: BoxLine, group: BoxGroup) => {
-    if (a === 'launch' || a === 'continue') {
+    // 결과 보기는 선택 창 없이 바로 플랫폼 주소를 연다. 플랫폼이 결과를, 아직 끝나지 않았으면 검사 화면을 보인다.
+    if (a === 'result') void launch(line.voucherId)
+    else if (a === 'launch' || a === 'continue') {
+      // 새 1매를 쓰려는데 같은 검사에 응시 중(이어서 하기)인 줄이 있으면 어느 쪽인지 먼저 묻는다
       const sibling = group.lines.find((l) => l.testItemId === line.testItemId && l.voucherId !== line.voucherId && l.firstLaunchedAt && l.status.actions.includes('continue'))
       if (a === 'launch' && sibling) { setPending({ kind: 'choose', line, sibling }); return }
       void launch(line.voucherId)

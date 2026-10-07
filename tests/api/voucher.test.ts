@@ -12,7 +12,22 @@ Deno.test('실시하기: 플랫폼 주소를 주고 실시 기록을 남긴다',
   assert(r.body.url.startsWith('https://inpsyt.co.kr/inpsyt/testing/TEST-'))
   const after = (await lines(c)).find((l: any) => l.voucherId === line.voucherId)
   assert(after.status.label.startsWith('실시함'))
-  assertEquals(after.status.actions, ['continue'])
+  // 실시함 줄은 이어서 하기가 아니라 [결과 보기]. 이어서 하기는 응시 중일 때만 (P0 에는 응시 상태가 없어 나오지 않는다)
+  assertEquals(after.status.actions, ['result'])
+})
+
+Deno.test('결과 보기: 실시한 줄도 같은 launch 로 플랫폼 주소를 다시 받고, 코드 보기도 된다', async () => {
+  const c = await login('S4', '4444')
+  const line = (await lines(c)).find((l: any) => l.status.label.startsWith('실시함'))
+  assert(line, '앞 시험에서 실시한 줄이 있어야 한다')
+  assertEquals(line.status.actions, ['result'])
+  const again = await c.call('voucher/launch', { voucherId: line.voucherId })
+  assertEquals(again.status, 200)
+  assert(again.body.url.startsWith('https://inpsyt.co.kr/inpsyt/testing/TEST-'))
+  assertEquals((await c.call('voucher/code', { voucherId: line.voucherId })).status, 200)
+  // 그래도 실시함 줄이다 (결과 보기를 눌러도 상태는 그대로)
+  const after = (await lines(c)).find((l: any) => l.voucherId === line.voucherId)
+  assertEquals(after.status.actions, ['result'])
 })
 
 Deno.test('코드 보기: 코드를 주고 노출 시각을 남긴다', async () => {

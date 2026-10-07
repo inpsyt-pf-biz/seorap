@@ -15,7 +15,8 @@ async function launchable(req: Request) {
   const v = await loadOwnedVoucher(voucherId, sess.recipientId)
   const li = (await lineInputs([v], await getSettings())).get(v.id)!
   const actions = lineStatus(li.input).actions
-  if (!actions.includes('launch') && !actions.includes('continue')) throw new ApiError('CONFLICT', { reason: 'not_launchable' })
+  // 실시하기·이어서 하기·결과 보기는 모두 같은 플랫폼 주소로 간다 (P0 에는 응시 상태가 없어 결과 보기도 이 길뿐이다)
+  if (!actions.some((a) => a === 'launch' || a === 'continue' || a === 'result')) throw new ApiError('CONFLICT', { reason: 'not_launchable' })
   if (!v.code_enc) throw new ApiError('CONFLICT', { reason: 'not_issued' })
   return { sess, v, code: await decrypt('B', v.code_enc) }
 }

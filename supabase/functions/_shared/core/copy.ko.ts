@@ -43,6 +43,7 @@ export const copy = {
   'line.cancelRejected': '취소할 수 없어요: {reason}',
   'action.launch': '실시하기',
   'action.continue': '이어서 하기',
+  'action.result': '결과 보기',
   'action.forward': '전달하기',
   'action.resend': '다시 보내기',
   'action.reforward': '다른 분께',

@@ -19,6 +19,11 @@ Deno.test('명세 §10 필수 키가 모두 있다', () => {
   for (const k of required) assertEquals(k in copy, true, k)
 })
 
+Deno.test('결과 보기 버튼 문구', () => {
+  assertEquals(t('action.result'), '결과 보기')
+  assertEquals(t('action.continue'), '이어서 하기')
+})
+
 Deno.test('문구에 엠대시가 없다', () => {
   for (const [k, v] of Object.entries(copy)) assertEquals(v.includes('—'), false, k)
 })

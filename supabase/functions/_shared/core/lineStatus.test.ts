@@ -31,7 +31,14 @@ Deno.test('미사용은 firstLaunchedAt 앞에 와야 하고 forward가 없을 �
   assertEquals(s({ examStatus: 'unused', examStatusEnabled: true, firstLaunchedAt: '2026-10-22T15:30:00Z' }), { label: '미사용', tone: 'neutral', actions: ['launch', 'forward'] })
   assertEquals(s({ examStatus: 'unused', examStatusEnabled: true, forward: { displayName: '홍길동', openedAt: null, codeExposed: false, direct: false } }).label, '전달함 · 홍길동')
 })
-Deno.test('10 실시함', () => assertEquals(s({ firstLaunchedAt: '2026-10-22T15:30:00Z' }), { label: '실시함 (10-23)', tone: 'info', actions: ['continue'] }))
+Deno.test('10 실시함은 [결과 보기]만 (이어서 하기는 응시 중일 때만)', () => {
+  assertEquals(s({ firstLaunchedAt: '2026-10-22T15:30:00Z' }), { label: '실시함 (10-23)', tone: 'info', actions: ['result'] })
+  // 응시 상태를 켠 뒤에도 실시함 줄에는 이어서 하기가 없다 (응시 중이어야만 이어서 하기)
+  const launched = '2026-10-22T15:30:00Z'
+  assertEquals(s({ firstLaunchedAt: launched, examStatusEnabled: true, examStatus: null }).actions, ['result'])
+  assertEquals(s({ firstLaunchedAt: launched, examStatusEnabled: true, examStatus: 'in_progress' }), { label: '응시 중', tone: 'info', actions: ['continue'] })
+  assertEquals(s({ firstLaunchedAt: launched, examStatusEnabled: true, examStatus: 'completed' }), { label: '완료', tone: 'success', actions: ['result_help'] })
+})
 Deno.test('11 전달함, 코드 노출 전에는 다른 분께 가능', () => {
   const r = s({ forward: { displayName: '홍길동', openedAt: null, codeExposed: false, direct: false } })
   assertEquals(r.label, '전달함 · 홍길동')

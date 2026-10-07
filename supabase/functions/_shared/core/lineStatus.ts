@@ -1,7 +1,7 @@
 import { t } from './copy.ko.ts'
 import { formatKstMonthDay } from './time.ts'
 
-export type LineAction = 'launch' | 'continue' | 'forward' | 'resend' | 'reforward' | 'contact' | 'counsel_form' | 'result_help'
+export type LineAction = 'launch' | 'continue' | 'result' | 'forward' | 'resend' | 'reforward' | 'contact' | 'counsel_form' | 'result_help'
 export type LineTone = 'neutral' | 'info' | 'success' | 'warning' | 'muted'
 export type LineStatus = { label: string; tone: LineTone; actions: LineAction[]; note?: string }
 export type LineInput = {
@@ -32,7 +32,8 @@ function core(i: LineInput): LineStatus {
   if (i.examStatusEnabled && i.examStatus === 'completed') return { label: t('line.completed'), tone: 'success', actions: ['result_help'] }
   if (i.examStatusEnabled && i.examStatus === 'in_progress') return { label: t('line.inProgress'), tone: 'info', actions: ['continue'] }
   if (i.examStatusEnabled && i.examStatus === 'unused' && !i.forward) return { label: t('line.unused'), tone: 'neutral', actions: ['launch', 'forward'] }
-  if (i.firstLaunchedAt) return { label: t('line.launched', { date: formatKstMonthDay(i.firstLaunchedAt) }), tone: 'info', actions: ['continue'] }
+  // 이어서 하기는 응시 중일 때만 (위). 실시한 줄은 [결과 보기]: 플랫폼 주소를 다시 열어 결과 또는 응시 화면을 본다.
+  if (i.firstLaunchedAt) return { label: t('line.launched', { date: formatKstMonthDay(i.firstLaunchedAt) }), tone: 'info', actions: ['result'] }
   if (i.forward) {
     const note = i.forward.openedAt ? t('line.forwardOpened') : t('line.forwardNotOpened')
     // 직접 공유는 보낼 번호가 없어 다시 보내기가 없다. 받는 분이 코드를 봤으면 다른 분께도 없다.

@@ -1,4 +1,4 @@
-import { act, cleanup, render, screen, waitFor } from '@testing-library/react'
+import { act, cleanup, render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { Link, MemoryRouter, Route, Routes } from 'react-router-dom'
 import { afterEach, describe, expect, it, vi } from 'vitest'
@@ -264,5 +264,90 @@ describe('BoxPage 다른 분께 확인 문구', () => {
     open()
     await userEvent.click(await screen.findByRole('button', { name: '다른 분께' }))
     expect(await screen.findByText('홍길동님께 보낸 링크는 더 이상 열리지 않아요. 다른 분께 보낼까요?')).toBeTruthy()
+  })
+})
+
+// 이어서 하기는 응시 중일 때만, 실시한 줄은 [결과 보기]. 두 버튼은 한 줄에 함께 없다.
+describe('BoxPage 결과 보기·이어서 하기', () => {
+  const at = '2026-10-02T00:00:00.000Z'
+  const launched: BoxLine = {
+    ...launchable, voucherId: 'v-done', unitsOfTest: 2, unitNo: 1, firstLaunchedAt: at,
+    status: { label: '실시함 (10-02)', tone: 'info', actions: ['result'] },
+  }
+  const inProgress: BoxLine = { ...launched, voucherId: 'v-prog', status: { label: '응시 중', tone: 'info', actions: ['continue'] } }
+  const fresh: BoxLine = { ...launchable, voucherId: 'v-new', unitsOfTest: 2, unitNo: 2 }
+  const CHOOSE = '이어서 할까요, 새 1매를 쓸까요?'
+
+  // 실시 주소를 열기까지의 호출을 모은다: 어떤 줄로 launch 를 불렀는지, 어디로 이동했는지
+  function stubLaunch(lines: BoxLine[]) {
+    const assign = vi.fn()
+    vi.stubGlobal('location', { ...window.location, assign })
+    const ids: string[] = []
+    vi.stubGlobal('fetch', vi.fn(async (url: string, init?: RequestInit) => {
+      const path = url.replace(/^\/api\//, '')
+      if (path === 'box') return json(200, boxOf(lines))
+      if (path === 'voucher/launch') {
+        const id = JSON.parse(String(init?.body)).voucherId as string
+        ids.push(id)
+        return json(200, { url: `https://exam.test/${id}` })
+      }
+      throw new Error(`unexpected call: ${path}`)
+    }))
+    return { assign, ids }
+  }
+
+  it('[결과 보기]는 선택 창 없이 바로 플랫폼 주소를 연다', async () => {
+    const { assign, ids } = stubLaunch([launched, fresh])
+    open()
+    await userEvent.click(await screen.findByRole('button', { name: '결과 보기' }))
+    await waitFor(() => expect(assign).toHaveBeenCalledWith('https://exam.test/v-done'))
+    expect(ids).toEqual(['v-done'])
+    expect(screen.queryByText(CHOOSE)).toBeNull()
+  })
+
+  it('실시한 줄(결과 보기)이 같은 검사에 있어도 새 1매는 선택 창 없이 바로 실시한다', async () => {
+    const { assign, ids } = stubLaunch([launched, fresh])
+    open()
+    await userEvent.click(await screen.findByRole('button', { name: '실시하기' }))
+    await waitFor(() => expect(assign).toHaveBeenCalledWith('https://exam.test/v-new'))
+    expect(ids).toEqual(['v-new'])
+    expect(screen.queryByText(CHOOSE)).toBeNull()
+  })
+
+  it('같은 검사에 응시 중(이어서 하기)인 줄이 있으면 [실시하기]가 선택 창을 먼저 연다', async () => {
+    const { assign, ids } = stubLaunch([inProgress, fresh])
+    open()
+    await userEvent.click(await screen.findByRole('button', { name: '실시하기' }))
+    const dialog = await screen.findByRole('dialog')
+    expect(within(dialog).getByText(CHOOSE)).toBeTruthy()
+    expect(ids).toEqual([])
+    await userEvent.click(within(dialog).getByRole('button', { name: '이어서 하기' }))
+    await waitFor(() => expect(assign).toHaveBeenCalledWith('https://exam.test/v-prog'))
+    expect(ids).toEqual(['v-prog'])
+  })
+
+  it('선택 창에서 [새 1매 쓰기]를 고르면 새 줄로 실시한다', async () => {
+    const { assign, ids } = stubLaunch([inProgress, fresh])
+    open()
+    await userEvent.click(await screen.findByRole('button', { name: '실시하기' }))
+    await userEvent.click(within(await screen.findByRole('dialog')).getByRole('button', { name: '새 1매 쓰기' }))
+    await waitFor(() => expect(assign).toHaveBeenCalledWith('https://exam.test/v-new'))
+    expect(ids).toEqual(['v-new'])
+  })
+
+  it('응시 중인 줄의 [이어서 하기]는 선택 창 없이 바로 그 줄로 연다', async () => {
+    const { assign, ids } = stubLaunch([inProgress, fresh])
+    open()
+    await userEvent.click(await screen.findByRole('button', { name: '이어서 하기' }))
+    await waitFor(() => expect(assign).toHaveBeenCalledWith('https://exam.test/v-prog'))
+    expect(ids).toEqual(['v-prog'])
+    expect(screen.queryByText(CHOOSE)).toBeNull()
+  })
+
+  it('실시한 줄도 [코드 보기]로 코드를 볼 수 있다', async () => {
+    stubApi([launched], { 'voucher/code': async () => json(200, { code: 'TEST-0002-0001' }) })
+    open()
+    await userEvent.click(await screen.findByRole('button', { name: '코드 보기' }))
+    expect(await screen.findByText(/TEST-0002-0001/)).toBeTruthy()
   })
 })

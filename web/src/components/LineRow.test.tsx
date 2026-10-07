@@ -46,6 +46,27 @@ describe('LineRow', () => {
     expect(screen.queryByRole('button', { name: '다시 보내기' })).toBeNull()
     expect(screen.queryByRole('button', { name: '코드 보기' })).toBeNull()
   })
+  it('실시한 줄은 [결과 보기]와 [코드 보기]가 보이고 [이어서 하기]는 없다', async () => {
+    const onAction = vi.fn()
+    render(<LineRow line={line({ status: { label: '실시함 (10-23)', tone: 'info', actions: ['result'] } })} onAction={onAction} />)
+    expect(screen.getByText('실시함 (10-23)')).toBeTruthy()
+    expect(screen.getByRole('button', { name: '결과 보기' })).toBeTruthy()
+    expect(screen.getByRole('button', { name: '코드 보기' })).toBeTruthy()
+    expect(screen.queryByRole('button', { name: '이어서 하기' })).toBeNull()
+    await userEvent.click(screen.getByRole('button', { name: '결과 보기' }))
+    expect(onAction).toHaveBeenCalledWith('result', expect.objectContaining({ voucherId: 'v1' }))
+  })
+  it('응시 중인 줄만 [이어서 하기]와 [코드 보기]가 보인다', () => {
+    render(<LineRow line={line({ status: { label: '응시 중', tone: 'info', actions: ['continue'] } })} onAction={() => {}} />)
+    expect(screen.getByRole('button', { name: '이어서 하기' })).toBeTruthy()
+    expect(screen.getByRole('button', { name: '코드 보기' })).toBeTruthy()
+    expect(screen.queryByRole('button', { name: '결과 보기' })).toBeNull()
+  })
+  it('완료된 줄(결과 보는 법)에는 [코드 보기]가 없다', () => {
+    render(<LineRow line={line({ status: { label: '완료', tone: 'success', actions: ['result_help'] } })} onAction={() => {}} />)
+    expect(screen.getByRole('button', { name: '결과 보는 법' })).toBeTruthy()
+    expect(screen.queryByRole('button', { name: '코드 보기' })).toBeNull()
+  })
   it('본인이 코드를 본 줄은 [실시하기]와 [코드 보기]만 보인다', () => {
     render(<LineRow line={line({ status: { label: '코드 확인함 · 10-23', tone: 'info', actions: ['launch'] } })} onAction={() => {}} />)
     expect(screen.getByText('코드 확인함 · 10-23')).toBeTruthy()
