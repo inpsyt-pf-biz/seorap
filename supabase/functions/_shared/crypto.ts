@@ -14,10 +14,22 @@ function unb64(s: string): Uint8Array {
   for (let i = 0; i < bin.length; i++) out[i] = bin.charCodeAt(i)
   return out
 }
+
+export function decodeKey(name: string, b64: string): Uint8Array {
+  try {
+    const bytes = unb64(b64.trim())
+    if (bytes.length !== 32) throw new Error(`${name} must be base64 of 32 bytes`)
+    return bytes
+  } catch (e) {
+    if (e instanceof Error && e.message.includes('must be base64 of 32 bytes')) throw e
+    throw new Error(`${name} must be base64 of 32 bytes`)
+  }
+}
+
 function envKey(name: string): Uint8Array {
   const v = Deno.env.get(name)
   if (!v) throw new Error(`missing env ${name}`)
-  return unb64(v.trim())
+  return decodeKey(name, v)
 }
 
 function hmacKey(): Promise<CryptoKey> {
@@ -50,9 +62,9 @@ export async function encrypt(key: 'A' | 'B', plain: string): Promise<string> {
 }
 
 export async function decrypt(key: 'A' | 'B', payload: string): Promise<string> {
-  const [v, iv, ct] = payload.split('.')
-  if (v !== 'v1' || !iv || !ct) throw new Error('bad ciphertext')
-  const pt = await crypto.subtle.decrypt({ name: 'AES-GCM', iv: unb64(iv) }, await aesKey(key), unb64(ct))
+  const parts = payload.split('.')
+  if (parts.length !== 3 || parts[0] !== 'v1' || !parts[1] || !parts[2]) throw new Error('bad ciphertext')
+  const pt = await crypto.subtle.decrypt({ name: 'AES-GCM', iv: unb64(parts[1]) }, await aesKey(key), unb64(parts[2]))
   return dec.decode(pt)
 }
 
