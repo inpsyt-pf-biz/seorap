@@ -1,0 +1,13 @@
+{
+  "imports": {
+    "@std/assert": "jsr:@std/assert@1",
+    "@supabase/supabase-js": "npm:@supabase/supabase-js@2"
+  },
+  "tasks": {
+    "test:core": "deno test --allow-env supabase/functions/_shared",
+    "fn:serve": "supabase functions serve api --env-file supabase/functions/.env --no-verify-jwt",
+    "db:reset": "bash -c 'supabase db reset && source scripts/local-env.sh && deno run -A scripts/seed.ts'",
+    "test:api": "bash -c 'source scripts/local-env.sh && deno test -A tests/api'"
+  },
+  "exclude": ["web/"]
+}

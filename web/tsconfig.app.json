@@ -7,6 +7,7 @@
     "types": ["vite/client"],
     "allowArbitraryExtensions": true,
     "skipLibCheck": true,
+    "paths": { "@core/*": ["../supabase/functions/_shared/core/*"] },
 
     /* Bundler mode */
     "moduleResolution": "bundler",

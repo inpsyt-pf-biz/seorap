@@ -8,3 +8,7 @@ supabase/.temp/
 supabase/.branches/
 *.log
 .DS_Store
+
+supabase/functions/.env
+.secrets/
+web/coverage/
