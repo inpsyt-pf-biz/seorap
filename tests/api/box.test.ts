@@ -62,3 +62,13 @@ Deno.test('전달 이력: S8은 전달·취소·전달 3줄, 최신순', async (
   assertEquals(items[0].toName, '유관순')
   assertEquals(items[0].result, 'delivered_alimtalk')
 })
+
+Deno.test('서랍: 준비 중·상담 대기 묶음은 done이 아니다 (S7, S2), 줄이 남은 S5도 아니다', async () => {
+  const s7 = (await (await login('S7', '1357')).call('box')).body.groups[0]
+  assertEquals(s7.lines[0].status.label, '준비 중')
+  assertEquals(s7.done, false)
+  const s2 = (await (await login('S2', '6666')).call('box')).body.groups[0]
+  assertEquals(s2.lines[0].status.actions, ['counsel_form'])
+  assertEquals(s2.done, false)
+  assertEquals((await (await login('S5', '8888')).call('box')).body.groups[0].done, false)
+})

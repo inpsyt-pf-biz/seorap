@@ -13,7 +13,7 @@ export type VoucherRow = {
 
 // 남의 발송권과 없는 발송권을 똑같이 거부한다 (Review Focus 5)
 export async function loadOwnedVoucher(voucherId: unknown, recipientId: string): Promise<VoucherRow> {
-  if (typeof voucherId !== 'string' || !/^[0-9a-f-]{36}$/i.test(voucherId)) throw new ApiError('NOT_OWNER')
+  if (typeof voucherId !== 'string' || !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(voucherId)) throw new ApiError('NOT_OWNER')
   // 조회 오류는 502(must)로 올리고, "행 없음"·"남의 것"만 NOT_OWNER 로 처리한다
   const data = must(
     await db().from('vouchers').select(`${VOUCHER_COLS}, orders!inner(recipient_id)`).eq('id', voucherId).maybeSingle(),

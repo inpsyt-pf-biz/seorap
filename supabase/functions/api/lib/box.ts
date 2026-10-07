@@ -73,12 +73,14 @@ async function myVouchers(recipientId: string, s: Settings) {
   const orderIds = orders.map((o) => o.id)
   if (!orderIds.length) return { orders: [], items: [], vouchers: [] as VoucherRow[] }
   const items = must(
-    await db().from('order_items').select('id, order_id, product_name').in('order_id', orderIds),
+    await db().from('order_items').select('id, order_id, product_name').in('order_id', orderIds)
+      .order('created_at', { ascending: true }).order('id', { ascending: true }),
     'order items read',
   ) as { id: string; order_id: string; product_name: string }[]
   const vouchers = must(
     await db().from('vouchers').select(VOUCHER_COLS).in('order_id', orderIds).neq('issue_status', 'replaced')
-      .order('created_at', { ascending: true }).order('unit_no', { ascending: true }),
+      .order('created_at', { ascending: true }).order('unit_no', { ascending: true })
+      .order('test_item_id', { ascending: true }).order('id', { ascending: true }),
     'vouchers read',
   ) as unknown as VoucherRow[]
   return { orders, items, vouchers }
@@ -92,7 +94,8 @@ export async function buildBox(recipientId: string, s: Settings): Promise<BoxRes
   for (const v of vouchers) unitsOf.set(`${v.order_item_id}|${v.test_item_id}`, (unitsOf.get(`${v.order_item_id}|${v.test_item_id}`) ?? 0) + 1)
 
   const groups: BoxGroup[] = orders.map((o) => {
-    const lines: BoxLine[] = vouchers.filter((v) => v.order_id === o.id).map((v) => {
+    const mine = vouchers.filter((v) => v.order_id === o.id)
+    const lines: BoxLine[] = mine.map((v) => {
       const li = inputs.get(v.id)!
       return {
         voucherId: v.id, testItemId: v.test_item_id, testName: v.test_name, unitNo: v.unit_no,
@@ -101,7 +104,10 @@ export async function buildBox(recipientId: string, s: Settings): Promise<BoxRes
       }
     })
     const productName = items.find((i) => i.order_id === o.id)?.product_name ?? ''
-    const done = lines.every((l) => !l.status.actions.some((a) => a === 'launch' || a === 'forward' || a === 'counsel_form'))
+    // 줄이 없거나, 준비 중(발급 대기·실패)인 줄이 있거나, 아직 할 일(실시·전달·상담 신청·문의)이 남은 줄이 있으면 끝난 묶음이 아니다
+    const done = lines.length > 0
+      && !mine.some((v) => ['pending', 'failed'].includes(inputs.get(v.id)!.input.issueStatus))
+      && !lines.some((l) => l.status.actions.some((a) => a === 'launch' || a === 'forward' || a === 'counsel_form' || a === 'contact'))
     return { orderId: o.id, purchasedAt: o.paid_at, productName, lineCount: lines.length, done, lines }
   })
   return {
