@@ -4,7 +4,7 @@ export const BASE = Deno.env.get('API_BASE') ?? 'http://127.0.0.1:55321/function
 export const tokenFor = (s: string) => ('seed' + s).padEnd(32, '0')
 
 export function adminDb() {
-  return createClient(Deno.env.get('SEED_SUPABASE_URL')!, Deno.env.get('SEED_SERVICE_ROLE_KEY')!, {
+  return createClient(Deno.env.get('SEED_SUPABASE_URL')!, Deno.env.get('SEED_SECRET_KEY')!, {
     db: { schema: 'app' }, auth: { persistSession: false, autoRefreshToken: false },
   })
 }

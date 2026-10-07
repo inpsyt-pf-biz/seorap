@@ -1,5 +1,5 @@
 // 시드 시나리오 (로컬·미리보기 전용). 실행 전 supabase db reset 으로 비운다.
-// 필요 환경변수: SEED_SUPABASE_URL, SEED_SERVICE_ROLE_KEY, SEED_KEYS_FILE(함수 비밀값 .env 경로)
+// 필요 환경변수: SEED_SUPABASE_URL, SEED_SECRET_KEY, SEED_KEYS_FILE(함수 비밀값 .env 경로)
 import { createClient } from '@supabase/supabase-js'
 
 // 대상이 운영 프로젝트면 키 파일과 상관없이 멈춘다 (키 파일의 SEORAP_ENV 만으로는 대상 주소를 막지 못한다)
@@ -18,7 +18,7 @@ if (!isDevEnv()) throw new Error('seed is only allowed when SEORAP_ENV is local 
 const { encrypt, hmac, phoneHash, randomToken } = await import('../supabase/functions/_shared/crypto.ts')
 const { last4, maskName } = await import('../supabase/functions/_shared/core/phone.ts')
 
-const db = createClient(Deno.env.get('SEED_SUPABASE_URL')!, Deno.env.get('SEED_SERVICE_ROLE_KEY')!, {
+const db = createClient(Deno.env.get('SEED_SUPABASE_URL')!, Deno.env.get('SEED_SECRET_KEY')!, {
   db: { schema: 'app' }, auth: { persistSession: false },
 })
 const must = <T>(r: { data: T; error: { message: string } | null }, what: string): NonNullable<T> => {

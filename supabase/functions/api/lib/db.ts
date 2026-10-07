@@ -3,8 +3,11 @@ import { createClient, type SupabaseClient } from '@supabase/supabase-js'
 let client: SupabaseClient | null = null
 export function db(): SupabaseClient {
   if (!client) {
+    // 새 방식 비밀키(sb_secret_…)를 먼저 쓴다. legacy service_role 키는 프로젝트에서 끄기 전까지의 대비값이다
+    const key = Deno.env.get('SEORAP_DB_SECRET_KEY') || Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')
+    if (!key) throw new Error('missing db key')
     // 스키마 'app'은 제네릭에 드러나지 않으므로(Database=any) 기본 SupabaseClient 타입으로 맞춘다
-    client = createClient(Deno.env.get('SUPABASE_URL')!, Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!, {
+    client = createClient(Deno.env.get('SUPABASE_URL')!, key, {
       db: { schema: 'app' },
       auth: { persistSession: false, autoRefreshToken: false },
     }) as unknown as SupabaseClient

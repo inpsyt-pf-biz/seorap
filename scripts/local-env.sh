@@ -4,7 +4,7 @@ while IFS='=' read -r k v; do
   v="${v%$'\r'}"; v="${v%\"}"; v="${v#\"}"
   case "$k" in
     API_URL) export SEED_SUPABASE_URL="$v" ;;
-    SERVICE_ROLE_KEY) export SEED_SERVICE_ROLE_KEY="$v" ;;
+    SECRET_KEY) export SEED_SECRET_KEY="$v" ;;
   esac
 done < <(supabase status -o env 2>/dev/null)
 export SEED_KEYS_FILE="${SEED_KEYS_FILE:-supabase/functions/.env}"
