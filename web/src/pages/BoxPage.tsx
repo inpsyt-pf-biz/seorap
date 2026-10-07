@@ -9,9 +9,22 @@ import ConfirmDialog from '../components/ConfirmDialog'
 import ForwardSheet from '../components/ForwardSheet'
 import LineRow from '../components/LineRow'
 import Wordmark from '../components/Wordmark'
-import { api, ApiError } from '../lib/api'
+import { api, ApiError, isSessionEnd } from '../lib/api'
 import { failText } from '../lib/failText'
 import StatePage from './StatePage'
+
+// 묶음 펼침 기억 (주문 ID → 펼침). 처음 본 묶음만 done 으로 정하고, 그 뒤에 서랍을 다시 불러와도(동작 뒤, 전달 이력 탭에
+// 갔다 온 뒤) 사용자가 보던 상태를 바꾸지 않는다. 화면을 다시 열어도 이어지도록 모듈에 둔다. 주문 ID 만 담는다.
+const expandedMemory = new Map<string, boolean>()
+
+// 펼침 표시(▾). 아이콘 패키지 없이 그린다. 펼치면 MUI 가 뒤집는다.
+function ExpandChevron() {
+  return (
+    <svg width="20" height="20" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+      <path d="M6 9l6 6 6-6" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  )
+}
 
 type Pending =
   | { kind: 'choose'; line: BoxLine; sibling: BoxLine }
@@ -28,6 +41,7 @@ export default function BoxPage() {
   const [message, setMessage] = useState<{ text: string; severity: 'warning' | 'success' } | null>(null)
   const [pending, setPending] = useState<Pending>(null)
   const [sheetLine, setSheetLine] = useState<BoxLine | null>(null)
+  const [expanded, setExpanded] = useState<Record<string, boolean>>(() => Object.fromEntries(expandedMemory))
   // 서버를 부르는 동작이 진행 중인지. state 가 아니라 ref 인 이유: 화면이 다시 그려지기 전에 들어오는 연타도 막아야 한다
   const busyRef = useRef(false)
 
@@ -39,9 +53,17 @@ export default function BoxPage() {
   }, [])
 
   const load = useCallback(async () => {
-    try { setBox(await api<BoxResponse>('box')) }
-    catch (e) { if (e instanceof ApiError && e.status === 401) setExpired(true); else setMessage({ text: t('error.generic'), severity: 'warning' }) }
+    try {
+      const r = await api<BoxResponse>('box')
+      for (const g of r.groups) if (!expandedMemory.has(g.orderId)) expandedMemory.set(g.orderId, !g.done)
+      setExpanded(Object.fromEntries(expandedMemory))
+      setBox(r)
+    } catch (e) { if (isSessionEnd(e)) setExpired(true); else setMessage({ text: t('error.generic'), severity: 'warning' }) }
   }, [])
+  const toggle = (orderId: string, open: boolean) => {
+    expandedMemory.set(orderId, open)
+    setExpanded(Object.fromEntries(expandedMemory))
+  }
   // 화면이 열릴 때 서랍을 불러오는 것은 외부(서버)와의 동기화다
   // oxlint-disable-next-line react/set-state-in-effect
   useEffect(() => { void load() }, [load])
@@ -56,7 +78,7 @@ export default function BoxPage() {
     setMessage(null)
     try { await fn(); ok = true }
     catch (e) {
-      if (e instanceof ApiError && e.status === 401) { setExpired(true); return }
+      if (isSessionEnd(e)) { setExpired(true); return }
       setMessage({ text: failText(e), severity: 'warning' })
       // 409: 그사이 줄의 상태가 바뀌었다(방금 전달됨 등). 낡은 버튼이 남지 않게 다시 불러온다.
       if (e instanceof ApiError && e.code === 'CONFLICT') void load()
@@ -82,7 +104,7 @@ export default function BoxPage() {
     else if (a === 'reforward') setPending({ kind: 'reforward', line })
   }
 
-  const logout = () => guard(async () => { await api('logout', {}); navigate('/', { replace: true }) })
+  const logout = () => guard(async () => { await api('logout', {}); navigate('/', { replace: true, state: { loggedOut: true } }) })
 
   if (expired) return <StatePage kind="sessionExpired" />
   if (!box) return message ? <StatePage kind="error" /> : null
@@ -104,8 +126,8 @@ export default function BoxPage() {
         {message && <Alert severity={message.severity}>{message.text}</Alert>}
         {box.groups.length === 0 && <Typography variant="body1" color="text.secondary">{t('box.empty')}</Typography>}
         {box.groups.map((g) => (
-          <Accordion key={g.orderId} defaultExpanded={!g.done} disableGutters>
-            <AccordionSummary>
+          <Accordion key={g.orderId} expanded={expanded[g.orderId] ?? !g.done} onChange={(_, open) => toggle(g.orderId, open)} disableGutters>
+            <AccordionSummary expandIcon={<ExpandChevron />}>
               <Typography variant="body2" color="text.secondary">
                 {g.lineCount > 1
                   ? t('box.group', { date: formatKstDate(g.purchasedAt), product: g.productName, n: g.lineCount })
@@ -135,7 +157,6 @@ export default function BoxPage() {
         title={t('code.title')}
         message={pending?.kind === 'code' ? `${pending.code}\n${t('code.pcNote')}` : ''}
         confirmLabel={t('common.close')}
-        cancelLabel={t('common.close')}
         onConfirm={() => setPending(null)}
         onCancel={() => setPending(null)}
       />

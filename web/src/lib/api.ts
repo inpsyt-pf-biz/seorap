@@ -16,7 +16,13 @@ export class ApiError extends Error {
 // 전달 만들기는 같은 요청 ID 로 다시 보내도 서버가 이전 결과를 돌려주므로 끊고 재시도해도 중복 전달은 없다.
 const TIMEOUT_MS = 15_000
 
-export async function api<T>(path: string, body?: unknown): Promise<T> {
+// 세션이 끝났는지는 서버가 준 코드로만 판단한다. 게이트웨이 등이 낸 맨 401 은 세션 끝이 아니라 장애로 다룬다.
+export function isSessionEnd(e: unknown): boolean {
+  return e instanceof ApiError && (e.code === 'SESSION_EXPIRED' || e.code === 'REAUTH_REQUIRED')
+}
+
+// init.headers: 요청에 더 붙일 머리글 (예: 개발 전용 발신함 키). POST 의 Content-Type 은 언제나 붙는다.
+export async function api<T>(path: string, body?: unknown, init?: { headers?: Record<string, string> }): Promise<T> {
   let res: Response
   let text: string
   const ctrl = new AbortController()
@@ -24,7 +30,7 @@ export async function api<T>(path: string, body?: unknown): Promise<T> {
   try {
     res = await fetch(`/api/${path}`, {
       method: body === undefined ? 'GET' : 'POST',
-      headers: body === undefined ? undefined : { 'Content-Type': 'application/json' },
+      headers: { ...(body === undefined ? {} : { 'Content-Type': 'application/json' }), ...init?.headers },
       body: body === undefined ? undefined : JSON.stringify(body),
       credentials: 'same-origin',
       signal: ctrl.signal,

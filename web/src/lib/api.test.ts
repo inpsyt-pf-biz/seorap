@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { api, ApiError } from './api'
+import { api, ApiError, isSessionEnd } from './api'
 
 afterEach(() => {
   vi.useRealTimers()
@@ -51,6 +51,22 @@ describe('api', () => {
     expect(e).toBeInstanceOf(ApiError)
     expect(e.code).toBe('UPSTREAM_FAILED')
     expect(e.status).toBe(0)
+  })
+  it('세 번째 인자의 머리글을 붙이고, POST 의 Content-Type 은 그대로 둔다', async () => {
+    const fetchMock = vi.fn(async (_url: string, _init: RequestInit) => new Response(JSON.stringify({ ok: true }), { status: 200 }))
+    vi.stubGlobal('fetch', fetchMock)
+    await api('dev/outbox', undefined, { headers: { 'X-Seorap-Dev-Key': 'k1' } })
+    expect(fetchMock.mock.calls[0][1].headers).toEqual({ 'X-Seorap-Dev-Key': 'k1' })
+    await api('entry', { token: 't' }, { headers: { 'X-Extra': 'e' } })
+    expect(fetchMock.mock.calls[1][1].headers).toEqual({ 'Content-Type': 'application/json', 'X-Extra': 'e' })
+    await api('entry', { token: 't' })
+    expect(fetchMock.mock.calls[2][1].headers).toEqual({ 'Content-Type': 'application/json' })
+  })
+  it('세션 끝은 코드(SESSION_EXPIRED·REAUTH_REQUIRED)로만 판단한다. 맨 401(게이트웨이 등)은 아니다', () => {
+    expect(isSessionEnd(new ApiError('SESSION_EXPIRED', 401))).toBe(true)
+    expect(isSessionEnd(new ApiError('REAUTH_REQUIRED', 401))).toBe(true)
+    expect(isSessionEnd(new ApiError('UPSTREAM_FAILED', 401))).toBe(false)
+    expect(isSessionEnd(new Error('x'))).toBe(false)
   })
   it('응답이 오면 제한 시간 타이머를 치운다', async () => {
     vi.useFakeTimers()

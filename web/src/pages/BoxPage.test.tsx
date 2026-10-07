@@ -1,9 +1,10 @@
 import { act, cleanup, render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import { MemoryRouter } from 'react-router-dom'
+import { Link, MemoryRouter, Route, Routes } from 'react-router-dom'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import type { BoxLine, BoxResponse } from '@core/apiTypes.ts'
 import BoxPage from './BoxPage'
+import Placeholder from './Placeholder'
 
 // vitest 에 globals 가 없어 RTL 의 자동 정리가 꺼져 있다. 테스트마다 직접 비우고, 가짜 fetch·location 도 되돌린다.
 afterEach(() => {
@@ -123,5 +124,124 @@ describe('BoxPage 전달 시트 결과', () => {
     expect(text.closest('[role="alert"]')?.className).toContain('MuiAlert-colorSuccess')
     expect(screen.queryByLabelText('이름 또는 호칭')).toBeNull() // 시트는 닫혔다
     expect(count(calls, 'box')).toBe(2) // 처음 한 번 + 전달 뒤 새로고침
+  })
+})
+
+const GENERIC = '잠시 문제가 생겼어요. 잠시 후 다시 시도해 주세요'
+const EXPIRED = '다시 인증해 주세요. 받은 알림톡의 링크를 다시 눌러 주세요'
+
+describe('BoxPage 세션 끝 판단', () => {
+  it('세션 코드가 아닌 401(게이트웨이 등)은 다시 인증 화면이 아니라 오류 화면', async () => {
+    vi.stubGlobal('fetch', vi.fn(async () => json(401, { msg: 'Invalid JWT' })))
+    open()
+    expect(await screen.findByText(GENERIC)).toBeTruthy()
+    expect(screen.queryByText(EXPIRED)).toBeNull()
+  })
+
+  it('SESSION_EXPIRED 면 다시 인증 화면', async () => {
+    vi.stubGlobal('fetch', vi.fn(async () => json(401, { error: { code: 'SESSION_EXPIRED' } })))
+    open()
+    expect(await screen.findByText(EXPIRED)).toBeTruthy()
+  })
+})
+
+describe('BoxPage 코드 보기', () => {
+  it('코드 창에는 닫기 버튼이 하나뿐이다', async () => {
+    stubApi([launchable], { 'voucher/code': async () => json(200, { code: 'TEST-0001-0001' }) })
+    open()
+    await userEvent.click(await screen.findByRole('button', { name: '코드 보기' }))
+    expect(await screen.findByText(/TEST-0001-0001/)).toBeTruthy()
+    expect(screen.getAllByRole('button', { name: '닫기' })).toHaveLength(1)
+    await userEvent.click(screen.getByRole('button', { name: '닫기' }))
+    await waitFor(() => expect(screen.queryByText(/TEST-0001-0001/)).toBeNull())
+  })
+})
+
+describe('BoxPage 로그아웃', () => {
+  it('로그아웃하면 로그아웃했다는 안내 화면으로 간다', async () => {
+    stubApi([launchable], { logout: async () => json(200, { ok: true }) })
+    render(
+      <MemoryRouter initialEntries={['/box']}>
+        <Routes>
+          <Route path="/" element={<Placeholder />} />
+          <Route path="/box" element={<BoxPage />} />
+        </Routes>
+      </MemoryRouter>,
+    )
+    await userEvent.click(await screen.findByRole('button', { name: '로그아웃' }))
+    expect(await screen.findByText('로그아웃했어요. 받은 알림톡의 링크로 다시 들어올 수 있어요.')).toBeTruthy()
+    expect(screen.queryByText('서비스를 준비하고 있어요.')).toBeNull()
+  })
+
+  it('그냥 첫 화면으로 오면 준비 중 안내 그대로', () => {
+    render(<MemoryRouter initialEntries={['/']}><Placeholder /></MemoryRouter>)
+    expect(screen.getByText('서비스를 준비하고 있어요.')).toBeTruthy()
+  })
+})
+
+// 묶음 펼침: 처음 볼 때만 done 으로 정하고, 서랍을 다시 불러와도(동작 뒤·탭을 오간 뒤) 사용자가 보던 상태를 바꾸지 않는다.
+// 펼침 기억은 화면을 다시 열어도 이어지므로, 시험마다 다른 주문 ID 를 쓴다.
+describe('BoxPage 묶음 펼침', () => {
+  const groupOf = (orderId: string, done: boolean, lines: BoxLine[]): BoxResponse => ({
+    ownerName: '김서랍', notStartedCount: 0, noticeBanner: null,
+    groups: [{ orderId, purchasedAt: '2026-10-01T00:00:00.000Z', productName: 'STS', lineCount: lines.length, done, lines }],
+  })
+  const sent: BoxLine = { ...forwarded, voucherId: 'v1', status: { ...forwarded.status, actions: ['resend', 'reforward'] } }
+  // 첫 조회는 할 일이 남은 묶음, 그 뒤 조회는 방금 전달해 끝난(done) 묶음
+  function stubSequence(orderId: string) {
+    let n = 0
+    vi.stubGlobal('fetch', vi.fn(async (url: string) => {
+      const path = url.replace(/^\/api\//, '')
+      if (path === 'box') return json(200, n++ === 0 ? groupOf(orderId, false, [launchable]) : groupOf(orderId, true, [sent]))
+      if (path === 'forward/create') return json(200, { forwardId: 'f1', created: true })
+      throw new Error(`unexpected call: ${path}`)
+    }))
+  }
+  const summary = () => screen.getByRole('button', { name: /2026-10-01 구매/ })
+  async function forwardFirstLine() {
+    await userEvent.click(await screen.findByRole('button', { name: '전달하기' }))
+    await userEvent.type(screen.getByLabelText('이름 또는 호칭'), '홍길동')
+    await userEvent.type(screen.getByLabelText('휴대폰 번호'), '01012345678')
+    await userEvent.click(screen.getByRole('button', { name: '다음' }))
+    await userEvent.click(screen.getByRole('button', { name: '보내기' }))
+    await screen.findByText('홍길동님께 보냈어요')
+  }
+
+  it('처음 볼 때 끝난 묶음은 접혀 있고, 눌러서 펼 수 있다', async () => {
+    vi.stubGlobal('fetch', vi.fn(async () => json(200, groupOf('o-done', true, [sent]))))
+    open()
+    await screen.findByText('전달함 · 홍길동')
+    expect(summary().getAttribute('aria-expanded')).toBe('false')
+    await userEvent.click(summary())
+    expect(summary().getAttribute('aria-expanded')).toBe('true')
+  })
+
+  it('동작으로 묶음이 끝나도(done) 다시 불러온 뒤 펼친 채로 두고, MUI 경고도 없다', async () => {
+    const errors = vi.spyOn(console, 'error')
+    stubSequence('o-same')
+    open()
+    await screen.findByRole('button', { name: '실시하기' })
+    expect(summary().getAttribute('aria-expanded')).toBe('true')
+    await forwardFirstLine()
+    expect(await screen.findByText('전달함 · 홍길동')).toBeTruthy()
+    expect(summary().getAttribute('aria-expanded')).toBe('true')
+    expect(errors.mock.calls.some((c) => String(c[0]).includes('uncontrolled'))).toBe(false)
+  })
+
+  it('전달 이력 탭에 갔다 돌아와도 방금 동작한 묶음은 펼쳐져 있다', async () => {
+    stubSequence('o-tab')
+    render(
+      <MemoryRouter initialEntries={['/box']}>
+        <Routes>
+          <Route path="/box" element={<BoxPage />} />
+          <Route path="/box/history" element={<Link to="/box">back</Link>} />
+        </Routes>
+      </MemoryRouter>,
+    )
+    await forwardFirstLine()
+    await userEvent.click(screen.getByRole('tab', { name: '전달 이력' }))
+    await userEvent.click(await screen.findByRole('link', { name: 'back' }))
+    expect(await screen.findByText('전달함 · 홍길동')).toBeTruthy()
+    expect(summary().getAttribute('aria-expanded')).toBe('true')
   })
 })

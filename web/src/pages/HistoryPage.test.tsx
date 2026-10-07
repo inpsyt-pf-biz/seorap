@@ -79,6 +79,12 @@ describe('HistoryPage', () => {
     expect(await screen.findByText('다시 인증해 주세요. 받은 알림톡의 링크를 다시 눌러 주세요')).toBeTruthy()
   })
 
+  it('세션 코드가 아닌 401(게이트웨이 등)은 다시 인증 대신 오류 안내를 보인다', async () => {
+    open({ msg: 'Invalid JWT' }, 401)
+    expect(await screen.findByText(GENERIC)).toBeTruthy()
+    expect(screen.queryByText('다시 인증해 주세요. 받은 알림톡의 링크를 다시 눌러 주세요')).toBeNull()
+  })
+
   it('불러오기가 실패하면 "이력 없음" 대신 오류 안내를 보인다', async () => {
     open({ error: { code: 'UPSTREAM_FAILED' } }, 502)
     expect(await screen.findByText(GENERIC)).toBeTruthy()

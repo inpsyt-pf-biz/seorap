@@ -5,7 +5,7 @@ import type { HistoryItem, HistoryResponse } from '@core/apiTypes.ts'
 import { type CopyKey, t } from '@core/copy.ko.ts'
 import { formatKstDateTime } from '@core/time.ts'
 import Wordmark from '../components/Wordmark'
-import { api, ApiError } from '../lib/api'
+import { api, isSessionEnd } from '../lib/api'
 import StatePage from './StatePage'
 
 function lineText(i: HistoryItem): string {
@@ -24,7 +24,7 @@ export default function HistoryPage() {
 
   useEffect(() => {
     api<HistoryResponse>('history').then((r) => setItems(r.items)).catch((e) => {
-      if (e instanceof ApiError && e.status === 401) setExpired(true)
+      if (isSessionEnd(e)) setExpired(true)
       else setFailed(true)
     })
   }, [])

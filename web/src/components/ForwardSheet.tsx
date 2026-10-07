@@ -4,7 +4,7 @@ import type { BoxLine, DirectShareResponse, ForwardResponse } from '@core/apiTyp
 import { t } from '@core/copy.ko.ts'
 import { formatPhoneInput, normalizePhone } from '@core/phone.ts'
 import { isNightKst } from '@core/time.ts'
-import { api, ApiError } from '../lib/api'
+import { api, ApiError, isSessionEnd } from '../lib/api'
 import { failText } from '../lib/failText'
 
 type Step = 'input' | 'confirm' | 'self' | 'shared'
@@ -59,7 +59,7 @@ export default function ForwardSheet({ line, onClose, onDone, onExpired }: {
       setInfo(sent)
       await onDone(sent)
     } catch (e) {
-      if (e instanceof ApiError && e.status === 401) { onExpired(); return }
+      if (isSessionEnd(e)) { onExpired(); return }
       if (e instanceof ApiError && e.extra.reason === 'self_number') { setStep('self'); return }
       // 그사이 줄 상태가 바뀌었다. 막다른 화면 대신 시트를 닫고 서랍을 새로 불러 진짜 상태를 보인다.
       if (e instanceof ApiError && e.code === 'CONFLICT') { await onDone(); return }
@@ -82,7 +82,7 @@ export default function ForwardSheet({ line, onClose, onDone, onExpired }: {
       // 복사가 막힌 환경이면 문구를 그대로 보여 직접 길게 눌러 복사하게 한다. 링크는 다시 만들 수 없어 화면에서 바로 닫지 않는다.
       setShared({ copied, text: r.text }); setStep('shared')
     } catch (e) {
-      if (e instanceof ApiError && e.status === 401) { onExpired(); return }
+      if (isSessionEnd(e)) { onExpired(); return }
       if (e instanceof ApiError && e.code === 'CONFLICT' && e.extra.reason !== 'self_number') { await onDone(); return }
       setError(failText(e))
     } finally { busyRef.current = false; setBusy(false) }

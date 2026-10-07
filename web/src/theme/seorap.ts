@@ -53,6 +53,10 @@ export const theme = createTheme({
   },
   shape: { borderRadius: 12 },
   components: {
+    // 한글은 낱말 중간에서 줄을 바꾸지 않는다(keep-all). 띄어쓰기 없는 긴 주소·토큰은 넘치지 않게 아무 곳에서나 끊는다.
+    MuiCssBaseline: {
+      styleOverrides: { body: { wordBreak: 'keep-all', overflowWrap: 'anywhere' } },
+    },
     MuiButton: {
       defaultProps: { disableElevation: true },
       styleOverrides: { root: { minHeight: 44 } },

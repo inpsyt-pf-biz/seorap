@@ -50,6 +50,27 @@ describe('ForwardSheet', () => {
     expect(screen.getByText('010-1234-5678')).toBeTruthy()
   })
 
+  // 아이폰 연락처 등에서 복사하면 '+82 10-…' 꼴이 흔하다 (Review Focus 4). 입력 칸이 번호를 망가뜨리면 안 된다.
+  it('+82 10-1234-5678 을 붙여넣어도 확인 화면까지 간다', async () => {
+    render(<ForwardSheet line={line} onClose={noop} onDone={noop} onExpired={noop} />)
+    await userEvent.type(screen.getByLabelText('이름 또는 호칭'), '홍길동')
+    await userEvent.click(screen.getByLabelText('휴대폰 번호'))
+    await userEvent.paste('+82 10-1234-5678')
+    expect((screen.getByLabelText('휴대폰 번호') as HTMLInputElement).value).toBe('010-1234-5678')
+    await userEvent.click(screen.getByRole('button', { name: '다음' }))
+    expect(screen.getByText('이 번호가 맞나요?')).toBeTruthy()
+    expect(screen.getByText('010-1234-5678')).toBeTruthy()
+  })
+
+  it('+82 10-1234-5678 을 한 글자씩 쳐도 확인 화면까지 간다', async () => {
+    render(<ForwardSheet line={line} onClose={noop} onDone={noop} onExpired={noop} />)
+    await userEvent.type(screen.getByLabelText('이름 또는 호칭'), '홍길동')
+    await userEvent.type(screen.getByLabelText('휴대폰 번호'), '+82 10-1234-5678')
+    await userEvent.click(screen.getByRole('button', { name: '다음' }))
+    expect(screen.getByText('이 번호가 맞나요?')).toBeTruthy()
+    expect(screen.getByText('010-1234-5678')).toBeTruthy()
+  })
+
   it('보내기를 두 번 눌러도 같은 요청 ID로 간다', async () => {
     const bodies: string[] = []
     vi.stubGlobal('fetch', vi.fn(async (_url: string, init: RequestInit) => {
@@ -137,6 +158,16 @@ describe('ForwardSheet', () => {
     await fillAndConfirm()
     await userEvent.click(screen.getByRole('button', { name: '보내기' }))
     await waitFor(() => expect(onExpired).toHaveBeenCalledTimes(1))
+  })
+
+  it('세션 코드가 아닌 401(게이트웨이 등)은 다시 인증으로 보내지 않고 일반 안내를 보인다', async () => {
+    vi.stubGlobal('fetch', vi.fn(async () => json(401, { msg: 'Invalid JWT' })))
+    const onExpired = vi.fn()
+    render(<ForwardSheet line={line} onClose={noop} onDone={noop} onExpired={onExpired} />)
+    await fillAndConfirm()
+    await userEvent.click(screen.getByRole('button', { name: '보내기' }))
+    expect(await screen.findByText(GENERIC)).toBeTruthy()
+    expect(onExpired).not.toHaveBeenCalled()
   })
 
   it('직접 공유는 처리 중에 또 눌러도 서버 호출은 한 번이다', async () => {
