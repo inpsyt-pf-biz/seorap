@@ -245,3 +245,24 @@ describe('BoxPage 묶음 펼침', () => {
     expect(summary().getAttribute('aria-expanded')).toBe('true')
   })
 })
+
+describe('BoxPage 다른 분께 확인 문구', () => {
+  it('링크로 전달한 줄은 받는 분 이름 없이 묻는다', async () => {
+    const direct: BoxLine = {
+      ...launchable, voucherId: 'v3', forwardTo: null,
+      status: { label: '링크로 전달함', tone: 'info', actions: ['reforward'] },
+    }
+    stubApi([direct], {})
+    open()
+    await userEvent.click(await screen.findByRole('button', { name: '다른 분께' }))
+    expect(await screen.findByText('복사해 둔 링크는 더 이상 열리지 않아요. 다른 분께 보낼까요?')).toBeTruthy()
+    expect(screen.queryByText(/^님께/)).toBeNull()
+  })
+
+  it('이름·번호로 보낸 줄은 받는 분 이름을 넣어 묻는다', async () => {
+    stubApi([forwarded], {})
+    open()
+    await userEvent.click(await screen.findByRole('button', { name: '다른 분께' }))
+    expect(await screen.findByText('홍길동님께 보낸 링크는 더 이상 열리지 않아요. 다른 분께 보낼까요?')).toBeTruthy()
+  })
+})

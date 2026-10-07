@@ -179,7 +179,7 @@ export default function BoxPage() {
       />
       <ConfirmDialog
         open={pending?.kind === 'reforward'}
-        message={pending?.kind === 'reforward' ? t('forward.reforward.confirm', { name: pending.line.forwardTo?.name ?? '' }) : ''}
+        message={pending?.kind === 'reforward' ? (pending.line.forwardTo ? t('forward.reforward.confirm', { name: pending.line.forwardTo.name }) : t('forward.reforward.confirmDirect')) : ''}
         confirmLabel={t('common.confirm')}
         cancelLabel={t('common.cancel')}
         onConfirm={() => {

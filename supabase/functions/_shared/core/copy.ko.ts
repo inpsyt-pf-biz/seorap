@@ -77,6 +77,7 @@ export const copy = {
   'forward.sent': '{name}님께 보냈어요',
   'forward.resend.confirm': '{name}님께 다시 보낼까요?',
   'forward.reforward.confirm': '{name}님께 보낸 링크는 더 이상 열리지 않아요. 다른 분께 보낼까요?',
+  'forward.reforward.confirmDirect': '복사해 둔 링크는 더 이상 열리지 않아요. 다른 분께 보낼까요?',
   'forward.exposed': '받는 분이 이미 코드를 확인해서 바꿀 수 없어요. 문의해 주세요',
   'forward.invalidName': '이름 또는 호칭을 1~20자로 입력해 주세요',
   'forward.invalidPhone': '휴대폰 번호를 확인해 주세요 (예: 010-1234-5678)',
