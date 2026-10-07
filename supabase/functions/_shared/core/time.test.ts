@@ -20,3 +20,13 @@ Deno.test('하루 시작과 다음 자정', () => {
   assertEquals(kstDayStart(d).toISOString(), '2026-10-21T15:00:00.000Z')
   assertEquals(nextKstMidnight(d).toISOString(), '2026-10-22T15:00:00.000Z')
 })
+
+Deno.test('하루 경계: UTC와 서울 날짜가 다른 경우', () => {
+  const d1 = new Date('2026-10-22T15:30:00Z') // 서울 10-23 00:30
+  assertEquals(kstDayStart(d1).toISOString(), '2026-10-22T15:00:00.000Z')
+  assertEquals(nextKstMidnight(d1).toISOString(), '2026-10-23T15:00:00.000Z')
+
+  const d2 = new Date('2026-10-22T15:00:00Z') // 정확히 서울 자정
+  assertEquals(kstDayStart(d2).toISOString(), '2026-10-22T15:00:00.000Z')
+  assertEquals(nextKstMidnight(d2).toISOString(), '2026-10-23T15:00:00.000Z')
+})

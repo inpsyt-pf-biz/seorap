@@ -8,6 +8,8 @@ Deno.test('normalizePhone: 여러 입력 형식', () => {
   assertEquals(normalizePhone('+82 10-1234-5678'), '01012345678')
   assertEquals(normalizePhone('+821012345678'), '01012345678')
   assertEquals(normalizePhone('011-123-4567'), '0111234567')
+  assertEquals(normalizePhone('+82 010-1234-5678'), '01012345678')
+  assertEquals(normalizePhone('0082 10 1234 5678'), '01012345678')
 })
 
 Deno.test('normalizePhone: 휴대폰이 아니면 null', () => {
@@ -16,6 +18,7 @@ Deno.test('normalizePhone: 휴대폰이 아니면 null', () => {
   assertEquals(normalizePhone(''), null)
   assertEquals(normalizePhone('abc'), null)
   assertEquals(normalizePhone('010-1234-56789'), null)
+  assertEquals(normalizePhone('0101234567'), null)
 })
 
 Deno.test('formatPhone·maskPhone·last4', () => {

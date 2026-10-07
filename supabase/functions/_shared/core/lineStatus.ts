@@ -28,6 +28,7 @@ function core(i: LineInput): LineStatus {
   if (i.lockReasons.length > 0) return { label: t('line.checking'), tone: 'warning', actions: ['contact'] }
   if (i.examStatusEnabled && i.examStatus === 'completed') return { label: t('line.completed'), tone: 'success', actions: ['result_help'] }
   if (i.examStatusEnabled && i.examStatus === 'in_progress') return { label: t('line.inProgress'), tone: 'info', actions: ['continue'] }
+  if (i.examStatusEnabled && i.examStatus === 'unused' && !i.forward) return { label: t('line.unused'), tone: 'neutral', actions: ['launch', 'forward'] }
   if (i.firstLaunchedAt) return { label: t('line.launched', { date: formatKstMonthDay(i.firstLaunchedAt) }), tone: 'info', actions: ['continue'] }
   if (i.forward) {
     return {
@@ -37,7 +38,6 @@ function core(i: LineInput): LineStatus {
       note: i.forward.openedAt ? t('line.forwardOpened') : t('line.forwardNotOpened'),
     }
   }
-  if (i.examStatusEnabled && i.examStatus === 'unused') return { label: t('line.unused'), tone: 'neutral', actions: ['launch', 'forward'] }
   return { label: t('line.notStarted'), tone: 'neutral', actions: ['launch', 'forward'] }
 }
 

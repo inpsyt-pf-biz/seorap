@@ -27,6 +27,10 @@ Deno.test('7~9 응시상태는 꺼져 있으면 무시', () => {
   assertEquals(s({ examStatus: 'completed', examStatusEnabled: true }).label, '완료')
   assertEquals(s({ examStatus: 'in_progress', examStatusEnabled: true }).actions, ['continue'])
 })
+Deno.test('미사용은 firstLaunchedAt 앞에 와야 하고 forward가 없을 때만', () => {
+  assertEquals(s({ examStatus: 'unused', examStatusEnabled: true, firstLaunchedAt: '2026-10-22T15:30:00Z' }), { label: '미사용', tone: 'neutral', actions: ['launch', 'forward'] })
+  assertEquals(s({ examStatus: 'unused', examStatusEnabled: true, forward: { displayName: '홍길동', openedAt: null, codeExposed: false } }).label, '전달함 · 홍길동')
+})
 Deno.test('10 실시함', () => assertEquals(s({ firstLaunchedAt: '2026-10-22T15:30:00Z' }), { label: '실시함 (10-23)', tone: 'info', actions: ['continue'] }))
 Deno.test('11 전달함, 코드 노출 전에는 다른 분께 가능', () => {
   const r = s({ forward: { displayName: '홍길동', openedAt: null, codeExposed: false } })

@@ -1,8 +1,12 @@
 // 번호는 이 파일의 함수로만 다룬다 (수집·전달·OTP·번호 변경 공용)
 export function normalizePhone(input: string): string | null {
   let d = input.replace(/\D/g, '')
-  if (d.startsWith('82')) d = '0' + d.slice(2)
-  if (!/^01[016789]\d{7,8}$/.test(d)) return null
+  if (d.startsWith('0082')) d = d.slice(2)
+  if (d.startsWith('82')) {
+    const rest = d.slice(2)
+    d = rest.startsWith('0') ? rest : '0' + rest
+  }
+  if (!/^(010\d{8}|01[16789]\d{7,8})$/.test(d)) return null
   return d
 }
 

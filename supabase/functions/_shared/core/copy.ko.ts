@@ -2,7 +2,7 @@
 export const copy = {
   'otp.sms': '[인싸이트] 서랍 인증번호 {code} (3분 안에 입력해 주세요)',
   'entry.title': '{name}님의 서랍이에요',
-  'entry.send': '{phone}로 인증번호를 보낼게요',
+  'entry.send': '{phone} 번호로 인증번호를 보낼게요',
   'entry.button': '인증번호 받기',
   'entry.notice': '[자리] 서랍 이용을 위해 개인정보를 처리해요. 자세한 내용은 개인정보 처리방침에서 볼 수 있어요',
   'otp.title': '인증번호를 입력해 주세요',

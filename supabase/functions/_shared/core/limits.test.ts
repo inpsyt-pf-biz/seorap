@@ -17,6 +17,14 @@ Deno.test('10분 지나면 통과', () => {
   assertEquals(checkForwardLimits({ ...base, lastSameNumberAt: new Date('2026-10-22T04:49:00Z') }), { ok: true })
 })
 Deno.test('서랍당 하루 max(20, 미사용 매수)', () => {
-  assertEquals(checkForwardLimits({ ...base, boxToday: 20 }).ok, false)
+  assertEquals(checkForwardLimits({ ...base, boxToday: 20 }), { ok: false, reason: 'per_box_day', retryAt: new Date('2026-10-22T15:00:00Z') })
   assertEquals(checkForwardLimits({ ...base, boxToday: 20, unusedCount: 25 }).ok, true)
+})
+Deno.test('여러 한도 동시 위반: 가장 늦은 retryAt 선택', () => {
+  const now2 = new Date('2026-10-22T15:30:00Z') // 서울 00:30
+  const r = checkForwardLimits({ now: now2, voucherToday: 0, boxToday: 20, lastSameNumberAt: new Date('2026-10-22T15:25:00Z'), unusedCount: 3, settings })
+  assertEquals(r, { ok: false, reason: 'per_box_day', retryAt: new Date('2026-10-23T15:00:00Z') })
+})
+Deno.test('정확히 10분 경과하면 통과', () => {
+  assertEquals(checkForwardLimits({ ...base, lastSameNumberAt: new Date('2026-10-22T04:50:00Z') }), { ok: true })
 })
