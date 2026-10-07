@@ -65,6 +65,19 @@ describe('ForwardSheet', () => {
     expect(new Set(ids).size).toBe(1)
   })
 
+  it('요청 ID 를 만들다 던져도(보안 연결이 아닌 환경) 오류를 보이고 잠금이 풀려 다시 보낼 수 있다', async () => {
+    const fetchMock = vi.fn(async () => json(200, { forwardId: 'f1', created: true }))
+    vi.stubGlobal('fetch', fetchMock)
+    vi.spyOn(crypto, 'randomUUID').mockImplementationOnce(() => { throw new Error('insecure context') })
+    render(<ForwardSheet line={line} onClose={noop} onDone={noop} onExpired={noop} />)
+    await fillAndConfirm()
+    await userEvent.click(screen.getByRole('button', { name: '보내기' }))
+    expect(await screen.findByText(GENERIC)).toBeTruthy()
+    expect(fetchMock).not.toHaveBeenCalled()
+    await userEvent.click(screen.getByRole('button', { name: '보내기' }))
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(1))
+  })
+
   it('보내기를 처리 중에 또 눌러도 서버 호출은 한 번이다', async () => {
     const fetchMock = vi.fn(() => new Promise<Response>(() => {}))
     vi.stubGlobal('fetch', fetchMock)

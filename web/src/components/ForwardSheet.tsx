@@ -50,9 +50,10 @@ export default function ForwardSheet({ line, onClose, onDone, onExpired }: {
     if (busyRef.current) return
     busyRef.current = true
     setBusy(true); setError(null)
-    const key = `${openSeq}|${line.voucherId}|${name.trim()}|${normalizePhone(phone)}`
-    if (attemptRef.current?.key !== key) attemptRef.current = { key, id: crypto.randomUUID() }
     try {
+      // 요청 ID 를 만드는 일이 던져도(보안 연결이 아닌 환경 등) 잠금이 남지 않도록 try 안에서 계산한다
+      const key = `${openSeq}|${line.voucherId}|${name.trim()}|${normalizePhone(phone)}`
+      if (attemptRef.current?.key !== key) attemptRef.current = { key, id: crypto.randomUUID() }
       await api<ForwardResponse>('forward/create', { voucherId: line.voucherId, name: name.trim(), phone, clientRequestId: attemptRef.current.id, confirmSelf })
       const sent = t('forward.sent', { name: name.trim() })
       setInfo(sent)

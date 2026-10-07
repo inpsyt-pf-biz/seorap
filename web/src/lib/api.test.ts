@@ -2,6 +2,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import { api, ApiError } from './api'
 
 afterEach(() => {
+  vi.useRealTimers()
   vi.restoreAllMocks()
   vi.unstubAllGlobals()
 })
@@ -34,5 +35,27 @@ describe('api', () => {
     expect(e).toBeInstanceOf(ApiError)
     expect(e.code).toBe('UPSTREAM_FAILED')
     expect(e.status).toBe(500)
+  })
+  it('15초 안에 응답이 없으면 요청을 끊고 status 0 인 UPSTREAM_FAILED', async () => {
+    vi.useFakeTimers()
+    // 끝내 응답하지 않지만 중단 신호는 지키는 fetch
+    vi.stubGlobal('fetch', vi.fn((_url: string, init: RequestInit) => new Promise<Response>((_resolve, reject) => {
+      init.signal?.addEventListener('abort', () => reject(new DOMException('aborted', 'AbortError')))
+    })))
+    let settled = false
+    const result = api('box').catch((x) => x).finally(() => { settled = true })
+    await vi.advanceTimersByTimeAsync(14_999)
+    expect(settled).toBe(false)
+    await vi.advanceTimersByTimeAsync(1)
+    const e = (await result) as ApiError
+    expect(e).toBeInstanceOf(ApiError)
+    expect(e.code).toBe('UPSTREAM_FAILED')
+    expect(e.status).toBe(0)
+  })
+  it('응답이 오면 제한 시간 타이머를 치운다', async () => {
+    vi.useFakeTimers()
+    vi.stubGlobal('fetch', vi.fn(async () => new Response(JSON.stringify({ ok: true }), { status: 200 })))
+    await api('box')
+    expect(vi.getTimerCount()).toBe(0)
   })
 })
