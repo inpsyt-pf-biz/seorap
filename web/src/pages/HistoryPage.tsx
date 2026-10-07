@@ -6,6 +6,7 @@ import { type CopyKey, t } from '@core/copy.ko.ts'
 import { formatKstDateTime } from '@core/time.ts'
 import Wordmark from '../components/Wordmark'
 import { api, isSessionEnd } from '../lib/api'
+import { tokens } from '../theme/seorap'
 import StatePage from './StatePage'
 
 function lineText(i: HistoryItem): string {
@@ -31,7 +32,7 @@ export default function HistoryPage() {
 
   if (expired) return <StatePage kind="sessionExpired" />
   return (
-    <Box component="main" sx={{ maxWidth: 480, mx: 'auto', px: 2, py: 3 }}>
+    <Box component="main" sx={{ maxWidth: tokens.layout.maxWidth, mx: 'auto', px: 2, py: 3 }}>
       <Stack spacing={2}>
         <Wordmark />
         <Tabs value={1} onChange={(_, v) => v === 0 && navigate('/box')}>

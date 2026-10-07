@@ -2,6 +2,7 @@ import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-libra
 import userEvent from '@testing-library/user-event'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import type { BoxLine } from '@core/apiTypes.ts'
+import { tokens } from '../theme/seorap'
 import ForwardSheet from './ForwardSheet'
 
 const line: BoxLine = {
@@ -29,6 +30,18 @@ async function fillAndConfirm() {
 }
 
 describe('ForwardSheet', () => {
+  // 시트가 브라우저 전체 폭으로 퍼지지 않고, 주 컬럼 폭 안에서 가운데에 놓인다 (폰에서는 꽉 찬다)
+  it('시트 바깥 틀은 주 컬럼 폭을 넘지 않고 가운데에 놓이며 윗모서리가 둥글다', () => {
+    render(<ForwardSheet line={line} onClose={noop} onDone={noop} onExpired={noop} />)
+    const paper = document.querySelector('.MuiDrawer-paper') as HTMLElement
+    const css = getComputedStyle(paper)
+    expect(css.maxWidth).toBe(`${tokens.layout.maxWidth}px`)
+    expect(css.width).toBe('100%')
+    expect([css.marginLeft, css.marginRight]).toEqual(['auto', 'auto'])
+    expect([css.left, css.right]).toEqual(['0px', '0px'])
+    expect([css.borderTopLeftRadius, css.borderTopRightRadius]).toEqual(['16px', '16px'])
+  })
+
   it('잘못된 번호면 다음으로 넘어가지 않고 서버를 부르지 않는다', async () => {
     const fetchMock = vi.fn()
     vi.stubGlobal('fetch', fetchMock)

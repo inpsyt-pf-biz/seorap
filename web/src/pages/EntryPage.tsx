@@ -7,6 +7,7 @@ import { formatKstDateTime } from '@core/time.ts'
 import Wordmark from '../components/Wordmark'
 import { api, ApiError } from '../lib/api'
 import { useCountdown } from '../lib/useCountdown'
+import { tokens } from '../theme/seorap'
 import StatePage, { type StateKind } from './StatePage'
 
 const TOKEN_RE = /^[A-Za-z0-9]{32}$/
@@ -63,7 +64,7 @@ export default function EntryPage() {
   }
 
   return (
-    <Box component="main" sx={{ maxWidth: 480, mx: 'auto', px: 2, py: 4 }}>
+    <Box component="main" sx={{ maxWidth: tokens.layout.maxWidth, mx: 'auto', px: 2, py: 4 }}>
       <Stack spacing={3}>
         <Wordmark />
         {entry.noticeBanner && <Alert severity="info">{entry.noticeBanner}</Alert>}

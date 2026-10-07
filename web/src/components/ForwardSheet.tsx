@@ -6,6 +6,7 @@ import { formatPhoneInput, normalizePhone } from '@core/phone.ts'
 import { isNightKst } from '@core/time.ts'
 import { api, ApiError, isSessionEnd } from '../lib/api'
 import { failText } from '../lib/failText'
+import { tokens } from '../theme/seorap'
 
 type Step = 'input' | 'confirm' | 'self' | 'shared'
 type Field = 'name' | 'phone'
@@ -19,7 +20,6 @@ export default function ForwardSheet({ line, onClose, onDone, onExpired }: {
   const [phone, setPhone] = useState('')
   const [error, setError] = useState<string | null>(null)
   const [fieldError, setFieldError] = useState<Field | null>(null)
-  const [info, setInfo] = useState<string | null>(null)
   const [shared, setShared] = useState<{ copied: boolean; text: string } | null>(null)
   const [busy, setBusy] = useState(false)
   // 시트를 새로 열 때마다 하나씩 올라가는 번호. 요청 ID 를 "이번에 연 시트"에 묶는 데 쓴다.
@@ -33,7 +33,7 @@ export default function ForwardSheet({ line, onClose, onDone, onExpired }: {
   // 시트가 새 줄로 열리면 입력과 요청 ID 를 처음 상태로 되돌린다. 렌더 중에 맞춰야 이전 입력이 한 프레임도 비치지 않는다.
   if (prevLine !== line) {
     setPrevLine(line)
-    setStep('input'); setName(''); setPhone(''); setError(null); setFieldError(null); setInfo(null); setShared(null)
+    setStep('input'); setName(''); setPhone(''); setError(null); setFieldError(null); setShared(null)
     setOpenSeq((n) => n + 1)
   }
   if (!line) return null
@@ -55,9 +55,8 @@ export default function ForwardSheet({ line, onClose, onDone, onExpired }: {
       const key = `${openSeq}|${line.voucherId}|${name.trim()}|${normalizePhone(phone)}`
       if (attemptRef.current?.key !== key) attemptRef.current = { key, id: crypto.randomUUID() }
       await api<ForwardResponse>('forward/create', { voucherId: line.voucherId, name: name.trim(), phone, clientRequestId: attemptRef.current.id, confirmSelf })
-      const sent = t('forward.sent', { name: name.trim() })
-      setInfo(sent)
-      await onDone(sent)
+      // 성공 안내는 시트가 아니라 서랍이 토스트로 보인다 (시트는 바로 닫힌다)
+      await onDone(t('forward.sent', { name: name.trim() }))
     } catch (e) {
       if (isSessionEnd(e)) { onExpired(); return }
       if (e instanceof ApiError && e.extra.reason === 'self_number') { setStep('self'); return }
@@ -94,8 +93,12 @@ export default function ForwardSheet({ line, onClose, onDone, onExpired }: {
   const dismissIfIdle = () => { if (!busyRef.current) dismiss() }
 
   return (
-    <Drawer anchor="bottom" open onClose={dismissIfIdle} slotProps={{ paper: { sx: { borderTopLeftRadius: 16, borderTopRightRadius: 16 } } }}>
-      <Box sx={{ maxWidth: 480, mx: 'auto', width: '100%', px: 2, py: 3 }}>
+    // 시트는 브라우저 전체 폭이 아니라 주 컬럼 폭 안에서 가운데에 놓인다 (폰에서는 꽉 찬다)
+    <Drawer
+      anchor="bottom" open onClose={dismissIfIdle}
+      slotProps={{ paper: { sx: { width: '100%', maxWidth: tokens.layout.maxWidth, left: 0, right: 0, mx: 'auto', borderTopLeftRadius: 16, borderTopRightRadius: 16 } } }}
+    >
+      <Box sx={{ px: 2, py: 3 }}>
         <Stack spacing={2}>
           <Typography variant="h6">{t('forward.title', { test: line.testName })}</Typography>
           {step === 'input' && (
@@ -132,7 +135,7 @@ export default function ForwardSheet({ line, onClose, onDone, onExpired }: {
               <Typography variant="h5">{name.trim()}</Typography>
               <Typography variant="h5">{phone}</Typography>
               <Stack direction="row" spacing={1}>
-                <Button fullWidth variant="outlined" onClick={() => { setError(null); setInfo(null); setStep('input') }}>{t('forward.edit')}</Button>
+                <Button fullWidth variant="outlined" onClick={() => { setError(null); setStep('input') }}>{t('forward.edit')}</Button>
                 <Button fullWidth variant="contained" disabled={busy} onClick={() => send(false)}>{t('forward.send')}</Button>
               </Stack>
             </>
@@ -155,7 +158,6 @@ export default function ForwardSheet({ line, onClose, onDone, onExpired }: {
             </>
           )}
           {error && <Alert severity="warning">{error}</Alert>}
-          {info && <Alert severity="success">{info}</Alert>}
         </Stack>
       </Box>
     </Drawer>

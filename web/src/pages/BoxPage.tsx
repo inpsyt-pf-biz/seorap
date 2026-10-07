@@ -8,9 +8,11 @@ import { formatKstDate } from '@core/time.ts'
 import ConfirmDialog from '../components/ConfirmDialog'
 import ForwardSheet from '../components/ForwardSheet'
 import LineRow from '../components/LineRow'
+import Toast from '../components/Toast'
 import Wordmark from '../components/Wordmark'
 import { api, ApiError, isSessionEnd } from '../lib/api'
 import { failText } from '../lib/failText'
+import { tokens } from '../theme/seorap'
 import StatePage from './StatePage'
 
 // 묶음 펼침 기억 (주문 ID → 펼침). 처음 본 묶음만 done 으로 정하고, 그 뒤에 서랍을 다시 불러와도(동작 뒤, 전달 이력 탭에
@@ -37,8 +39,10 @@ export default function BoxPage() {
   const navigate = useNavigate()
   const [box, setBox] = useState<BoxResponse | null>(null)
   const [expired, setExpired] = useState(false)
-  // 오류는 warning, 다시 보내기 성공은 success
-  const [message, setMessage] = useState<{ text: string; severity: 'warning' | 'success' } | null>(null)
+  // 오류는 화면 위 경고 창, 성공(전달·다시 보내기)은 아래 토스트. 새 토스트는 id 가 바뀌어 처음부터 3초를 센다.
+  const [error, setError] = useState<string | null>(null)
+  const [toast, setToast] = useState<{ id: number; text: string; open: boolean } | null>(null)
+  const toastSeq = useRef(0)
   const [pending, setPending] = useState<Pending>(null)
   const [sheetLine, setSheetLine] = useState<BoxLine | null>(null)
   const [expanded, setExpanded] = useState<Record<string, boolean>>(() => Object.fromEntries(expandedMemory))
@@ -52,13 +56,15 @@ export default function BoxPage() {
     return () => window.removeEventListener('pageshow', onShow)
   }, [])
 
+  const showToast = (text: string) => setToast({ id: ++toastSeq.current, text, open: true })
+
   const load = useCallback(async () => {
     try {
       const r = await api<BoxResponse>('box')
       for (const g of r.groups) if (!expandedMemory.has(g.orderId)) expandedMemory.set(g.orderId, !g.done)
       setExpanded(Object.fromEntries(expandedMemory))
       setBox(r)
-    } catch (e) { if (isSessionEnd(e)) setExpired(true); else setMessage({ text: t('error.generic'), severity: 'warning' }) }
+    } catch (e) { if (isSessionEnd(e)) setExpired(true); else setError(t('error.generic')) }
   }, [])
   const toggle = (orderId: string, open: boolean) => {
     expandedMemory.set(orderId, open)
@@ -75,11 +81,11 @@ export default function BoxPage() {
     if (busyRef.current) return
     busyRef.current = true
     let ok = false
-    setMessage(null)
+    setError(null)
     try { await fn(); ok = true }
     catch (e) {
       if (isSessionEnd(e)) { setExpired(true); return }
-      setMessage({ text: failText(e), severity: 'warning' })
+      setError(failText(e))
       // 409: 그사이 줄의 상태가 바뀌었다(방금 전달됨 등). 낡은 버튼이 남지 않게 다시 불러온다.
       if (e instanceof ApiError && e.code === 'CONFLICT') void load()
     } finally {
@@ -110,10 +116,10 @@ export default function BoxPage() {
   const logout = () => guard(async () => { await api('logout', {}); navigate('/', { replace: true, state: { loggedOut: true } }) })
 
   if (expired) return <StatePage kind="sessionExpired" />
-  if (!box) return message ? <StatePage kind="error" /> : null
+  if (!box) return error ? <StatePage kind="error" /> : null
 
   return (
-    <Box component="main" sx={{ maxWidth: 480, mx: 'auto', px: 2, py: 3 }}>
+    <Box component="main" sx={{ maxWidth: tokens.layout.maxWidth, mx: 'auto', px: 2, py: 3 }}>
       <Stack spacing={2}>
         <Stack direction="row" sx={{ justifyContent: 'space-between', alignItems: 'center' }}>
           <Wordmark />
@@ -126,7 +132,7 @@ export default function BoxPage() {
           <Tab label={t('box.tab.mine')} />
           <Tab label={t('box.tab.history')} />
         </Tabs>
-        {message && <Alert severity={message.severity}>{message.text}</Alert>}
+        {error && <Alert severity="warning">{error}</Alert>}
         {box.groups.length === 0 && <Typography variant="body1" color="text.secondary">{t('box.empty')}</Typography>}
         {box.groups.map((g) => (
           <Accordion key={g.orderId} expanded={expanded[g.orderId] ?? !g.done} onChange={(_, open) => toggle(g.orderId, open)} disableGutters>
@@ -175,7 +181,7 @@ export default function BoxPage() {
           void guard(async () => {
             await api<ForwardResponse>('forward/resend', { voucherId: line.voucherId, clientRequestId: crypto.randomUUID() })
             await load()
-            setMessage({ text: t('forward.sent', { name: line.forwardTo?.name ?? '' }), severity: 'success' })
+            showToast(t('forward.sent', { name: line.forwardTo?.name ?? '' }))
           })
         }}
         onCancel={() => setPending(null)}
@@ -203,11 +209,12 @@ export default function BoxPage() {
         onDone={async (done) => {
           setSheetLine(null)
           await load()
-          // 전달에 성공했다면 시트가 보여 주던 성공 안내를 서랍 위에 이어서 보인다 (다시 보내기와 같은 안내)
-          if (done) setMessage({ text: done, severity: 'success' })
+          // 전달에 성공했다면 서랍 위에 토스트로 알린다 (다시 보내기와 같은 안내)
+          if (done) showToast(done)
         }}
         onExpired={() => setExpired(true)}
       />
+      {toast && <Toast key={toast.id} message={toast.text} open={toast.open} onClose={() => setToast((x) => x && { ...x, open: false })} />}
     </Box>
   )
 }

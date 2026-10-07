@@ -15,6 +15,8 @@ export const tokens = {
   seorapAccent: '#D4664B',
   seorapAccentSoft: '#FCC9A5',
   surface: {
+    // 쪽 배경. 브랜드 남색을 옅게 푼 색이라 흰 카드·입력 칸이 배경 위에 떠 보인다
+    page: '#EEF0F7',
     0: '#FFFFFF',
     50: '#F7F7F9',
     100: '#EEEEF2',
@@ -26,6 +28,8 @@ export const tokens = {
     secondary: '#555566',
     disabled: '#8A8A99',
   },
+  // 화면은 폰 한 칸짜리 주 컬럼 하나다 (PC 별도 배치 없음). 시트·토스트·페이지 폭은 모두 이 값을 따른다
+  layout: { maxWidth: 480 },
   logo: {
     src: '/brand/seorap-logo-temp.png',
     alt: '인싸이트 서랍',
@@ -35,7 +39,7 @@ export const tokens = {
 export const theme = createTheme({
   palette: {
     primary: { main: tokens.brand[700], dark: tokens.brand[900], light: tokens.brand[500], contrastText: '#FFFFFF' },
-    background: { default: tokens.surface[50], paper: tokens.surface[0] },
+    background: { default: tokens.surface.page, paper: tokens.surface[0] },
     text: { primary: tokens.text.primary, secondary: tokens.text.secondary, disabled: tokens.text.disabled },
     divider: tokens.surface[200],
   },
@@ -60,6 +64,10 @@ export const theme = createTheme({
     MuiButton: {
       defaultProps: { disableElevation: true },
       styleOverrides: { root: { minHeight: 44 } },
+    },
+    // 쪽 배경이 옅은 색이라 글자 입력 칸은 흰색으로 둔다
+    MuiOutlinedInput: {
+      styleOverrides: { root: { backgroundColor: tokens.surface[0] } },
     },
   },
 })

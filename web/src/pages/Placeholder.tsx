@@ -2,6 +2,7 @@ import { Box, Stack, Typography } from '@mui/material'
 import { useLocation } from 'react-router-dom'
 import { t } from '@core/copy.ko.ts'
 import Wordmark from '../components/Wordmark'
+import { tokens } from '../theme/seorap'
 import StatePage from './StatePage'
 
 export default function Placeholder() {
@@ -10,7 +11,7 @@ export default function Placeholder() {
   if (loggedOut) return <StatePage kind="loggedOut" />
   return (
     <Box component="main" sx={{ minHeight: '100dvh', display: 'flex', alignItems: 'center', justifyContent: 'center', px: 2 }}>
-      <Stack spacing={3} sx={{ alignItems: 'center', maxWidth: 480, textAlign: 'center' }}>
+      <Stack spacing={3} sx={{ alignItems: 'center', maxWidth: tokens.layout.maxWidth, textAlign: 'center' }}>
         <Wordmark size="lg" />
         <Typography variant="body1" color="text.secondary">{t('placeholder.preparing')}</Typography>
       </Stack>

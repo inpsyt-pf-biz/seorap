@@ -3,6 +3,7 @@ import userEvent from '@testing-library/user-event'
 import { Link, MemoryRouter, Route, Routes } from 'react-router-dom'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import type { BoxLine, BoxResponse } from '@core/apiTypes.ts'
+import { tokens } from '../theme/seorap'
 import BoxPage from './BoxPage'
 import Placeholder from './Placeholder'
 
@@ -90,14 +91,77 @@ describe('BoxPage 처리 중 잠금', () => {
   })
 })
 
+// 성공 안내는 토스트(Snackbar), 오류는 화면 위 경고 창(Alert). 성공을 Alert 로 보이지 않는다.
+const toastRoot = () => document.querySelector('.MuiSnackbar-root') as HTMLElement | null
+
+// jsdom 의 getComputedStyle 은 @media 를 계산하지 않아 넓은 화면에서의 값을 못 준다. 화면 폭에 맞는 min-width 구간까지
+// 이 요소에 걸린 규칙을 쓰인 순서대로 겹쳐 적용해 본다 (같은 우선순위에서는 뒤에 쓰인 규칙이 이긴다).
+function effectiveStyle(el: Element, viewportWidth: number): Record<string, string> {
+  // jsdom 이 모르는 선택자(::-moz-focus-inner 같은 브라우저 전용)는 걸리지 않은 것으로 본다
+  const matches = (e: Element, selector: string) => { try { return e.matches(selector) } catch { return false } }
+  const out: Record<string, string> = {}
+  type MaybeMedia = CSSRule & { media?: { mediaText: string }; cssRules?: CSSRuleList; selectorText?: string; style?: CSSStyleDeclaration }
+  const apply = (rules: CSSRuleList) => {
+    for (const r of Array.from(rules) as MaybeMedia[]) {
+      if (r.media && r.cssRules) {
+        const min = /min-width:\s*(\d+)px/.exec(r.media.mediaText)
+        if (min && viewportWidth >= Number(min[1])) apply(r.cssRules)
+      } else if (r.selectorText && r.style && matches(el, r.selectorText)) {
+        for (const name of Array.from(r.style)) out[name] = r.style.getPropertyValue(name)
+      }
+    }
+  }
+  for (const sheet of Array.from(document.styleSheets)) apply(sheet.cssRules)
+  return out
+}
+
 describe('BoxPage 다시 보내기 결과 안내', () => {
-  it('성공하면 받는 분 이름과 함께 성공 안내를 보인다', async () => {
+  it('성공하면 받는 분 이름과 함께 토스트로 알리고, 성공 경고 창은 쓰지 않는다', async () => {
     stubApi([forwarded], { 'forward/resend': async () => json(200, { forwardId: 'f1', created: true }) })
     open()
     await userEvent.click(await screen.findByRole('button', { name: '다시 보내기' }))
     await userEvent.click(await screen.findByRole('button', { name: '보내기' }))
     const text = await screen.findByText('홍길동님께 보냈어요')
-    expect(text.closest('[role="alert"]')?.className).toContain('MuiAlert-colorSuccess')
+    expect(text.closest('.MuiSnackbar-root')).not.toBeNull()
+    expect(text.closest('.MuiAlert-root')).toBeNull()
+  })
+
+  it('토스트는 3초 뒤에 사라진다', async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true })
+    try {
+      stubApi([forwarded], { 'forward/resend': async () => json(200, { forwardId: 'f1', created: true }) })
+      open()
+      await userEvent.click(await screen.findByRole('button', { name: '다시 보내기' }))
+      await userEvent.click(await screen.findByRole('button', { name: '보내기' }))
+      expect(await screen.findByText('홍길동님께 보냈어요')).toBeTruthy()
+      await act(async () => { vi.advanceTimersByTime(2000) })
+      expect(screen.queryByText('홍길동님께 보냈어요')).not.toBeNull() // 아직 3초가 안 됐다
+      await act(async () => { vi.advanceTimersByTime(1500) }) // 3초가 지나 닫기 시작
+      await act(async () => { vi.advanceTimersByTime(1000) }) // 사라지는 효과가 끝난다
+      expect(screen.queryByText('홍길동님께 보냈어요')).toBeNull()
+    } finally { vi.useRealTimers() }
+  })
+
+  it('토스트는 화면 아래 가운데, 주 컬럼 폭 안에 놓이고 아래 안전 여백을 둔다', async () => {
+    stubApi([forwarded], { 'forward/resend': async () => json(200, { forwardId: 'f1', created: true }) })
+    open()
+    await userEvent.click(await screen.findByRole('button', { name: '다시 보내기' }))
+    await userEvent.click(await screen.findByRole('button', { name: '보내기' }))
+    await screen.findByText('홍길동님께 보냈어요')
+    const root = toastRoot()!
+    expect(root.className).toContain('MuiSnackbar-anchorOriginBottomCenter')
+    const content = root.querySelector('.MuiSnackbarContent-root')!
+    // MUI 기본은 600px 이상에서 위치를 따로 정하므로, 폰 폭과 넓은 화면 폭을 모두 본다
+    for (const width of [390, 1280]) {
+      const css = effectiveStyle(root, width)
+      expect(css['max-width'], `${width}px`).toBe(`${tokens.layout.maxWidth}px`)
+      expect(css.width, `${width}px`).toBe('100%')
+      expect([css['margin-left'], css['margin-right']], `${width}px`).toEqual(['auto', 'auto'])
+      expect([parseFloat(css.left), parseFloat(css.right)], `${width}px`).toEqual([0, 0])
+      expect(css.transform, `${width}px`).toBe('none')
+      expect(css.bottom, `${width}px`).toContain('env(safe-area-inset-bottom)')
+      expect(effectiveStyle(content, width)['flex-grow'], `${width}px`).toBe('1')
+    }
   })
 
   it('실패하면 경고 안내를 보이고 성공 안내는 없다', async () => {
@@ -108,11 +172,12 @@ describe('BoxPage 다시 보내기 결과 안내', () => {
     const text = await screen.findByText('잠시 문제가 생겼어요. 잠시 후 다시 시도해 주세요')
     expect(text.closest('[role="alert"]')?.className).toContain('MuiAlert-colorWarning')
     expect(screen.queryByText('홍길동님께 보냈어요')).toBeNull()
+    expect(toastRoot()).toBeNull() // 오류는 토스트가 아니다
   })
 })
 
 describe('BoxPage 전달 시트 결과', () => {
-  it('전달에 성공하면 시트를 닫고 서랍을 새로 불러온 뒤 성공 안내를 보인다', async () => {
+  it('전달에 성공하면 시트를 닫고 서랍을 새로 불러온 뒤 토스트로 알린다', async () => {
     const calls = stubApi([launchable], { 'forward/create': async () => json(200, { forwardId: 'f1', created: true }) })
     open()
     await userEvent.click(await screen.findByRole('button', { name: '전달하기' }))
@@ -121,7 +186,8 @@ describe('BoxPage 전달 시트 결과', () => {
     await userEvent.click(screen.getByRole('button', { name: '다음' }))
     await userEvent.click(screen.getByRole('button', { name: '보내기' }))
     const text = await screen.findByText('홍길동님께 보냈어요')
-    expect(text.closest('[role="alert"]')?.className).toContain('MuiAlert-colorSuccess')
+    expect(text.closest('.MuiSnackbar-root')).not.toBeNull()
+    expect(text.closest('.MuiAlert-root')).toBeNull()
     expect(screen.queryByLabelText('이름 또는 호칭')).toBeNull() // 시트는 닫혔다
     expect(count(calls, 'box')).toBe(2) // 처음 한 번 + 전달 뒤 새로고침
   })
