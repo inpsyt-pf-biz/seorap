@@ -3,7 +3,7 @@ import { t } from '../../_shared/core/copy.ko.ts'
 import { checkForwardLimits } from '../../_shared/core/limits.ts'
 import { lineStatus } from '../../_shared/core/lineStatus.ts'
 import { last4, maskName, normalizePhone } from '../../_shared/core/phone.ts'
-import { kstDayStart } from '../../_shared/core/time.ts'
+import { kstDayStart, nextKstMidnight } from '../../_shared/core/time.ts'
 import { encrypt, hmac, phoneHash, randomToken } from '../../_shared/crypto.ts'
 import { lineInputs } from '../lib/box.ts'
 import { db, must } from '../lib/db.ts'
@@ -18,7 +18,7 @@ type Body = { voucherId?: unknown; name?: unknown; phone?: unknown; clientReques
 type ApplyRow = { out_forward_id: string; out_message_id: string | null; out_access_link_id: string | null; out_created: boolean }
 
 const RPC_ERRORS: Record<string, string> = {
-  ALREADY_FORWARDED: 'not_forwardable', NO_ACTIVE_FORWARD: 'no_active_forward', NOT_RESENDABLE: 'not_resendable', CODE_EXPOSED: 'code_exposed',
+  ALREADY_FORWARDED: 'not_forwardable', NOT_FORWARDABLE: 'not_forwardable', NO_ACTIVE_FORWARD: 'no_active_forward', NOT_RESENDABLE: 'not_resendable', CODE_EXPOSED: 'code_exposed',
 }
 
 async function ctx(req: Request) {
@@ -46,9 +46,26 @@ async function requireAction(v: VoucherRow, s: Settings, action: 'forward' | 're
   if (!lineStatus(li.input).actions.includes(action)) throw new ApiError('CONFLICT', { reason: action === 'forward' ? 'not_forwardable' : 'no_active_forward' })
 }
 
-async function apply(params: Record<string, unknown>): Promise<ApplyRow> {
+// 함수는 잠금 아래에서 한도를 다시 센다. 병렬 요청이 사전 검사를 함께 통과해도 여기서 막힌다.
+// 한도는 전달·다시 보내기에만 건다. 같은 번호 간격(withGap)은 다시 보내기에 걸지 않는다.
+function limitParams(s: Settings, withGap: boolean) {
+  return {
+    p_day_start: kstDayStart(new Date()).toISOString(),
+    p_per_voucher_day: s.forward_resend_per_voucher_day,
+    p_per_box_day: s.forward_per_box_day_min,
+    p_same_number_gap_min: withGap ? s.forward_same_number_gap_min : null,
+  }
+}
+
+// recheck: 함수가 한도로 거절했을 때 사전 검사(limits)를 다시 돌려 이유와 다시 시도할 시각을 얻는다
+async function apply(params: Record<string, unknown>, recheck?: () => Promise<void>): Promise<ApplyRow> {
   const { data, error } = await db().rpc('forward_apply', params)
   if (error) {
+    if (error.message.includes('LIMIT_EXCEEDED')) {
+      await recheck?.()
+      // 다시 세어 보니 한도 안이라면(그사이 줄 수가 바뀜) 하루 한도로 알린다
+      throw new ApiError('LIMIT_EXCEEDED', { reason: 'per_box_day', retryAt: nextKstMidnight(new Date()).toISOString() })
+    }
     const key = Object.keys(RPC_ERRORS).find((k) => error.message.includes(k))
     if (key) throw new ApiError('CONFLICT', { reason: RPC_ERRORS[key] })
     throw new Error(`forward_apply: ${error.message}`)
@@ -75,6 +92,7 @@ async function limits(sess: Session, v: VoucherRow, s: Settings, toPhoneHash: st
 }
 
 // 같은 요청 ID 가 동시에 두 번 오면 늦은 쪽은 상태 검사나 함수(중복 키)에서 막힌다. 그때 먼저 처리된 결과를 돌려준다.
+// 같은 발송권·같은 요청 ID 의 앞 결과가 없으면 원래 오류(예: LIMIT_EXCEEDED)를 그대로 다시 던진다.
 async function orReplay(clientRequestId: string, voucherId: string, fn: () => Promise<ApplyRow>): Promise<ApplyRow | ForwardResponse> {
   try {
     return await fn()
@@ -116,7 +134,8 @@ export async function forwardCreate(req: Request): Promise<Response> {
       p_token_hash: await hmac(`forward:${token}`), p_link_ttl_days: s.forward_link_ttl_days,
       p_to_name_enc: await encrypt('A', name), p_to_name_masked: maskName(name),
       p_to_phone_enc: await encrypt('A', phone), p_to_phone_hash: toHash, p_to_phone_last4: last4(phone), p_is_self: isSelf,
-    })
+      ...limitParams(s, true),
+    }, () => limits(sess, v, s, toHash))
   })
   if ('forwardId' in row) return json(200, row)
   if (row.out_created) {
@@ -139,7 +158,8 @@ export async function forwardResend(req: Request): Promise<Response> {
     return await apply({
       p_action: 'resend', p_voucher_id: v.id, p_client_request_id: clientRequestId, p_actor_type: 'recipient',
       p_token_hash: await hmac(`forward:${token}`), p_link_ttl_days: s.forward_link_ttl_days,
-    })
+      ...limitParams(s, false),
+    }, () => limits(sess, v, s, '', true))
   })
   if ('forwardId' in row) return json(200, row)
   if (row.out_created) {
@@ -161,7 +181,7 @@ export async function forwardCancel(req: Request): Promise<Response> {
     })
   })
   if ('forwardId' in row) return json(200, row)
-  await logEvent('forward_cancelled', { recipientId: sess.recipientId, voucherId: v.id })
+  if (row.out_created) await logEvent('forward_cancelled', { recipientId: sess.recipientId, voucherId: v.id })
   return json(200, { forwardId: row.out_forward_id, created: row.out_created } satisfies ForwardResponse)
 }
 
@@ -171,10 +191,12 @@ export async function forwardDirect(req: Request): Promise<Response> {
   // 토큰 원문은 저장하지 않으므로, 반영 뒤에 실패할 수 있는 읽기는 먼저 끝내 둔다
   const sender = await senderMasked(sess.recipientId)
   const token = randomToken(32)
-  await apply({
+  const row = await apply({
     p_action: 'direct_share', p_voucher_id: v.id, p_client_request_id: clientRequestId, p_actor_type: 'recipient',
     p_token_hash: await hmac(`forward:${token}`), p_link_ttl_days: s.forward_link_ttl_days,
   })
+  // 되풀이 응답이면 이 요청이 만든 토큰은 어디에도 저장되지 않았다. 원문 토큰을 다시 만들 수 없으므로 죽은 링크를 주지 않고 거절한다.
+  if (!row.out_created) throw new ApiError('CONFLICT', { reason: 'not_forwardable' })
   await logEvent('direct_share', { recipientId: sess.recipientId, voucherId: v.id })
   const url = `${publicBase()}/f/${token}`
   const res: DirectShareResponse = { url, text: t('forward.direct.text', { sender, url }) }

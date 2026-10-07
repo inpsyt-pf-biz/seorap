@@ -9,6 +9,19 @@ export function adminDb() {
   })
 }
 
+// 받는 분 링크 토큰의 저장용 해시(함수와 같은 키). 키 파일에서 HMAC 키만 읽고 값은 출력하지 않는다.
+export async function forwardTokenHash(token: string): Promise<string> {
+  if (!Deno.env.get('SEORAP_HMAC_KEY')) {
+    const file = Deno.env.get('SEED_KEYS_FILE') ?? 'supabase/functions/.env'
+    for (const line of (await Deno.readTextFile(file)).split(/\r?\n/)) {
+      const m = line.match(/^SEORAP_HMAC_KEY=(.*)$/)
+      if (m) Deno.env.set('SEORAP_HMAC_KEY', m[1])
+    }
+  }
+  const { hmac } = await import('../../supabase/functions/_shared/crypto.ts')
+  return hmac(`forward:${token}`)
+}
+
 export class Client {
   cookie = ''
   ua = 'Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X) Mobile'

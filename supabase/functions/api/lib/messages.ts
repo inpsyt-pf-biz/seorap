@@ -1,10 +1,17 @@
 import { mockAdapters } from '../../_shared/adapters/mock.ts'
 import { decrypt } from '../../_shared/crypto.ts'
+import { isDevEnv } from '../../_shared/env.ts'
 import { db, must } from './db.ts'
 import type { Settings } from './settings.ts'
 
+// 받는 분 링크의 주소 앞부분. localhost 대체값은 로컬·미리보기에서만 쓴다(운영에서 비어 있으면 잘못된 주소가 나가므로 멈춘다).
 export function publicBase(): string {
-  return (Deno.env.get('SEORAP_PUBLIC_BASE') ?? 'http://localhost:5173').replace(/\/$/, '')
+  const base = Deno.env.get('SEORAP_PUBLIC_BASE')
+  if (!base) {
+    if (!isDevEnv()) throw new Error('SEORAP_PUBLIC_BASE is required outside local/preview')
+    return 'http://localhost:5173'
+  }
+  return base.replace(/\/$/, '')
 }
 
 // 받는 분 알림(T2). 토큰 원문은 저장하지 않으므로 호출하는 쪽이 넘긴다.

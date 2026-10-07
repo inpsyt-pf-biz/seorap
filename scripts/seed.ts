@@ -185,4 +185,13 @@ must(await db.rpc('forward_apply', {
 }), 'cancel')
 await forward(s8.voucherIds[0], { name: '유관순', phone: '01033335555' })
 
+// S9 동시 요청 시험용 (검사 5매): 1번째는 전달 1번(오늘 치 1건)이 이미 있고, 나머지 4개는 전달 전
+const r9 = await recipient('강감찬', '01086429753', '2026-10-22T08:00:00Z', '2026-10-22T08:00:00Z')
+await boxLink(r9, 'S9')
+const s9 = await order({
+  recipientId: r9, recipientName: '강감찬', orderNo: '2026102200014', paidAt: '2026-10-22T08:00:00Z',
+  productName: 'GOLDEN 성격유형검사', optionName: '5매', amount: 125000, tests: [{ ...GOLDEN1, count: 5 }], units: [{}, {}, {}, {}, {}],
+})
+await forward(s9.voucherIds[0], { name: '장보고', phone: '01044445555' })
+
 console.log('seed done')
