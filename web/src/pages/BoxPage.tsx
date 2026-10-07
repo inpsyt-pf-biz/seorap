@@ -1,15 +1,16 @@
 import { Accordion, AccordionDetails, AccordionSummary, Alert, Box, Button, Stack, Tab, Tabs, Typography } from '@mui/material'
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import type { BoxGroup, BoxLine, BoxResponse, CodeResponse, ForwardResponse, LaunchResponse } from '@core/apiTypes.ts'
-import { type CopyKey, t } from '@core/copy.ko.ts'
+import { t } from '@core/copy.ko.ts'
 import type { LineAction } from '@core/lineStatus.ts'
-import { formatKstDate, formatKstDateTime } from '@core/time.ts'
+import { formatKstDate } from '@core/time.ts'
 import ConfirmDialog from '../components/ConfirmDialog'
 import ForwardSheet from '../components/ForwardSheet'
 import LineRow from '../components/LineRow'
 import Wordmark from '../components/Wordmark'
 import { api, ApiError } from '../lib/api'
+import { failText } from '../lib/failText'
 import StatePage from './StatePage'
 
 type Pending =
@@ -19,54 +20,55 @@ type Pending =
   | { kind: 'reforward'; line: BoxLine }
   | null
 
-// 한도 429 는 이유(reason)별 문장으로 안내한다. 모르는 이유는 일반 문장으로 보낸다.
-const LIMIT_KEY = {
-  per_voucher_day: 'limit.per_voucher_day', same_number_gap: 'limit.same_number_gap', per_box_day: 'limit.per_box_day',
-} as const satisfies Record<string, CopyKey>
-
-function failText(e: unknown): string {
-  if (e instanceof ApiError) {
-    if (e.extra.reason === 'code_exposed') return t('forward.exposed')
-    const reason = String(e.extra.reason)
-    if (e.code === 'LIMIT_EXCEEDED' && Object.hasOwn(LIMIT_KEY, reason) && typeof e.extra.retryAt === 'string') {
-      return t(LIMIT_KEY[reason as keyof typeof LIMIT_KEY], { time: formatKstDateTime(e.extra.retryAt) })
-    }
-  }
-  return t('error.generic')
-}
-
 export default function BoxPage() {
   const navigate = useNavigate()
   const [box, setBox] = useState<BoxResponse | null>(null)
   const [expired, setExpired] = useState(false)
-  const [message, setMessage] = useState<string | null>(null)
+  // 오류는 warning, 다시 보내기 성공은 success
+  const [message, setMessage] = useState<{ text: string; severity: 'warning' | 'success' } | null>(null)
   const [pending, setPending] = useState<Pending>(null)
   const [sheetLine, setSheetLine] = useState<BoxLine | null>(null)
+  // 서버를 부르는 동작이 진행 중인지. state 가 아니라 ref 인 이유: 화면이 다시 그려지기 전에 들어오는 연타도 막아야 한다
+  const busyRef = useRef(false)
+
+  // 실시 화면으로 이동한 뒤 뒤로 가기로 캐시된 이 화면이 되살아나면, 이동 중이라 잠가 둔 표시를 풀어 준다
+  useEffect(() => {
+    const onShow = (e: PageTransitionEvent) => { if (e.persisted) busyRef.current = false }
+    window.addEventListener('pageshow', onShow)
+    return () => window.removeEventListener('pageshow', onShow)
+  }, [])
 
   const load = useCallback(async () => {
     try { setBox(await api<BoxResponse>('box')) }
-    catch (e) { if (e instanceof ApiError && e.status === 401) setExpired(true); else setMessage(t('error.generic')) }
+    catch (e) { if (e instanceof ApiError && e.status === 401) setExpired(true); else setMessage({ text: t('error.generic'), severity: 'warning' }) }
   }, [])
   // 화면이 열릴 때 서랍을 불러오는 것은 외부(서버)와의 동기화다
   // oxlint-disable-next-line react/set-state-in-effect
   useEffect(() => { void load() }, [load])
 
   // 세션이 끝난 채로 무엇을 누르든 "다시 인증" 화면으로 (Review Focus 3)
-  const guard = async (fn: () => Promise<void>) => {
+  // 처리 중에 들어온 두 번째 호출은 무시한다. 연타가 append-only events 에 중복 행을 남기면 지울 수 없다.
+  // keepBusyOnSuccess: 성공하면 이 화면을 떠나므로(실시 이동) 잠금을 풀지 않는다.
+  const guard = async (fn: () => Promise<void>, keepBusyOnSuccess = false) => {
+    if (busyRef.current) return
+    busyRef.current = true
+    let ok = false
     setMessage(null)
-    try { await fn() }
+    try { await fn(); ok = true }
     catch (e) {
       if (e instanceof ApiError && e.status === 401) { setExpired(true); return }
-      setMessage(failText(e))
+      setMessage({ text: failText(e), severity: 'warning' })
       // 409: 그사이 줄의 상태가 바뀌었다(방금 전달됨 등). 낡은 버튼이 남지 않게 다시 불러온다.
       if (e instanceof ApiError && e.code === 'CONFLICT') void load()
+    } finally {
+      if (!(ok && keepBusyOnSuccess)) busyRef.current = false
     }
   }
 
   const launch = (voucherId: string) => guard(async () => {
     const r = await api<LaunchResponse>('voucher/launch', { voucherId })
     window.location.assign(r.url)
-  })
+  }, true)
 
   const onAction = (a: LineAction | 'code', line: BoxLine, group: BoxGroup) => {
     if (a === 'launch' || a === 'continue') {
@@ -99,7 +101,7 @@ export default function BoxPage() {
           <Tab label={t('box.tab.mine')} />
           <Tab label={t('box.tab.history')} />
         </Tabs>
-        {message && <Alert severity="warning">{message}</Alert>}
+        {message && <Alert severity={message.severity}>{message.text}</Alert>}
         {box.groups.length === 0 && <Typography variant="body1" color="text.secondary">{t('box.empty')}</Typography>}
         {box.groups.map((g) => (
           <Accordion key={g.orderId} defaultExpanded={!g.done} disableGutters>
@@ -146,7 +148,11 @@ export default function BoxPage() {
           if (pending?.kind !== 'resend') return
           const line = pending.line
           setPending(null)
-          void guard(async () => { await api<ForwardResponse>('forward/resend', { voucherId: line.voucherId, clientRequestId: crypto.randomUUID() }); await load() })
+          void guard(async () => {
+            await api<ForwardResponse>('forward/resend', { voucherId: line.voucherId, clientRequestId: crypto.randomUUID() })
+            await load()
+            setMessage({ text: t('forward.sent', { name: line.forwardTo?.name ?? '' }), severity: 'success' })
+          })
         }}
         onCancel={() => setPending(null)}
       />
