@@ -1,0 +1,34 @@
+import type { SupabaseClient } from '@supabase/supabase-js'
+import { t } from '../core/copy.ko.ts'
+import { last4 } from '../core/phone.ts'
+import type { Adapters } from './types.ts'
+
+// 가짜 문자·알림톡. 운영(SEORAP_ENV=production)에서는 만들 수 없다.
+export function mockAdapters(db: SupabaseClient, mode: 'success' | 'fallback' | 'fail'): Adapters {
+  if (Deno.env.get('SEORAP_ENV') === 'production') throw new Error('mock adapters are not allowed in production')
+  return {
+    sms: {
+      async sendOtp({ messageId, toPhone, code }) {
+        await db.from('dev_outbox').insert({ kind: 'sms', to_phone_last4: last4(toPhone), body: t('otp.sms', { code }) })
+        await db.from('messages').update({ final_status: 'delivered', final_media: 'sms', accepted_at: new Date().toISOString(), final_at: new Date().toISOString() }).eq('id', messageId)
+        await db.from('message_events').insert({ message_id: messageId, source: 'mock', event_type: 'delivered', media: 'sms' })
+        return { accepted: true }
+      },
+    },
+    message: {
+      async send({ messageId, toPhone, templateCode, variables, buttonUrl }) {
+        const body = `[알림톡 ${templateCode}] ${Object.entries(variables).map(([k, v]) => `${k}=${v}`).join(' ')} ${buttonUrl ?? ''}`.trim()
+        await db.from('dev_outbox').insert({ kind: 'alimtalk', to_phone_last4: last4(toPhone), body })
+        const now = new Date().toISOString()
+        const result = mode === 'fail'
+          ? { final_status: 'failed', final_media: null, fallback_used: true }
+          : mode === 'fallback'
+          ? { final_status: 'delivered', final_media: 'sms', fallback_used: true }
+          : { final_status: 'delivered', final_media: 'alimtalk', fallback_used: false }
+        await db.from('messages').update({ ...result, accepted_at: now, final_at: now }).eq('id', messageId)
+        await db.from('message_events').insert({ message_id: messageId, source: 'mock', event_type: result.final_status, media: result.final_media })
+        return { accepted: true }
+      },
+    },
+  }
+}
