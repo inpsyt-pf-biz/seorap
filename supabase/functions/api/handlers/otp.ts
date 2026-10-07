@@ -1,7 +1,8 @@
 import { mockAdapters } from '../../_shared/adapters/mock.ts'
 import type { OtpRequestResponse, OtpVerifyResponse } from '../../_shared/core/apiTypes.ts'
+import { otpRetryAt } from '../../_shared/core/limits.ts'
 import { decrypt, hmac, sixDigits } from '../../_shared/crypto.ts'
-import { db, must, mustCount } from '../lib/db.ts'
+import { db, must } from '../lib/db.ts'
 import { logEvent } from '../lib/events.ts'
 import { ApiError, json, readJson } from '../lib/http.ts'
 import { findBoxLink } from '../lib/links.ts'
@@ -24,21 +25,19 @@ export async function otpRequest(req: Request): Promise<Response> {
   if (last && Date.parse(last.created_at) + s.otp_resend_seconds * 1000 > now) {
     throw new ApiError('RATE_LIMITED', { retryAt: new Date(Date.parse(last.created_at) + s.otp_resend_seconds * 1000).toISOString() })
   }
-  const hourAgo = new Date(now - 3_600_000).toISOString()
+  // 번호당 1시간·24시간 한도. 다시 받을 수 있는 시각은 걸린 창에서 가장 오래된 요청이 창을 벗어나는 때다
+  // (조회 오류를 0건으로 바꾸면 한도를 그냥 통과하므로 must 로 502 를 올린다)
   const dayAgo = new Date(now - 86_400_000).toISOString()
-  const hourCount = mustCount(
-    await db().from('otp_challenges').select('id', { count: 'exact', head: true })
-      .eq('target_phone_hash', recipient.phone_hash).gte('created_at', hourAgo),
-    'otp hour count',
-  )
-  const dayCount = mustCount(
-    await db().from('otp_challenges').select('id', { count: 'exact', head: true })
+  const recentTimes = must(
+    await db().from('otp_challenges').select('created_at')
       .eq('target_phone_hash', recipient.phone_hash).gte('created_at', dayAgo),
-    'otp day count',
-  )
-  if (hourCount >= s.otp_per_phone_hour || dayCount >= s.otp_per_phone_day) {
-    throw new ApiError('RATE_LIMITED', { retryAt: new Date(now + 3_600_000).toISOString() })
-  }
+    'otp phone window read',
+  ) as { created_at: string }[]
+  const retryAt = otpRetryAt({
+    now: new Date(now), createdAt: recentTimes.map((r) => new Date(r.created_at)),
+    perHour: s.otp_per_phone_hour, perDay: s.otp_per_phone_day,
+  })
+  if (retryAt) throw new ApiError('RATE_LIMITED', { retryAt: retryAt.toISOString() })
 
   const code = sixDigits()
   const challengeId = crypto.randomUUID()

@@ -1,7 +1,7 @@
 import type { DirectShareResponse, ForwardResponse } from '../../_shared/core/apiTypes.ts'
 import { t } from '../../_shared/core/copy.ko.ts'
 import { checkForwardLimits } from '../../_shared/core/limits.ts'
-import { lineStatus } from '../../_shared/core/lineStatus.ts'
+import { type LineAction, lineStatus } from '../../_shared/core/lineStatus.ts'
 import { last4, maskName, normalizePhone } from '../../_shared/core/phone.ts'
 import { kstDayStart, nextKstMidnight } from '../../_shared/core/time.ts'
 import { encrypt, hmac, phoneHash, randomToken } from '../../_shared/crypto.ts'
@@ -41,9 +41,11 @@ async function replay(clientRequestId: string, voucherId: string): Promise<Forwa
   return data ? { forwardId: data.id, created: false } : null
 }
 
-async function requireAction(v: VoucherRow, s: Settings, action: 'forward' | 'resend' | 'reforward') {
+// 줄 상태가 내어 준 버튼 가운데 하나라도 있어야 한다
+async function requireAction(v: VoucherRow, s: Settings, ...anyOf: LineAction[]) {
   const li = (await lineInputs([v], s)).get(v.id)!
-  if (!lineStatus(li.input).actions.includes(action)) throw new ApiError('CONFLICT', { reason: action === 'forward' ? 'not_forwardable' : 'no_active_forward' })
+  const actions = lineStatus(li.input).actions
+  if (!anyOf.some((a) => actions.includes(a))) throw new ApiError('CONFLICT', { reason: anyOf.includes('forward') ? 'not_forwardable' : 'no_active_forward' })
 }
 
 // 함수는 잠금 아래에서 한도를 다시 센다. 병렬 요청이 사전 검사를 함께 통과해도 여기서 막힌다.
@@ -174,7 +176,8 @@ export async function forwardCancel(req: Request): Promise<Response> {
   const done = await replay(clientRequestId, v.id)
   if (done) return json(200, done)
   const row = await orReplay(clientRequestId, v.id, async () => {
-    await requireAction(v, s, 'resend') // 전달 중인 줄인지 (다른 분께 가능 여부는 함수가 코드 노출로 판정)
+    // 전달 중인 줄인지 (직접 공유한 줄은 다시 보내기 없이 다른 분께만 있다). 다른 분께 가능 여부는 함수가 코드 노출로 판정한다.
+    await requireAction(v, s, 'resend', 'reforward')
     return await apply({
       p_action: 'cancel', p_voucher_id: v.id, p_client_request_id: clientRequestId, p_actor_type: 'recipient',
       p_token_hash: await hmac(`forward:${randomToken(32)}`), p_link_ttl_days: s.forward_link_ttl_days,
@@ -188,8 +191,9 @@ export async function forwardCancel(req: Request): Promise<Response> {
 export async function forwardDirect(req: Request): Promise<Response> {
   const { sess, v, s, clientRequestId } = await ctx(req)
   await requireAction(v, s, 'forward')
-  // 토큰 원문은 저장하지 않으므로, 반영 뒤에 실패할 수 있는 읽기는 먼저 끝내 둔다
+  // 토큰 원문은 저장하지 않으므로, 반영 뒤에 실패할 수 있는 읽기·설정 확인은 먼저 끝내 둔다
   const sender = await senderMasked(sess.recipientId)
+  const base = publicBase()
   const token = randomToken(32)
   const row = await apply({
     p_action: 'direct_share', p_voucher_id: v.id, p_client_request_id: clientRequestId, p_actor_type: 'recipient',
@@ -198,7 +202,7 @@ export async function forwardDirect(req: Request): Promise<Response> {
   // 되풀이 응답이면 이 요청이 만든 토큰은 어디에도 저장되지 않았다. 원문 토큰을 다시 만들 수 없으므로 죽은 링크를 주지 않고 거절한다.
   if (!row.out_created) throw new ApiError('CONFLICT', { reason: 'not_forwardable' })
   await logEvent('direct_share', { recipientId: sess.recipientId, voucherId: v.id })
-  const url = `${publicBase()}/f/${token}`
+  const url = `${base}/f/${token}`
   const res: DirectShareResponse = { url, text: t('forward.direct.text', { sender, url }) }
   return json(200, res)
 }

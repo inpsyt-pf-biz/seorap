@@ -29,7 +29,8 @@ export async function voucherLaunch(req: Request): Promise<Response> {
   const { sess, v, code } = await launchable(req)
   requireMarked(must(await db().rpc('voucher_mark_exposed', { p_voucher_id: v.id, p_launch: true }), 'mark launch'))
   await logEvent('voucher_launch', { recipientId: sess.recipientId, voucherId: v.id, orderId: v.order_id })
-  const base = Deno.env.get('SEORAP_PLATFORM_TEST_URL') ?? 'https://inpsyt.co.kr/inpsyt/testing'
+  // 비어 있어도 기본 주소로, 끝의 / 는 떼고 붙인다
+  const base = (Deno.env.get('SEORAP_PLATFORM_TEST_URL') || 'https://inpsyt.co.kr/inpsyt/testing').replace(/\/$/, '')
   const body: LaunchResponse = { url: `${base}/${encodeURIComponent(code)}` }
   return json(200, body)
 }

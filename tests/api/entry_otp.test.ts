@@ -1,5 +1,5 @@
 import { assert, assertEquals } from '@std/assert'
-import { adminDb, BASE, Client, fastOtp, latestOtp, login, tokenFor } from './helpers.ts'
+import { adminDb, BASE, Client, DESKTOP_UA, fastOtp, latestOtp, login, tokenFor } from './helpers.ts'
 
 await fastOtp()
 
@@ -31,9 +31,38 @@ Deno.test('진입: 본문이 객체가 아니면(null·배열·문자열·숫자
   assertEquals((await res.json()).error.code, 'VALIDATION')
 })
 
-Deno.test('OTP: 맞으면 세션 쿠키', async () => {
+Deno.test('POST 본문은 Content-Type 이 application/json 일 때만 받는다', async () => {
+  const body = JSON.stringify({ token: tokenFor('S1') })
+  for (const headers of [{ 'Content-Type': 'text/plain' }, { 'Content-Type': 'application/x-www-form-urlencoded' }, {}] as Record<string, string>[]) {
+    // 바이트 본문은 fetch 가 Content-Type 을 스스로 붙이지 않는다 (머리글 없음 경우)
+    const res = await fetch(`${BASE}/entry`, { method: 'POST', headers, body: new TextEncoder().encode(body) })
+    const r = await res.json()
+    assertEquals([res.status, r.error?.code, r.error?.extra?.field], [422, 'VALIDATION', 'contentType'], JSON.stringify(headers))
+  }
+  const ok = await fetch(`${BASE}/entry`, { method: 'POST', headers: { 'Content-Type': 'application/json; charset=utf-8' }, body })
+  assertEquals(ok.status, 200)
+  await ok.body?.cancel()
+})
+
+const cookieAttrs = (setCookie: string) => setCookie.split(';').slice(1).map((a) => a.trim())
+
+Deno.test('OTP: 맞으면 세션 쿠키 (HttpOnly · SameSite=Lax · Path=/ · Max-Age, 로컬은 Secure 없음)', async () => {
   const c = await login('S1', '5678')
   assert(c.cookie.startsWith('seorap_sid='))
+  const attrs = cookieAttrs(c.setCookie)
+  assert(attrs.includes('HttpOnly'), c.setCookie)
+  assert(attrs.includes('SameSite=Lax'), c.setCookie)
+  assert(attrs.includes('Path=/'), c.setCookie)
+  assert(attrs.some((a) => /^Max-Age=\d+$/.test(a)), c.setCookie)
+  // 로컬(SEORAP_ENV=local, SEORAP_COOKIE_SECURE=false)에서만 Secure 가 빠진다
+  assertEquals(attrs.some((a) => a.toLowerCase() === 'secure'), false, c.setCookie)
+})
+
+Deno.test('OTP: PC 는 창을 닫으면 끝나는 쿠키 (Max-Age 없음)', async () => {
+  const c = await login('S1', '5678', DESKTOP_UA)
+  const attrs = cookieAttrs(c.setCookie)
+  assert(attrs.includes('HttpOnly'), c.setCookie)
+  assertEquals(attrs.some((a) => a.startsWith('Max-Age=')), false, c.setCookie)
 })
 
 Deno.test('세션: 로그인하면 행이 생기고, 로그아웃하면 폐기되며, 같은 쿠키로 다시 폐기되지 않는다', async () => {

@@ -1,13 +1,13 @@
 import { db, must } from './db.ts'
 import { ApiError } from './http.ts'
 
-export const VOUCHER_COLS = 'id, order_id, order_item_id, test_item_id, test_name, unit_no, created_at, issue_status, cancel_status, exam_status, lock_reasons, first_launched_at, platform_deleted_at, current_forward_id, code_enc'
+export const VOUCHER_COLS = 'id, order_id, order_item_id, test_item_id, test_name, unit_no, created_at, issue_status, cancel_status, exam_status, lock_reasons, first_launched_at, first_code_exposed_at, platform_deleted_at, current_forward_id, code_enc'
 export type VoucherRow = {
   id: string; order_id: string; order_item_id: string; test_item_id: string; test_name: string; unit_no: number; created_at: string
   issue_status: 'pending' | 'issued' | 'failed' | 'voided' | 'replaced'
   cancel_status: 'none' | 'checking' | 'cancelled' | 'rejected'
   exam_status: null | 'unused' | 'in_progress' | 'completed' | 'deleted'
-  lock_reasons: string[]; first_launched_at: string | null; platform_deleted_at: string | null
+  lock_reasons: string[]; first_launched_at: string | null; first_code_exposed_at: string | null; platform_deleted_at: string | null
   current_forward_id: string | null; code_enc: string | null
 }
 

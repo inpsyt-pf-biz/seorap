@@ -26,6 +26,10 @@ export function json(status: number, body: unknown, headers: Record<string, stri
 }
 
 export async function readJson<T>(req: Request): Promise<T> {
+  // JSON 으로 보낸 요청만 받는다. 다른 사이트의 일반 form(text/plain 등) POST 가 JSON 으로 읽히지 않게 한다.
+  if (!(req.headers.get('content-type') ?? '').toLowerCase().startsWith('application/json')) {
+    throw new ApiError('VALIDATION', { field: 'contentType' })
+  }
   let body: unknown
   try {
     body = await req.json()

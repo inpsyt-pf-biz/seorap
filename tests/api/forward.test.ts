@@ -156,9 +156,21 @@ Deno.test('직접 공유: 복사할 문구에 받는 분 링크, 이력은 받�
   assertEquals(r.body.text.includes('심리검사'), true)
   assertEquals(r.body.text.includes('STS'), false)
   assertEquals((await c.call('history')).body.items[0].action, 'direct_share')
+
+  // 서랍 줄: 받는 분이 기록되지 않으므로 이름·번호 줄이 없고, 보낼 번호가 없어 다시 보내기도 없다
+  const shown = (await lines(c)).find((l: any) => l.voucherId === target.voucherId)
+  assertEquals(shown.status.label, '링크로 전달함')
+  assertEquals(shown.status.actions, ['reforward'])
+  assertEquals(shown.forwardTo, null)
+  assertEquals((await c.call('forward/resend', { voucherId: target.voucherId, clientRequestId: rid() })).status, 409)
+  // [다른 분께]는 된다: 링크를 거두면 다시 전달할 수 있는 줄로 돌아온다
+  assertEquals((await c.call('forward/cancel', { voucherId: target.voucherId, clientRequestId: rid() })).status, 200)
+  assertEquals((await lines(c)).find((l: any) => l.voucherId === target.voucherId).status.actions, ['launch', 'forward'])
 })
 
-// 아래 세 시험은 동시 요청을 다루므로 S9(검사 5매, 1번째 줄은 전달 1번이 오늘 치로 있음)만 쓴다.
+// 아래 여섯 시험은 동시 요청·상태 되돌리기를 다루므로 S9(검사 6매, 1번째 줄은 전달 1번이 오늘 치로 있음)만 쓴다.
+// 줄 쓰임: 1번째 = 다시 보내기 동시, 2번째 = 직접 공유 두 시험, 3번째 = 실시 기록 함수(취소로 되돌림) 뒤 실시·전달 동시,
+// 4·5번째 = 실시·전달 동시, 6번째 = 취소가 거절된 줄.
 const todaysSends = async (voucherId: string) => {
   const { count } = await adminDb().from('voucher_forwards').select('id', { count: 'exact', head: true }).eq('voucher_id', voucherId).in('action', ['forward', 'resend'])
   return count ?? 0

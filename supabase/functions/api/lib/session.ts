@@ -1,4 +1,5 @@
 import { hmac, randomToken } from '../../_shared/crypto.ts'
+import { cookieSecureDisabled } from '../../_shared/env.ts'
 import { db, must } from './db.ts'
 import { ApiError, getCookie, isMobile } from './http.ts'
 import { getSettings } from './settings.ts'
@@ -7,8 +8,9 @@ export const COOKIE = 'seorap_sid'
 export type Session = { idHash: string; recipientId: string; accessLinkId: string; lastOtpAt: string | null }
 
 // maxAgeSec 가 null 이면 세션 쿠키(창을 닫으면 소멸, PC용)
+// Secure 는 로컬(SEORAP_ENV=local)에서 SEORAP_COOKIE_SECURE=false 일 때만 뺀다. 다른 환경에서는 설정이 있어도 붙인다.
 function cookie(value: string, maxAgeSec: number | null): string {
-  const secure = Deno.env.get('SEORAP_COOKIE_SECURE') === 'false' ? '' : '; Secure'
+  const secure = cookieSecureDisabled(Deno.env.get('SEORAP_ENV'), Deno.env.get('SEORAP_COOKIE_SECURE')) ? '' : '; Secure'
   const age = maxAgeSec === null ? '' : `; Max-Age=${maxAgeSec}`
   return `${COOKIE}=${value}; Path=/; HttpOnly; SameSite=Lax${age}${secure}`
 }

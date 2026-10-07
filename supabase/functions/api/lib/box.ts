@@ -1,19 +1,24 @@
 import type { BoxGroup, BoxLine, BoxResponse, HistoryItem, HistoryResponse, HistoryResult } from '../../_shared/core/apiTypes.ts'
 import { type LineInput, lineStatus } from '../../_shared/core/lineStatus.ts'
-import { formatPhone } from '../../_shared/core/phone.ts'
+import { formatPhone, maskPhone } from '../../_shared/core/phone.ts'
 import { decrypt } from '../../_shared/crypto.ts'
 import { db, must } from './db.ts'
 import { type VoucherRow, VOUCHER_COLS } from './ownership.ts'
 import type { Settings } from './settings.ts'
 
-type ForwardRow = { id: string; actor_type: string; to_name_enc: string | null; to_name_masked: string | null; to_phone_enc: string | null; to_phone_last4: string | null; access_link_id: string | null }
+type ForwardRow = {
+  id: string; actor_type: string; delivery_mode: 'seorap_message' | 'direct_share'
+  to_name_enc: string | null; to_name_masked: string | null; to_phone_enc: string | null; to_phone_last4: string | null; access_link_id: string | null
+}
 
-async function forwardDisplay(f: ForwardRow): Promise<{ name: string; phone: string }> {
+async function forwardDisplay(f: Omit<ForwardRow, 'id' | 'delivery_mode' | 'access_link_id'>): Promise<{ name: string; phone: string }> {
   // 본인이 입력한 값은 본인에게 그대로 보여 준다. 어드민이 대신 보낸 것은 가린다.
   if (f.actor_type === 'recipient' && f.to_name_enc && f.to_phone_enc) {
     return { name: await decrypt('A', f.to_name_enc), phone: formatPhone(await decrypt('A', f.to_phone_enc)) }
   }
-  return { name: f.to_name_masked ?? '', phone: `010-****-${f.to_phone_last4 ?? ''}` }
+  // 가린 번호도 앞자리는 실제 번호를 따른다 (011·016 등을 010 으로 보이지 않게). 원문이 없으면 끝 4자리만.
+  const phone = f.to_phone_enc ? maskPhone(await decrypt('A', f.to_phone_enc)) : f.to_phone_last4 ? `****-${f.to_phone_last4}` : ''
+  return { name: f.to_name_masked ?? '', phone }
 }
 
 export async function lineInputs(vouchers: VoucherRow[], s: Settings) {
@@ -21,7 +26,7 @@ export async function lineInputs(vouchers: VoucherRow[], s: Settings) {
   const fwdIds = vouchers.map((v) => v.current_forward_id).filter((x): x is string => !!x)
   const fwds = fwdIds.length
     ? must(
-      await db().from('voucher_forwards').select('id, actor_type, to_name_enc, to_name_masked, to_phone_enc, to_phone_last4, access_link_id').in('id', fwdIds),
+      await db().from('voucher_forwards').select('id, actor_type, delivery_mode, to_name_enc, to_name_masked, to_phone_enc, to_phone_last4, access_link_id').in('id', fwdIds),
       'forwards read',
     ) as ForwardRow[]
     : []
@@ -39,7 +44,9 @@ export async function lineInputs(vouchers: VoucherRow[], s: Settings) {
   for (const v of vouchers) {
     const f = v.current_forward_id ? fwdById.get(v.current_forward_id) : undefined
     const link = f?.access_link_id ? linkById.get(f.access_link_id) : undefined
-    const forwardTo = f ? await forwardDisplay(f) : null
+    // 직접 공유는 받는 분이 기록되지 않으므로 이름·번호 줄을 만들지 않는다
+    const direct = f?.delivery_mode === 'direct_share'
+    const forwardTo = f && !direct ? await forwardDisplay(f) : null
     out.set(v.id, {
       forwardTo,
       input: {
@@ -51,7 +58,10 @@ export async function lineInputs(vouchers: VoucherRow[], s: Settings) {
         lockReasons: v.lock_reasons ?? [],
         firstLaunchedAt: v.first_launched_at,
         platformDeletedAt: v.platform_deleted_at,
-        forward: f && forwardTo ? { displayName: forwardTo.name, openedAt: link?.first_opened_at ?? null, codeExposed: !!link?.code_exposed_at } : null,
+        codeExposedAt: v.first_code_exposed_at,
+        forward: f
+          ? { displayName: forwardTo?.name ?? '', openedAt: link?.first_opened_at ?? null, codeExposed: !!link?.code_exposed_at, direct }
+          : null,
       },
     })
   }
@@ -144,7 +154,7 @@ export async function buildHistory(recipientId: string, s: Settings): Promise<Hi
   const items: HistoryItem[] = []
   for (const r of rows) {
     const v = byId.get(r.voucher_id)!
-    const disp = r.to_name_enc || r.to_name_masked ? await forwardDisplay(r as unknown as ForwardRow) : null
+    const disp = r.to_name_enc || r.to_name_masked ? await forwardDisplay(r) : null
     items.push({
       id: r.id, at: r.created_at, action: r.action, testName: v.test_name, unitNo: v.unit_no,
       toName: disp?.name ?? null, toPhone: disp?.phone ?? null, result: resultOf(r), openedAt: r.first_opened_at,
