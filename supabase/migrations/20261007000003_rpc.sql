@@ -13,18 +13,20 @@ $$;
 create function app.otp_consume(p_id uuid)
 returns boolean
 language sql set search_path = app, public as $$
-  with u as (update app.otp_challenges set consumed_at = now() where id = p_id and consumed_at is null returning id)
+  with u as (update app.otp_challenges set consumed_at = now() where id = p_id and consumed_at is null
+                   and expires_at > now() and attempt_count < max_attempts and (locked_until is null or locked_until <= now())
+                 returning id)
   select exists (select 1 from u);
 $$;
 
-create function app.voucher_mark_exposed(p_voucher_id uuid, p_launch boolean)
+create function app.voucher_mark_exposed(p_voucher_id uuid, p_launch boolean, p_launched_by text default 'recipient')
 returns void
 language sql set search_path = app, public as $$
   update app.vouchers
      set first_code_exposed_at = coalesce(first_code_exposed_at, now()),
          first_launched_at = case when p_launch then coalesce(first_launched_at, now()) else first_launched_at end,
          last_launched_at = case when p_launch then now() else last_launched_at end,
-         launched_by = case when p_launch then coalesce(launched_by, 'recipient') else launched_by end,
+         launched_by = case when p_launch then coalesce(launched_by, p_launched_by) else launched_by end,
          updated_at = now()
    where id = p_voucher_id;
 $$;
@@ -110,6 +112,10 @@ begin
   end if;
 
   -- forward / resend / direct_share: 새 링크를 만들고, 다시 보내기면 옛 링크를 닫는다
+  -- 다시 보내기는 옛 링크의 코드 노출 기록을 새 링크로 이어 받는다 (취소 차단을 우회하지 못하게)
+  if p_action = 'resend' then
+    select * into v_current_link from app.access_links where voucher_id = p_voucher_id and link_type = 'forward' and revoked_at is null;
+  end if;
   update app.access_links set revoked_at = now(), revoked_reason = 'resent', revoked_by = p_actor_type
    where voucher_id = p_voucher_id and link_type = 'forward' and revoked_at is null;
 
@@ -134,8 +140,8 @@ begin
     case when p_action = 'resend' then v_current.is_self_number else coalesce(p_is_self, false) end,
     v_msg_id, v_link_id);
 
-  insert into app.access_links (id, token_hash, link_type, voucher_id, forward_id, expires_at)
-  values (v_link_id, p_token_hash, 'forward', p_voucher_id, v_forward_id, now() + make_interval(days => p_link_ttl_days));
+  insert into app.access_links (id, token_hash, link_type, voucher_id, forward_id, expires_at, code_exposed_at)
+  values (v_link_id, p_token_hash, 'forward', p_voucher_id, v_forward_id, now() + make_interval(days => p_link_ttl_days), v_current_link.code_exposed_at);
 
   if v_msg_id is not null then
     insert into app.messages (id, purpose, template_code, template_version, requested_channel, to_kind, to_phone_hash, to_phone_last4, forward_id)
@@ -149,11 +155,11 @@ end $$;
 
 revoke all on function app.otp_register_failure(uuid, int) from public, anon, authenticated;
 revoke all on function app.otp_consume(uuid) from public, anon, authenticated;
-revoke all on function app.voucher_mark_exposed(uuid, boolean) from public, anon, authenticated;
+revoke all on function app.voucher_mark_exposed(uuid, boolean, text) from public, anon, authenticated;
 revoke all on function app.forward_counts(uuid, uuid, text, timestamptz) from public, anon, authenticated;
 revoke all on function app.forward_apply(text, uuid, text, text, text, int, text, text, text, text, text, boolean) from public, anon, authenticated;
 grant execute on function app.otp_register_failure(uuid, int) to service_role;
 grant execute on function app.otp_consume(uuid) to service_role;
-grant execute on function app.voucher_mark_exposed(uuid, boolean) to service_role;
+grant execute on function app.voucher_mark_exposed(uuid, boolean, text) to service_role;
 grant execute on function app.forward_counts(uuid, uuid, text, timestamptz) to service_role;
 grant execute on function app.forward_apply(text, uuid, text, text, text, int, text, text, text, text, text, boolean) to service_role;
