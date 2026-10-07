@@ -3,7 +3,7 @@ import { type LineInput, lineStatus } from './lineStatus.ts'
 
 const base: LineInput = {
   issueStatus: 'issued', cancelStatus: 'none', cancelRejectReason: null, examStatus: null,
-  examStatusEnabled: false, lockReasons: [], firstLaunchedAt: null, platformDeletedAt: null, forward: null,
+  examStatusEnabled: false, lockReasons: [], firstLaunchedAt: null, platformDeletedAt: null, codeExposedAt: null, forward: null,
 }
 const s = (o: Partial<LineInput>) => lineStatus({ ...base, ...o })
 
@@ -29,19 +29,37 @@ Deno.test('7~9 응시상태는 꺼져 있으면 무시', () => {
 })
 Deno.test('미사용은 firstLaunchedAt 앞에 와야 하고 forward가 없을 때만', () => {
   assertEquals(s({ examStatus: 'unused', examStatusEnabled: true, firstLaunchedAt: '2026-10-22T15:30:00Z' }), { label: '미사용', tone: 'neutral', actions: ['launch', 'forward'] })
-  assertEquals(s({ examStatus: 'unused', examStatusEnabled: true, forward: { displayName: '홍길동', openedAt: null, codeExposed: false } }).label, '전달함 · 홍길동')
+  assertEquals(s({ examStatus: 'unused', examStatusEnabled: true, forward: { displayName: '홍길동', openedAt: null, codeExposed: false, direct: false } }).label, '전달함 · 홍길동')
 })
 Deno.test('10 실시함', () => assertEquals(s({ firstLaunchedAt: '2026-10-22T15:30:00Z' }), { label: '실시함 (10-23)', tone: 'info', actions: ['continue'] }))
 Deno.test('11 전달함, 코드 노출 전에는 다른 분께 가능', () => {
-  const r = s({ forward: { displayName: '홍길동', openedAt: null, codeExposed: false } })
+  const r = s({ forward: { displayName: '홍길동', openedAt: null, codeExposed: false, direct: false } })
   assertEquals(r.label, '전달함 · 홍길동')
   assertEquals(r.actions, ['resend', 'reforward'])
   assertEquals(r.note, '아직 안 열어 봄')
 })
 Deno.test('11 전달함, 코드 노출 후에는 다른 분께 숨김', () => {
-  const r = s({ forward: { displayName: '홍길동', openedAt: '2026-10-22T01:00:00Z', codeExposed: true } })
+  const r = s({ forward: { displayName: '홍길동', openedAt: '2026-10-22T01:00:00Z', codeExposed: true, direct: false } })
   assertEquals(r.actions, ['resend'])
   assertEquals(r.note, '받는 분이 열어 봄')
+})
+Deno.test('11 링크로 직접 공유한 줄: 이름 없이 별도 상태, 다시 보내기 없음', () => {
+  const r = s({ forward: { displayName: '', openedAt: null, codeExposed: false, direct: true } })
+  assertEquals(r, { label: '링크로 전달함', tone: 'info', actions: ['reforward'], note: '아직 안 열어 봄' })
+})
+Deno.test('11 링크로 직접 공유한 줄: 받는 분이 코드를 봤으면 버튼 없음', () => {
+  const r = s({ forward: { displayName: '', openedAt: '2026-10-22T01:00:00Z', codeExposed: true, direct: true } })
+  assertEquals(r, { label: '링크로 전달함', tone: 'info', actions: [], note: '받는 분이 열어 봄' })
+})
+Deno.test('11-1 본인이 코드를 본 줄은 실시만 (전달 불가, 코드 보기는 화면이 그대로 둔다)', () => {
+  assertEquals(s({ codeExposedAt: '2026-10-22T15:30:00Z' }), { label: '코드 확인함 · 10-23', tone: 'info', actions: ['launch'] })
+})
+Deno.test('11-1 코드 확인보다 실시함·전달함·취소·잠금이 먼저', () => {
+  const at = '2026-10-22T15:30:00Z'
+  assertEquals(s({ codeExposedAt: at, firstLaunchedAt: at }).label, '실시함 (10-23)')
+  assertEquals(s({ codeExposedAt: at, forward: { displayName: '홍길동', openedAt: null, codeExposed: true, direct: false } }).label, '전달함 · 홍길동')
+  assertEquals(s({ codeExposedAt: at, cancelStatus: 'cancelled' }).label, '취소됨')
+  assertEquals(s({ codeExposedAt: at, lockReasons: ['admin_hold'] }).label, '확인 중')
 })
 Deno.test('12 실시 전', () => assertEquals(s({}), { label: '실시 전', tone: 'neutral', actions: ['launch', 'forward'] }))
 Deno.test('취소 거부 사유는 note로', () => {

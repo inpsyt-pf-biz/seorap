@@ -1,6 +1,7 @@
 -- 전달 자격·한도를 잠금 아래에서 다시 검사하고, 전달된 발송권의 실시 기록을 막는다 (Plan A, Task 14 보강)
---  1) 한 발송권은 두 사람에게 가지 않는다: 전달 시 발송권 행을 잠그고 자격(발급됨·취소 없음·미실시·삭제 없음·잠금 없음)을 다시 본다.
+--  1) 한 발송권은 두 사람에게 가지 않는다: 전달 시 발송권 행을 잠그고 자격(발급됨·취소 없음·미실시·본인 코드 보기 없음·삭제 없음·잠금 없음)을 다시 본다.
 --     반대로 실시·코드 보기는 전달 중인 발송권이면 아무것도 바꾸지 않고 false 를 돌려준다.
+--     취소·다시 보내기는 현재 전달 링크 행도 잠근 뒤 코드 노출 기록을 읽는다 (그사이 받는 분이 코드를 봐도 놓치지 않게).
 --  2) 한도는 병렬 요청으로 우회되지 않는다: 받는 분(수취인) 행 → 발송권 행 순서로 잠근 뒤, 같은 정의로 다시 센다.
 
 drop function app.forward_apply(text, uuid, text, text, text, int, text, text, text, text, text, boolean);
@@ -85,12 +86,14 @@ begin
   if p_action in ('forward', 'direct_share') and v_current.id is not null then
     raise exception 'ALREADY_FORWARDED';
   end if;
-  -- 새로 보내는 전달은 잠금 아래에서 자격을 다시 본다 (그사이 실시·취소·잠금이 생겼을 수 있다)
+  -- 새로 보내는 전달은 잠금 아래에서 자격을 다시 본다 (그사이 실시·코드 보기·취소·잠금이 생겼을 수 있다)
   -- 취소 신청이 거절된 발송권은 그대로 쓸 수 있다 (lineStatus 도 전달하기를 내어 준다)
+  -- 서랍 주인이 [코드 보기]로 코드를 봤으면 이미 썼을 수 있으므로 넘기지 않는다 (lineStatus 의 '코드 확인함'과 같은 규칙)
   if p_action in ('forward', 'direct_share') and not (
     v_voucher.issue_status = 'issued'
     and v_voucher.cancel_status in ('none', 'rejected')
     and v_voucher.first_launched_at is null
+    and v_voucher.first_code_exposed_at is null
     and v_voucher.platform_deleted_at is null
     and cardinality(v_voucher.lock_reasons) = 0
   ) then
@@ -135,7 +138,8 @@ begin
   end if;
 
   if p_action = 'cancel' then
-    select * into v_current_link from app.access_links where voucher_id = p_voucher_id and link_type = 'forward' and revoked_at is null;
+    -- 현재 링크 행을 잠가, 코드 노출 확인과 링크 닫기 사이에 받는 분의 코드 노출이 끼어들지 못하게 한다
+    select * into v_current_link from app.access_links where voucher_id = p_voucher_id and link_type = 'forward' and revoked_at is null for update;
     if v_current_link.code_exposed_at is not null then
       raise exception 'CODE_EXPOSED';
     end if;
@@ -151,7 +155,8 @@ begin
   -- forward / resend / direct_share: 새 링크를 만들고, 다시 보내기면 옛 링크를 닫는다
   -- 다시 보내기는 옛 링크의 코드 노출 기록을 새 링크로 이어 받는다 (취소 차단을 우회하지 못하게)
   if p_action = 'resend' then
-    select * into v_current_link from app.access_links where voucher_id = p_voucher_id and link_type = 'forward' and revoked_at is null;
+    -- 잠근 뒤 읽어야 이어 받는 코드 노출 기록이 낡지 않는다
+    select * into v_current_link from app.access_links where voucher_id = p_voucher_id and link_type = 'forward' and revoked_at is null for update;
   end if;
   update app.access_links set revoked_at = now(), revoked_reason = 'resent', revoked_by = p_actor_type
    where voucher_id = p_voucher_id and link_type = 'forward' and revoked_at is null;

@@ -13,7 +13,10 @@ export type LineInput = {
   lockReasons: string[]
   firstLaunchedAt: string | null
   platformDeletedAt: string | null
-  forward: null | { displayName: string; openedAt: string | null; codeExposed: boolean }
+  // 서랍 주인이 [코드 보기]로 코드를 본 시각 (vouchers.first_code_exposed_at)
+  codeExposedAt: string | null
+  // direct: 번호 없이 링크로 직접 공유한 전달 (받는 분 이름·번호가 없다)
+  forward: null | { displayName: string; openedAt: string | null; codeExposed: boolean; direct: boolean }
 }
 
 // build-spec §5. 순위가 높은 조건이 먼저 이긴다.
@@ -31,13 +34,18 @@ function core(i: LineInput): LineStatus {
   if (i.examStatusEnabled && i.examStatus === 'unused' && !i.forward) return { label: t('line.unused'), tone: 'neutral', actions: ['launch', 'forward'] }
   if (i.firstLaunchedAt) return { label: t('line.launched', { date: formatKstMonthDay(i.firstLaunchedAt) }), tone: 'info', actions: ['continue'] }
   if (i.forward) {
+    const note = i.forward.openedAt ? t('line.forwardOpened') : t('line.forwardNotOpened')
+    // 직접 공유는 보낼 번호가 없어 다시 보내기가 없다. 받는 분이 코드를 봤으면 다른 분께도 없다.
+    if (i.forward.direct) return { label: t('line.forwardedDirect'), tone: 'info', actions: i.forward.codeExposed ? [] : ['reforward'], note }
     return {
       label: t('line.forwarded', { name: i.forward.displayName }),
       tone: 'info',
       actions: i.forward.codeExposed ? ['resend'] : ['resend', 'reforward'],
-      note: i.forward.openedAt ? t('line.forwardOpened') : t('line.forwardNotOpened'),
+      note,
     }
   }
+  // 본인이 코드를 봤으면(이미 썼을 수 있다) 전달하지 않는다. 한 발송권이 두 사람에게 가지 않게 (forward_apply 도 같은 규칙)
+  if (i.codeExposedAt) return { label: t('line.codeViewed', { date: formatKstMonthDay(i.codeExposedAt) }), tone: 'info', actions: ['launch'] }
   return { label: t('line.notStarted'), tone: 'neutral', actions: ['launch', 'forward'] }
 }
 
