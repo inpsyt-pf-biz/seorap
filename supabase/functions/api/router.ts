@@ -1,6 +1,7 @@
 import { box } from './handlers/box.ts'
 import { devOutbox } from './handlers/dev.ts'
 import { entry } from './handlers/entry.ts'
+import { forwardCancel, forwardCreate, forwardDirect, forwardResend } from './handlers/forward.ts'
 import { history } from './handlers/history.ts'
 import { logout } from './handlers/logout.ts'
 import { otpRequest, otpVerify } from './handlers/otp.ts'
@@ -17,6 +18,10 @@ export const routes: Record<string, Handler> = {
   'GET history': history,
   'POST voucher/launch': voucherLaunch,
   'POST voucher/code': voucherCode,
+  'POST forward/create': forwardCreate,
+  'POST forward/resend': forwardResend,
+  'POST forward/cancel': forwardCancel,
+  'POST forward/direct': forwardDirect,
   'GET dev/outbox': devOutbox,
 }
 
