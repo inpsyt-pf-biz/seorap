@@ -115,4 +115,74 @@ await order({
   units: [{ launched: '2026-10-22T03:00:00Z' }, {}, { forward: { name: '김영희', phone: '01022223333', opened: true } }],
 })
 
+const GOLDEN1 = { testItemId: 'PSY-GOLDEN', testName: 'GOLDEN 성격유형검사', count: 1 }
+const GOLDEN2 = { ...GOLDEN1, count: 2 }
+const STS_ADULT1 = { ...STS_ADULT2, count: 1 }
+
+// S3 두 번 구매 (S1과 같은 번호 → 같은 서랍)
+await order({
+  recipientId: r1, recipientName: '홍길동', orderNo: '2026093000004', paidAt: '2026-09-30T01:00:00Z',
+  productName: 'GOLDEN 성격유형검사', optionName: '2매', amount: 50000, tests: [GOLDEN2],
+  units: [{ launched: '2026-10-01T02:00:00Z' }, { launched: '2026-10-02T02:00:00Z' }],
+})
+
+// S2 검사 + 상담
+const r2 = await recipient('김철수', '01055556666', '2026-10-22T02:00:00Z', '2026-10-22T02:00:00Z')
+await boxLink(r2, 'S2')
+await order({
+  recipientId: r2, recipientName: '김철수', orderNo: '2026102200002', paidAt: '2026-10-22T02:00:00Z',
+  productName: 'GOLDEN 커플 상담 패키지', optionName: '커플 상담 1회 + GOLDEN 2매', amount: 150000,
+  tests: [GOLDEN2], units: [{}, {}], counsel: true,
+})
+
+// S4 선물 주문 (구매자 ≠ 수취인)
+const r4 = await recipient('성춘향', '01033334444', '2026-10-22T03:00:00Z', '2026-10-22T03:00:00Z')
+await boxLink(r4, 'S4')
+await order({
+  recipientId: r4, recipientName: '성춘향', ordererName: '이몽룡', orderNo: '2026102200005', paidAt: '2026-10-22T03:00:00Z',
+  productName: 'STS 성인 기질검사', optionName: '1매', amount: 12000, tests: [STS_ADULT1], units: [{}],
+})
+
+// S5 부분 취소
+const r5 = await recipient('박영희', '01077778888', '2026-10-22T04:00:00Z', '2026-10-22T04:00:00Z')
+await boxLink(r5, 'S5')
+await order({
+  recipientId: r5, recipientName: '박영희', orderNo: '2026102200006', paidAt: '2026-10-22T04:00:00Z',
+  productName: '온가족 기질검사 패키지', optionName: '유아용(36~72개월) / 온가족', amount: 21500,
+  tests: [STS_INFANT, STS_ADULT2], units: [{ cancel: 'cancelled' }, { cancel: 'checking' }, {}],
+})
+
+// S6 하루 여러 주문 (같은 날 5건)
+const r6 = await recipient('최민수', '01099990000', '2026-10-22T05:00:00Z', '2026-10-22T09:00:00Z')
+await boxLink(r6, 'S6')
+const S6_ORDERS = ['2026102200007', '2026102200008', '2026102200009', '2026102200010', '2026102200011']
+for (let n = 0; n < S6_ORDERS.length; n++) {
+  await order({
+    recipientId: r6, recipientName: '최민수', orderNo: S6_ORDERS[n], paidAt: `2026-10-22T0${5 + n}:00:00Z`,
+    productName: 'STS 성인 기질검사', optionName: '1매', amount: 12000, tests: [STS_ADULT1], units: [{}],
+  })
+}
+
+// S7 코드 발급 실패
+const r7 = await recipient('정다은', '01024681357', '2026-10-22T06:00:00Z', '2026-10-22T06:00:00Z')
+await boxLink(r7, 'S7')
+await order({
+  recipientId: r7, recipientName: '정다은', orderNo: '2026102200012', paidAt: '2026-10-22T06:00:00Z',
+  productName: 'STS 성인 기질검사', optionName: '1매', amount: 12000, tests: [STS_ADULT1], units: [{ issue: 'failed' }],
+})
+
+// S8 전달 → 전달 취소 → 다른 번호로 전달
+const r8 = await recipient('한지민', '01013572468', '2026-10-22T07:00:00Z', '2026-10-22T07:00:00Z')
+await boxLink(r8, 'S8')
+const s8 = await order({
+  recipientId: r8, recipientName: '한지민', orderNo: '2026102200013', paidAt: '2026-10-22T07:00:00Z',
+  productName: 'GOLDEN 성격유형검사', optionName: '1매', amount: 25000, tests: [GOLDEN1], units: [{}],
+})
+await forward(s8.voucherIds[0], { name: '이순신', phone: '01011112222' })
+must(await db.rpc('forward_apply', {
+  p_action: 'cancel', p_voucher_id: s8.voucherIds[0], p_client_request_id: crypto.randomUUID(), p_actor_type: 'recipient',
+  p_token_hash: await hmac(`forward:${randomToken()}`), p_link_ttl_days: 180,
+}), 'cancel')
+await forward(s8.voucherIds[0], { name: '유관순', phone: '01033335555' })
+
 console.log('seed done')

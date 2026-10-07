@@ -41,18 +41,28 @@ export async function requireSession(req: Request): Promise<Session> {
   const raw = getCookie(req, COOKIE)
   if (!raw) throw new ApiError('SESSION_EXPIRED')
   const idHash = await hmac(`sid:${raw}`)
-  const { data: row } = await db().from('customer_sessions')
-    .select('id_hash, recipient_id, access_link_id, device_class, idle_expires_at, absolute_expires_at, last_otp_at, revoked_at')
-    .eq('id_hash', idHash).maybeSingle()
+  // 조회 오류는 502(must)로 올리고, "행 없음·폐기·만료"만 SESSION_EXPIRED 로 처리한다
+  const row = must(
+    await db().from('customer_sessions')
+      .select('id_hash, recipient_id, access_link_id, device_class, idle_expires_at, absolute_expires_at, last_otp_at, revoked_at')
+      .eq('id_hash', idHash).maybeSingle(),
+    'session read',
+  ) as {
+    id_hash: string; recipient_id: string; access_link_id: string; device_class: 'mobile' | 'desktop'
+    idle_expires_at: string; absolute_expires_at: string; last_otp_at: string | null; revoked_at: string | null
+  } | null
   const now = Date.now()
   if (!row || row.revoked_at || Date.parse(row.idle_expires_at) < now || Date.parse(row.absolute_expires_at) < now) {
     throw new ApiError('SESSION_EXPIRED')
   }
   const s = await getSettings()
   const idleMin = row.device_class === 'mobile' ? s.session_mobile_idle_min : s.session_desktop_idle_min
-  await db().from('customer_sessions').update({
-    last_seen_at: new Date(now).toISOString(),
-    idle_expires_at: new Date(Math.min(now + idleMin * 60_000, Date.parse(row.absolute_expires_at))).toISOString(),
-  }).eq('id_hash', idHash)
+  must(
+    await db().from('customer_sessions').update({
+      last_seen_at: new Date(now).toISOString(),
+      idle_expires_at: new Date(Math.min(now + idleMin * 60_000, Date.parse(row.absolute_expires_at))).toISOString(),
+    }).eq('id_hash', idHash),
+    'session touch',
+  )
   return { idHash, recipientId: row.recipient_id, accessLinkId: row.access_link_id, lastOtpAt: row.last_otp_at }
 }

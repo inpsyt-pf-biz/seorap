@@ -1,5 +1,7 @@
+import { box } from './handlers/box.ts'
 import { devOutbox } from './handlers/dev.ts'
 import { entry } from './handlers/entry.ts'
+import { history } from './handlers/history.ts'
 import { logout } from './handlers/logout.ts'
 import { otpRequest, otpVerify } from './handlers/otp.ts'
 import { ApiError, json } from './lib/http.ts'
@@ -10,6 +12,8 @@ export const routes: Record<string, Handler> = {
   'POST otp/request': otpRequest,
   'POST otp/verify': otpVerify,
   'POST logout': logout,
+  'GET box': box,
+  'GET history': history,
   'GET dev/outbox': devOutbox,
 }
 
