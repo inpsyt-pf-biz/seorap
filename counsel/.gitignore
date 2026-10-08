@@ -1,0 +1,5 @@
+# 로컬 접속값·시드 비밀번호 (첫 시드 때 생성)
+.env.local
+.env.*.local
+web/node_modules/
+web/dist/

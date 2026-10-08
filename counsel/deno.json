@@ -1,0 +1,18 @@
+{
+  "imports": {
+    "@std/assert": "jsr:@std/assert@1",
+    "@supabase/supabase-js": "npm:@supabase/supabase-js@2.75.1",
+    "postgres": "npm:postgres@3.4.7"
+  },
+  "tasks": {
+    "db:start": "supabase start",
+    "db:stop": "supabase stop",
+    "db:reset": "supabase db reset && deno run -A scripts/seed.ts",
+    "seed": "deno run -A scripts/seed.ts",
+    "web": "npm --prefix web run dev",
+    "test:core": "deno test --allow-read core",
+    "test:db": "deno test -A tests",
+    "check": "deno task test:core && deno task test:db && npm --prefix web run typecheck && npm --prefix web run lint && npm --prefix web test"
+  },
+  "exclude": ["web/"]
+}
