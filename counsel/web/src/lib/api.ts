@@ -31,8 +31,10 @@ function centerParams(v: CenterInput) {
   return {
     p_name: v.name,
     p_status: v.status,
+    p_location_sido: v.location_sido,
+    p_location_sigungu: v.location_sigungu,
+    p_categories: v.categories,
     p_regions: v.regions,
-    p_counseling_types: v.counseling_types,
     p_delivery_modes: v.delivery_modes,
     p_phone: v.phone,
     p_address: v.address,

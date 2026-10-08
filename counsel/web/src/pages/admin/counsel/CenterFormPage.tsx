@@ -5,8 +5,8 @@ import {
   MenuItem, Paper, Stack, TextField, Typography,
 } from '@mui/material'
 import {
-  CENTER_STATUSES, COUNSELING_TYPES, DELIVERY_MODES, EMPTY_CENTER_INPUT, REGIONS,
-  modeLabel, statusLabel, toInput, typeLabel, validateCenterInput,
+  CATEGORIES, CENTER_STATUSES, DELIVERY_MODES, EMPTY_CENTER_INPUT, REGIONS,
+  categoryLabel, modeLabel, statusLabel, toInput, validateCenterInput,
   type CenterInput, type CenterInputErrors, type CenterStatus,
 } from '@counsel-core/centers.ts'
 import { t } from '@counsel-core/copy.ko.ts'
@@ -88,22 +88,33 @@ export default function CenterFormPage({ mode }: { mode: 'create' | 'edit' }) {
             </TextField>
           </Box>
 
-          {/* 권역 칸에서 Enter 는 첫 번째 맞는 권역을 고른다. 양식 저장으로 넘어가지 않게 막는다. */}
-          <Autocomplete multiple autoHighlight options={[...REGIONS]} value={values.regions} onChange={(_, v) => set({ regions: v })}
-            onKeyDown={(e) => { if (e.key === 'Enter') e.preventDefault() }}
-            openText={t('form.picker.open')} closeText={t('form.picker.close')} clearText={t('form.picker.clear')} noOptionsText={t('form.picker.noRegion')}
-            renderInput={(p) => <TextField {...p} label={t('center.field.regions')} />} />
+          <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: '1fr 1fr' }, gap: 2 }}>
+            <TextField select label={`${t('center.field.location')} · ${t('center.field.sido')}`} value={values.location_sido}
+              onChange={(e) => set({ location_sido: e.target.value })} error={!!err('location_sido')} helperText={err('location_sido')}>
+              <MenuItem value="">{t('form.sidoNone')}</MenuItem>
+              {REGIONS.map((r) => <MenuItem key={r} value={r}>{r}</MenuItem>)}
+            </TextField>
+            <TextField label={`${t('center.field.location')} · ${t('center.field.sigungu')}`} value={values.location_sigungu}
+              onChange={(e) => set({ location_sigungu: e.target.value })}
+              error={!!err('location_sigungu')} helperText={err('location_sigungu') ?? t('form.sigunguHelp')} slotProps={{ htmlInput: { maxLength: 20 } }} />
+          </Box>
 
           <FormControl component="fieldset">
-            <FormLabel component="legend">{t('center.field.types')}</FormLabel>
+            <FormLabel component="legend">{t('center.field.categories')}</FormLabel>
             <FormGroup row>
-              {COUNSELING_TYPES.map((v) => (
-                <FormControlLabel key={v} label={typeLabel(v)} control={
-                  <Checkbox checked={values.counseling_types.includes(v)} onChange={(e) => set({ counseling_types: toggle(values.counseling_types, v, e.target.checked) })} />
+              {CATEGORIES.map((v) => (
+                <FormControlLabel key={v} label={categoryLabel(v)} control={
+                  <Checkbox checked={values.categories.includes(v)} onChange={(e) => set({ categories: toggle(values.categories, v, e.target.checked) })} />
                 } />
               ))}
             </FormGroup>
           </FormControl>
+
+          {/* 지역 칸에서 Enter 는 첫 번째 맞는 지역을 고른다. 양식 저장으로 넘어가지 않게 막는다. */}
+          <Autocomplete multiple autoHighlight options={[...REGIONS]} value={values.regions} onChange={(_, v) => set({ regions: v })}
+            onKeyDown={(e) => { if (e.key === 'Enter') e.preventDefault() }}
+            openText={t('form.picker.open')} closeText={t('form.picker.close')} clearText={t('form.picker.clear')} noOptionsText={t('form.picker.noRegion')}
+            renderInput={(p) => <TextField {...p} label={t('center.field.regions')} />} />
 
           <FormControl component="fieldset">
             <FormLabel component="legend">{t('center.field.modes')}</FormLabel>

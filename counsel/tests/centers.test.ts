@@ -30,7 +30,8 @@ await cleanup()
 
 const name = (s: string) => `[시험] ${s} ${crypto.randomUUID().slice(0, 6)}`
 const input = (n: string) => ({
-  p_name: n, p_status: 'active', p_regions: ['서울'], p_counseling_types: ['individual'], p_delivery_modes: ['offline'],
+  p_name: n, p_status: 'active', p_location_sido: '서울', p_location_sigungu: '강남', p_categories: ['development'],
+  p_regions: ['서울'], p_delivery_modes: ['offline'],
   p_phone: '02-0000-9999', p_address: '', p_contact_name: '', p_contact_phone: '', p_contract_from: null, p_contract_to: null, p_memo: '',
 })
 
@@ -114,6 +115,20 @@ Deno.test({
       assertEquals(bad.error?.message, 'COUNSEL:INVALID_INPUT')
       const period = await admin.rpc('rpc_create_center', { ...input(name('기간')), p_contract_from: '2026-12-31', p_contract_to: '2026-01-01' })
       assertEquals(period.error?.message, 'COUNSEL:INVALID_INPUT')
+    })
+
+    await t.step('목록에 없는 카테고리, 시·도 없는 구·시는 INVALID_INPUT', async () => {
+      const cat = await admin.rpc('rpc_create_center', { ...input(name('카테고리')), p_categories: ['individual'] })
+      assertEquals(cat.error?.message, 'COUNSEL:INVALID_INPUT')
+      const loc = await admin.rpc('rpc_create_center', { ...input(name('소재지')), p_location_sido: '', p_location_sigungu: '강남' })
+      assertEquals(loc.error?.message, 'COUNSEL:INVALID_INPUT')
+    })
+
+    await t.step('등록한 소재지·카테고리가 그대로 읽힌다', async () => {
+      const n = name('소재지읽기')
+      const created = await admin.rpc('rpc_create_center', { ...input(n), p_categories: ['family', 'emotion', 'family'] })
+      const row = await admin.from('centers').select('location_sido, location_sigungu, categories').eq('id', created.data).single()
+      assertEquals(row.data, { location_sido: '서울', location_sigungu: '강남', categories: ['emotion', 'family'] })
     })
 
     await t.step('본사 행은 수정 함수로 고치지 못하고, 없는 센터와 같은 응답이다', async () => {

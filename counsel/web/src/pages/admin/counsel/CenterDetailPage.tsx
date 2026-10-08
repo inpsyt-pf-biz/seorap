@@ -3,9 +3,11 @@ import { useLocation, useNavigate, useParams } from 'react-router-dom'
 import { Box, Button, Paper, Stack, Typography } from '@mui/material'
 import Toast from '@seorap-web/components/Toast.tsx'
 import { formatKstDateTime } from '@seorap-core/time.ts'
-import { contractLabel, modesLabel, regionsLabel, typesLabel, type Center } from '@counsel-core/centers.ts'
+import { contractLabel, locationLabel, modesLabel, regionsLabel, type Center } from '@counsel-core/centers.ts'
 import { t, type CopyKey } from '@counsel-core/copy.ko.ts'
 import { errorText, toCounselError, type CounselError } from '@counsel-core/errors.ts'
+import CategoryChips from '../../../components/CategoryChips'
+import CenterAvatar from '../../../components/CenterAvatar'
 import { ErrorBox, Loading } from '../../../components/PageState'
 import StatusChip from '../../../components/StatusChip'
 import { getCenter } from '../../../lib/api'
@@ -13,7 +15,7 @@ import { hasCap, useSession } from '../../../shell/session'
 
 function Row({ label, children }: { label: CopyKey; children: ReactNode }) {
   return (
-    <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: '160px 1fr' }, gap: { xs: 0.5, sm: 2 }, py: 1.5 }}>
+    <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: '160px 1fr' }, gap: { xs: 0.5, sm: 2 }, py: 1.5, alignItems: 'center' }}>
       <Typography variant="body2" color="text.secondary">{t(label)}</Typography>
       <Box>{children}</Box>
     </Box>
@@ -37,8 +39,9 @@ export default function CenterDetailPage() {
   }, [id])
 
   return (
-    <Stack spacing={2}>
-      <Stack direction="row" sx={{ alignItems: 'center', gap: 1 }}>
+    <Stack spacing={2.5}>
+      <Stack direction="row" sx={{ alignItems: 'center', gap: 1.5 }}>
+        {center && <CenterAvatar size={40} />}
         <Typography variant="h5" sx={{ flexGrow: 1 }}>{center?.name ?? t('centers.title')}</Typography>
         <Button variant="outlined" onClick={() => navigate('/admin/counsel/centers')}>{t('detail.back')}</Button>
         {center && hasCap(state, 'center.manage') && (
@@ -48,10 +51,11 @@ export default function CenterDetailPage() {
       {error && <ErrorBox message={errorText(error)} />}
       {!center && !error && <Loading />}
       {center && (
-        <Paper sx={{ px: 3, py: 1 }}>
+        <Paper sx={{ px: 3, py: 1, borderRadius: 4 }}>
           <Row label="center.field.status"><StatusChip status={center.status} /></Row>
+          <Row label="center.field.location">{text(locationLabel(center.location_sido, center.location_sigungu))}</Row>
+          <Row label="center.field.categories"><CategoryChips values={center.categories} /></Row>
           <Row label="center.field.regions">{text(regionsLabel(center.regions))}</Row>
-          <Row label="center.field.types">{text(typesLabel(center.counseling_types))}</Row>
           <Row label="center.field.modes">{text(modesLabel(center.delivery_modes))}</Row>
           <Row label="center.field.phone">{text(center.phone)}</Row>
           <Row label="center.field.address">{text(center.address)}</Row>
