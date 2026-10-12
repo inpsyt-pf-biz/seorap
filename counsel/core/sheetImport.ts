@@ -6,7 +6,7 @@ import { APPLICATION_LIMITS, EMPTY_APPLICATION, overLimitFields, type Applicatio
 export type SheetField =
   | keyof Omit<ApplicationInput, 'consent_third_party' | 'refund_policy_checked'>
   | 'consent' | 'consent_confirm' | 'refund' | 'ended' | 'reserved' | 'schedule_note'
-  | 'test_option' | 'counsel_option' | 'purchase_memo' | 'admin_memo'
+  | 'test_option' | 'counsel_option' | 'purchase_memo' | 'admin_memo' | 'naver_product_order_id'
 
 const norm = (h: string) => h.replace(/\(필수\)/g, '').replace(/[\s.,?!'"‘’“”·]/g, '')
 const has = (h: string, ...words: string[]) => words.every((w) => h.includes(w))
@@ -14,6 +14,8 @@ const has = (h: string, ...words: string[]) => words.every((w) => h.includes(w))
 // 위에서부터 차례로 본다. 앞의 규칙이 이긴다.
 const RULES: { field: SheetField; test: (h: string) => boolean }[] = [
   { field: 'submitted_at', test: (h) => has(h, '타임스탬프') },
+  // 폼에 상품주문번호 질문을 더하면 그 줄은 해당 네이버 주문에 바로 붙는다(현행 폼 4종에는 없다)
+  { field: 'naver_product_order_id', test: (h) => has(h, '주문번호') },
   { field: 'ended', test: (h) => has(h, '상담종료') },
   { field: 'reserved', test: (h) => has(h, '예약전화완료') || h === '예약완료' },
   { field: 'schedule_note', test: (h) => has(h, '상담예약일정') },
@@ -82,6 +84,7 @@ export function parseSheetTimestamp(v: string): string | null {
 
 export type ImportRow = {
   source_key: string
+  naver_product_order_id: string
   application: ApplicationInput
   test_option: string
   counsel_option: string
@@ -120,6 +123,8 @@ export function toImportRow(cells: string[], m: HeaderMapping): ImportRow & { en
   ].filter(Boolean)
   return {
     source_key: [stamp, a.client_phone, a.client_name || a.guardian_name].join('|'),
+    // 신청자가 붙여 넣은 번호의 공백·하이픈은 뺀다
+    naver_product_order_id: get('naver_product_order_id').replace(/[\s-]/g, ''),
     application: a,
     test_option: get('test_option'),
     counsel_option: get('counsel_option'),
@@ -152,6 +157,7 @@ export function previewImport(csvText: string, opts: { skipEnded: boolean } = { 
 export function importPayload(p: ImportPreview): Record<string, unknown>[] {
   return p.rows.filter((r) => r.state === 'ok').map(({ row }) => ({
     source_key: row.source_key,
+    naver_product_order_id: row.naver_product_order_id,
     test_option: row.test_option,
     counsel_option: row.counsel_option,
     purchase_memo: row.purchase_memo,

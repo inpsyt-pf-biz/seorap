@@ -46,7 +46,9 @@ export default function ImportDialog({ open, onClose, onDone }: { open: boolean;
     setError(null)
     try {
       const r = await importApplications(type, importPayload(preview))
-      onDone(r.duplicates > 0 ? t('import.doneDup', { inserted: r.inserted, dup: r.duplicates }) : t('import.done', { inserted: r.inserted }))
+      onDone(r.duplicates > 0
+        ? t('import.doneDup', { attached: r.attached, waiting: r.waiting, dup: r.duplicates })
+        : t('import.done', { attached: r.attached, waiting: r.waiting }))
       reset()
     } catch (err) {
       setError(toCounselError(err))
@@ -61,6 +63,7 @@ export default function ImportDialog({ open, onClose, onDone }: { open: boolean;
       <DialogContent dividers>
         <Stack spacing={2}>
           <Alert severity="warning">{t('import.warning')}</Alert>
+          <Typography variant="body2">{t('import.how')}</Typography>
           <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2} sx={{ alignItems: { sm: 'center' } }}>
             <TextField select size="small" label={t('import.type')} value={type} onChange={(e) => setType(e.target.value as PurchaseType)} sx={{ minWidth: 200 }}>
               {PURCHASE_TYPES.map((p) => <MenuItem key={p} value={p}>{purchaseTypeLabel(p)}</MenuItem>)}

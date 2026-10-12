@@ -1,7 +1,10 @@
 // DB 함수는 'COUNSEL:<코드>' 문구로 오류를 던진다. 화면은 코드만 보고 문장은 copy 에서 만든다.
 import { t, type CopyKey } from './copy.ko.ts'
 
-export const ERROR_CODES = ['FORBIDDEN', 'NOT_FOUND', 'VERSION_CONFLICT', 'DUPLICATE_NAME', 'INVALID_INPUT', 'DUPLICATE_ORDER', 'CENTER_NOT_ASSIGNABLE'] as const
+export const ERROR_CODES = [
+  'FORBIDDEN', 'NOT_FOUND', 'VERSION_CONFLICT', 'DUPLICATE_NAME', 'INVALID_INPUT', 'DUPLICATE_ORDER', 'CENTER_NOT_ASSIGNABLE',
+  'INVALID_TRANSITION', 'ALREADY_HAS_APPLICATION',
+] as const
 export type ErrorCode = (typeof ERROR_CODES)[number] | 'generic'
 
 export class CounselError extends Error {

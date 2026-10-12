@@ -8,6 +8,8 @@ import AdminShell from './pages/admin/counsel/AdminShell'
 import CenterDetailPage from './pages/admin/counsel/CenterDetailPage'
 import CenterFormPage from './pages/admin/counsel/CenterFormPage'
 import CentersListPage from './pages/admin/counsel/CentersListPage'
+import InboxPage from './pages/admin/counsel/InboxPage'
+import PurchaseDetailPage from './pages/admin/counsel/PurchaseDetailPage'
 import PurchaseFormPage from './pages/admin/counsel/PurchaseFormPage'
 import PurchasesListPage from './pages/admin/counsel/PurchasesListPage'
 import { hasCap, isHq, useSession } from './shell/session'
@@ -54,6 +56,8 @@ export default function App() {
         <Route path="centers/:id/edit" element={<RequireCap cap="center.manage"><CenterFormPage mode="edit" /></RequireCap>} />
         <Route path="purchases" element={<PurchasesListPage />} />
         <Route path="purchases/new" element={<RequireCap cap="purchase.manage"><PurchaseFormPage /></RequireCap>} />
+        <Route path="purchases/inbox" element={<InboxPage />} />
+        <Route path="purchases/:id" element={<PurchaseDetailPage />} />
       </Route>
       <Route path="*" element={<Home />} />
     </Routes>

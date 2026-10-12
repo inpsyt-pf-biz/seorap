@@ -9,28 +9,33 @@ import { formatKstMonthDay } from '@seorap-core/time.ts'
 import type { Center } from '@counsel-core/centers.ts'
 import { t, type CopyKey } from '@counsel-core/copy.ko.ts'
 import { errorText, toCounselError, type CounselError } from '@counsel-core/errors.ts'
+import { PRODUCT_ORDER_STATUSES, naverCodeLabel, orderStatusText, orderTone } from '@counsel-core/naverOrder.ts'
 import {
-  CENTER_NONE, EMPTY_PURCHASE_FILTER, PURCHASE_TYPES, SESSION_STATUSES, clientLabel, countByStatus, filterPurchases, mainSession,
-  purchaseTypeLabel, sessionStatusLabel, testNames, type PurchaseFilter, type PurchaseRow,
+  CENTER_NONE, EMPTY_PURCHASE_FILTER, ORDER_CLAIM, ORDER_NONE, ORDER_REVIEW, PURCHASE_TYPES, SESSION_STATUSES, TYPE_UNCLASSIFIED,
+  assignableSessionIds, clientLabel, countByStatus, filterPurchases, mainSession, purchaseTypeLabel, sessionProgress, sessionStatusLabel, testNames,
+  type PurchaseFilter, type PurchaseRow,
 } from '@counsel-core/purchases.ts'
-import ApplicationDialog from '../../../components/ApplicationDialog'
 import AssignDialog from '../../../components/AssignDialog'
 import ImportDialog from '../../../components/ImportDialog'
 import { ErrorBox, Loading } from '../../../components/PageState'
 import SessionStatusChip from '../../../components/SessionStatusChip'
-import { listCenters, listPurchases } from '../../../lib/api'
+import { countInbox, listCenters, listPurchases } from '../../../lib/api'
 import { hasCap, useSession } from '../../../shell/session'
 import { centerListLook } from '../../../theme/admin'
 
 const COLUMNS: { label: CopyKey; width: string }[] = [
-  { label: 'purchases.col.client', width: '16%' },
-  { label: 'purchases.col.type', width: '11%' },
-  { label: 'purchases.col.test', width: '20%' },
-  { label: 'purchases.col.center', width: '18%' },
+  { label: 'purchases.col.client', width: '17%' },
+  { label: 'purchases.col.type', width: '9%' },
+  { label: 'purchases.col.test', width: '13%' },
+  { label: 'purchases.col.center', width: '12%' },
+  { label: 'purchases.col.paidAt', width: '7%' },
+  { label: 'purchases.col.order', width: '10%' },
   { label: 'purchases.col.testProgress', width: '11%' },
-  { label: 'purchases.col.application', width: '11%' },
-  { label: 'purchases.col.status', width: '13%' },
+  { label: 'purchases.col.application', width: '10%' },
+  { label: 'purchases.col.status', width: '11%' },
 ]
+
+const ORDER_CHIP = { normal: 'default', done: 'success', warning: 'warning', closed: 'default' } as const
 
 // 검사 이름·센터 이름은 길어서 두 줄까지 보이고 그 뒤는 줄인다
 const twoLines = { display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' } as const
@@ -50,15 +55,15 @@ export default function PurchasesListPage() {
   const [page, setPage] = useState(0)
   const [perPage, setPerPage] = useState(20)
   const [selected, setSelected] = useState<Set<string>>(new Set())
-  const [viewing, setViewing] = useState<string | null>(null)
+  const [inbox, setInbox] = useState(0)
   const [assignOpen, setAssignOpen] = useState(false)
   const [importOpen, setImportOpen] = useState(false)
   const initialToast = (location.state as { toast?: string } | null)?.toast
   const [notice, setNotice] = useState<Notice | null>(initialToast ? { message: initialToast, key: 0 } : null)
 
   const load = useCallback(() => {
-    Promise.all([listPurchases(), listCenters()]).then(
-      ([p, c]) => { setRows(p); setCenters(c) },
+    Promise.all([listPurchases(), listCenters(), countInbox()]).then(
+      ([p, c, i]) => { setRows(p); setCenters(c); setInbox(i) },
       (e: unknown) => setError(toCounselError(e)),
     )
   }, [])
@@ -90,7 +95,8 @@ export default function PurchasesListPage() {
     }
     return n
   })
-  const sessionIds = (rows ?? []).filter((r) => selected.has(r.id)).map((r) => mainSession(r)?.id).filter((x): x is string => !!x)
+  const sessionIds = assignableSessionIds(rows ?? [], selected)
+  const open = (id: string) => navigate(`/admin/counsel/purchases/${id}`, { state: { back: '/admin/counsel/purchases' } })
 
   return (
     <Stack spacing={2.5}>
@@ -100,6 +106,9 @@ export default function PurchasesListPage() {
         <Box sx={{ flexGrow: 1 }} />
         {canManage && (
           <>
+            <Button variant={inbox > 0 ? 'contained' : 'outlined'} color={inbox > 0 ? 'warning' : 'primary'} onClick={() => navigate('/admin/counsel/purchases/inbox')}>
+              {t('purchases.inbox', { n: inbox })}
+            </Button>
             <Button variant="outlined" onClick={() => setImportOpen(true)}>{t('purchases.import')}</Button>
             <Button variant="contained" onClick={() => navigate('/admin/counsel/purchases/new')}>{t('purchases.create')}</Button>
           </>
@@ -118,16 +127,24 @@ export default function PurchasesListPage() {
 
       <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.5}>
         <TextField size="small" label={t('purchases.search')} value={filter.q} onChange={(e) => change({ q: e.target.value })} sx={{ flexGrow: 1 }} />
-        <TextField size="small" select label={t('purchases.filter.type')} value={filter.type} onChange={(e) => change({ type: e.target.value })} sx={{ minWidth: 140 }}>
+        <TextField size="small" select label={t('purchases.filter.type')} value={filter.type} onChange={(e) => change({ type: e.target.value })} sx={{ minWidth: 130 }}>
           <MenuItem value="">{t('centers.filter.all')}</MenuItem>
           {PURCHASE_TYPES.map((p) => <MenuItem key={p} value={p}>{purchaseTypeLabel(p)}</MenuItem>)}
+          <MenuItem value={TYPE_UNCLASSIFIED}>{purchaseTypeLabel(null)}</MenuItem>
         </TextField>
-        <TextField size="small" select label={t('purchases.filter.center')} value={filter.center} onChange={(e) => change({ center: e.target.value })} sx={{ minWidth: 180 }}>
+        <TextField size="small" select label={t('purchases.filter.order')} value={filter.order} onChange={(e) => change({ order: e.target.value })} sx={{ minWidth: 150 }}>
+          <MenuItem value="">{t('centers.filter.all')}</MenuItem>
+          <MenuItem value={ORDER_REVIEW}>{t('purchases.filter.orderReview')}</MenuItem>
+          <MenuItem value={ORDER_CLAIM}>{t('purchases.filter.orderClaim')}</MenuItem>
+          {PRODUCT_ORDER_STATUSES.map((s) => <MenuItem key={s} value={s}>{naverCodeLabel('orderStatus', s)}</MenuItem>)}
+          <MenuItem value={ORDER_NONE}>{t('purchases.filter.orderNone')}</MenuItem>
+        </TextField>
+        <TextField size="small" select label={t('purchases.filter.center')} value={filter.center} onChange={(e) => change({ center: e.target.value })} sx={{ minWidth: 150 }}>
           <MenuItem value="">{t('centers.filter.all')}</MenuItem>
           <MenuItem value={CENTER_NONE}>{t('purchases.filter.centerNone')}</MenuItem>
           {centers.map((c) => <MenuItem key={c.id} value={c.id}>{c.name}</MenuItem>)}
         </TextField>
-        <TextField size="small" select label={t('purchases.filter.test')} value={filter.test} onChange={(e) => change({ test: e.target.value })} sx={{ minWidth: 180 }}>
+        <TextField size="small" select label={t('purchases.filter.test')} value={filter.test} onChange={(e) => change({ test: e.target.value })} sx={{ minWidth: 150 }}>
           <MenuItem value="">{t('centers.filter.all')}</MenuItem>
           {tests.map((n) => <MenuItem key={n} value={n}>{n}</MenuItem>)}
         </TextField>
@@ -147,7 +164,7 @@ export default function PurchasesListPage() {
       {rows && (
         <Paper sx={{ borderRadius: 4, overflow: 'hidden' }}>
           <TableContainer>
-            <Table sx={{ tableLayout: 'fixed', minWidth: 960 }}>
+            <Table sx={{ tableLayout: 'fixed', minWidth: 980 }}>
               <TableHead>
                 <TableRow>
                   {canAssign && (
@@ -157,7 +174,7 @@ export default function PurchasesListPage() {
                     </TableCell>
                   )}
                   {COLUMNS.map((c) => (
-                    <TableCell key={c.label} sx={{ width: c.width, py: 1.5, px: 2 }}>
+                    <TableCell key={c.label} sx={{ width: c.width, py: 1.5, px: 1.5 }}>
                       <Typography variant="caption" sx={{ fontWeight: 600 }}>{t(c.label)}</Typography>
                     </TableCell>
                   ))}
@@ -174,11 +191,16 @@ export default function PurchasesListPage() {
                 {shown.map((r) => {
                   const s = mainSession(r)
                   const a = r.applications
+                  const n = r.naver_product_orders
+                  const progress = sessionProgress(r)
                   const guardian = a?.client_name && a.guardian_name ? a.guardian_name : null
+                  const product = [r.product_name, n?.option_name].filter(Boolean).join(' · ')
+                  const orderText = n ? orderStatusText(n.product_order_status, n.claim_status) : null
+                  const tone = n ? orderTone(n.product_order_status, n.claim_status) : 'normal'
                   return (
                     <TableRow key={r.id} hover tabIndex={0} selected={selected.has(r.id)}
-                      sx={{ cursor: 'pointer', '& td': { py: 1.75, px: 2, borderColor: centerListLook.rowBorder } }}
-                      onClick={() => setViewing(r.id)} onKeyDown={(e) => { if (e.key === 'Enter') setViewing(r.id) }}>
+                      sx={{ cursor: 'pointer', '& td': { py: 1.75, px: 1.5, borderColor: centerListLook.rowBorder } }}
+                      onClick={() => open(r.id)} onKeyDown={(e) => { if (e.key === 'Enter') open(r.id) }}>
                       {canAssign && (
                         <TableCell padding="checkbox" sx={{ pl: 1.5 }} onClick={(e) => e.stopPropagation()}>
                           <Checkbox checked={selected.has(r.id)} onChange={(e) => toggle(r.id, e.target.checked)}
@@ -188,22 +210,40 @@ export default function PurchasesListPage() {
                       <TableCell>
                         <Typography variant="body1" noWrap sx={{ fontWeight: 700 }}>{clientLabel(r)}</Typography>
                         {guardian && <Typography variant="caption" color="text.secondary" noWrap component="div">{t('purchases.guardianOf', { name: guardian })}</Typography>}
-                        {!a && r.order_no && <Typography variant="caption" color="text.secondary" noWrap component="div">{t('purchases.orderNo', { no: r.order_no })}</Typography>}
+                        {product && <Typography variant="caption" color="text.secondary" noWrap component="div" title={product}>{product}</Typography>}
                       </TableCell>
-                      <TableCell><Typography variant="body2" noWrap>{purchaseTypeLabel(r.purchase_type)}</Typography></TableCell>
+                      <TableCell>
+                        <Typography variant="body2" noWrap color={r.purchase_type ? 'text.primary' : 'warning.main'}>{purchaseTypeLabel(r.purchase_type)}</Typography>
+                      </TableCell>
                       <TableCell><Typography variant="body2" title={a?.test_name ?? undefined} sx={twoLines}>{a?.test_name ?? t('center.empty')}</Typography></TableCell>
                       <TableCell>
                         <Typography variant="body2" sx={twoLines} color={s?.center_id ? 'text.primary' : 'text.secondary'}>
                           {s?.center_id ? centerName.get(s.center_id) ?? t('center.empty') : t('purchases.filter.centerNone')}
                         </Typography>
                       </TableCell>
-                      <TableCell><Typography variant="body2" color="text.secondary" noWrap>{t('purchases.testProgress.pending')}</Typography></TableCell>
+                      <TableCell><Typography variant="body2" noWrap>{r.paid_at ? formatKstMonthDay(r.paid_at) : t('center.empty')}</Typography></TableCell>
+                      <TableCell>
+                        <Stack sx={{ alignItems: 'flex-start', gap: 0.5 }}>
+                          {orderText
+                            ? <Chip size="small" label={orderText} color={ORDER_CHIP[tone]} variant={tone === 'closed' ? 'filled' : 'outlined'} />
+                            : <Typography variant="body2" color="text.secondary">{t('center.empty')}</Typography>}
+                          {n?.needs_review && <Chip size="small" label={t('naver.review')} color="error" />}
+                        </Stack>
+                      </TableCell>
+                      <TableCell><Typography variant="body2" color="text.secondary" noWrap title={t('purchases.testProgress.pending')}>{t('purchases.testProgress.pending')}</Typography></TableCell>
                       <TableCell>
                         <Typography variant="body2" noWrap color={a ? 'text.primary' : 'text.secondary'}>
                           {a ? t('purchases.application.done', { date: formatKstMonthDay(a.submitted_at ?? r.created_at) }) : t('purchases.application.missing')}
                         </Typography>
                       </TableCell>
-                      <TableCell>{s && <SessionStatusChip status={s.status} />}</TableCell>
+                      <TableCell>
+                        {s && <SessionStatusChip status={s.status} />}
+                        {progress.total > 1 && (
+                          <Typography variant="caption" color="text.secondary" component="div" sx={{ mt: 0.5 }}>
+                            {t('purchases.progress', { done: progress.completed, total: progress.total })}
+                          </Typography>
+                        )}
+                      </TableCell>
                     </TableRow>
                   )
                 })}
@@ -226,7 +266,6 @@ export default function PurchasesListPage() {
         </Paper>
       )}
 
-      <ApplicationDialog purchaseId={viewing} onClose={() => setViewing(null)} />
       <AssignDialog open={assignOpen} sessionIds={sessionIds} centers={centers} onClose={() => setAssignOpen(false)}
         onDone={(m) => { setAssignOpen(false); setSelected(new Set()); notify(m); load() }} />
       <ImportDialog open={importOpen} onClose={() => setImportOpen(false)}

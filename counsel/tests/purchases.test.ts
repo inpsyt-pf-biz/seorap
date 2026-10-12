@@ -32,9 +32,14 @@ async function cleanup() {
     const ids = tx`select id from counsel.purchases where purchase_memo = ${MARK}`
     await tx`delete from counsel.session_events where session_id in (select id from counsel.sessions where purchase_id in (${ids}))`
     await tx`delete from counsel.sessions where purchase_id in (${ids})`
+    await tx`delete from counsel.naver_orderers where purchase_id in (${ids})`
+    await tx`delete from counsel.naver_settlements where purchase_id in (${ids})`
+    await tx`delete from counsel.naver_product_orders where purchase_id in (${ids})`
     await tx`delete from counsel.application_sensitive where purchase_id in (${ids})`
     await tx`delete from counsel.application_marketing where purchase_id in (${ids})`
     await tx`delete from counsel.applications where purchase_id in (${ids})`
+    await tx`delete from counsel.purchase_notes where purchase_id in (${ids})`
+    await tx`delete from counsel.application_inbox where payload->>'purchase_memo' = ${MARK} or resolved_purchase_id in (${ids})`
     await tx`delete from counsel.purchases where purchase_memo = ${MARK}`
   })
   await sql`delete from counsel.centers where name like '[시험]%'`
@@ -42,13 +47,15 @@ async function cleanup() {
 await cleanup()
 
 const tag = () => crypto.randomUUID().slice(0, 6)
+// 시험용 상품주문번호(숫자 16자리, 77로 시작)
+const orderId = () => '77' + Array.from(crypto.getRandomValues(new Uint8Array(14)), (b) => String(b % 10)).join('')
 const center = (s: string, st: string) => ({
   p_name: `${MARK} ${s} ${tag()}`, p_status: st, p_location_sido: '서울', p_location_sigungu: '강남',
   p_latitude: null, p_longitude: null, p_target_groups: ['child_youth'], p_specialties: ['development'], p_regions: ['서울'], p_delivery_modes: ['offline'],
   p_phone: '', p_address: '', p_operating_hours: '', p_contact_name: '', p_contact_phone: '', p_contract_from: null, p_contract_to: null, p_memo: '',
 })
 const purchase = (application: Record<string, unknown> | null, order: string | null = null) => ({
-  p_purchase_type: 'test_main', p_order_no: order, p_product_name: '', p_test_option: '', p_counsel_option: '', p_paid_on: null,
+  p_purchase_type: 'test_main', p_naver_product_order_id: order, p_product_name: '', p_test_option: '', p_counsel_option: '', p_paid_at: null,
   p_purchase_memo: MARK, p_admin_memo: '', p_application: application,
 })
 const importRow = (key: string, name: string) => ({
@@ -90,7 +97,7 @@ Deno.test({
 
     await t.step('담당자는 구매 건 등록·배정 능력이 있고 센터 관리는 없다', async () => {
       const ctx = await manager.rpc('my_context')
-      assertEquals(ctx.data.caps, ['purchase.manage', 'session.assign'])
+      assertEquals(ctx.data.caps, ['note.write', 'purchase.manage', 'session.assign', 'session.manage'])
     })
 
     await t.step('소속 없는 계정은 0행이고 등록·가져오기·배정을 못 한다', async () => {
@@ -109,7 +116,7 @@ Deno.test({
 
     let first = ''
     await t.step('등록하면 신청서는 일반·민감·마케팅 칸이 나뉘어 들어가고, 미배정 상담 1회가 생긴다', async () => {
-      const order = `T-${tag()}`
+      const order = orderId()
       const { data, error } = await manager.rpc('rpc_create_purchase', purchase({
         client_name: '가나다', guardian_name: '', test_name: '시험 검사', consent_third_party: true,
         medication_diagnosis: '시험 진단명', result_file_url: '', referral_source: '검색',
@@ -128,6 +135,10 @@ Deno.test({
 
       const dup = await manager.rpc('rpc_create_purchase', purchase(null, order))
       assertEquals(dup.error?.message, 'COUNSEL:DUPLICATE_ORDER')
+      const notDigits = await manager.rpc('rpc_create_purchase', purchase(null, 'DEMO-1'))
+      assertEquals(notDigits.error?.message, 'COUNSEL:INVALID_INPUT')
+      const naver = await admin.from('naver_product_orders').select('naver_product_order_id, product_order_status').eq('purchase_id', first).single()
+      assertEquals(naver.data, { naver_product_order_id: order, product_order_status: null })
     })
 
     await t.step('신청서 없이도 등록되고, 너무 긴 칸·객체가 아닌 신청서는 INVALID_INPUT 이며 아무것도 남지 않는다', async () => {
@@ -193,28 +204,35 @@ Deno.test({
       await assertRejects(() => sql`delete from counsel.session_events where session_id = ${s.id}`)
     })
 
-    await t.step('시트 가져오기: 같은 줄은 한 번만 들어가고, 한 줄이라도 잘못되면 전체를 되돌린다', async () => {
+    await t.step('시트 가져오기: 상품주문번호가 없는 줄은 대기함으로, 같은 줄은 한 번만, 한 줄이라도 잘못되면 전체를 되돌린다', async () => {
       const k = tag()
       const rows = [importRow(`${k}-1`, '사아자'), importRow(`${k}-2`, '차카타')]
       const one = await manager.rpc('rpc_import_applications', { p_purchase_type: 'group_buy', p_rows: rows })
-      assertEquals(one.data, { inserted: 2, duplicates: 0 })
+      assertEquals(one.data, { attached: 0, waiting: 2, duplicates: 0 })
       const two = await manager.rpc('rpc_import_applications', { p_purchase_type: 'group_buy', p_rows: rows })
-      assertEquals(two.data, { inserted: 0, duplicates: 2 })
-      // 같은 열쇠라도 신청서 종류가 다르면 다른 건이다
+      assertEquals(two.data, { attached: 0, waiting: 0, duplicates: 2 })
+      // 같은 열쇠라도 신청서 종류가 다르면 다른 줄이다
       const other = await manager.rpc('rpc_import_applications', { p_purchase_type: 'sponsored', p_rows: [rows[0]] })
-      assertEquals(other.data, { inserted: 1, duplicates: 0 })
+      assertEquals(other.data, { attached: 0, waiting: 1, duplicates: 0 })
 
-      const before = (await sql`select count(*)::int as n from counsel.purchases`)[0].n
+      const waiting = async () => (await sql`select count(*)::int as n from counsel.application_inbox where status = 'waiting'`)[0].n
+      const before = await waiting()
       const bad = await manager.rpc('rpc_import_applications', {
         p_purchase_type: 'group_buy', p_rows: [importRow(`${k}-3`, '타파하'), importRow(`${k}-4`, '가'.repeat(51))],
       })
       assertEquals(bad.error?.message, 'COUNSEL:INVALID_INPUT')
       assert(String(bad.error?.details).startsWith('row 2'), String(bad.error?.details))
-      assertEquals((await sql`select count(*)::int as n from counsel.purchases`)[0].n, before)
+      assertEquals(await waiting(), before)
+      const noType = await manager.rpc('rpc_import_applications', { p_purchase_type: null, p_rows: rows })
+      assertEquals(noType.error?.message, 'COUNSEL:INVALID_INPUT')
 
-      const [imp] = await sql`select p.source, s.status from counsel.purchases p join counsel.sessions s on s.purchase_id = p.id
-        join counsel.applications a on a.purchase_id = p.id where a.client_name = '사아자' and p.purchase_type = 'group_buy' and p.purchase_memo = ${MARK}`
-      assertEquals([imp.source, imp.status], ['sheet_import', 'unassigned'])
+      // 대기함 줄로 새 구매 건을 만들면 시트 가져오기 구매 건 + 미배정 상담 1회, 대기함 줄은 내용을 지운다
+      const [w] = await sql`select id from counsel.application_inbox
+        where status = 'waiting' and client_name = '사아자' and purchase_type = 'group_buy' and payload->>'purchase_memo' = ${MARK}`
+      assertEquals((await manager.rpc('rpc_create_from_inbox', { p_inbox_ids: [w.id] })).data, 1)
+      const [imp] = await sql`select p.source, s.status, i.status as inbox, i.payload, i.client_name from counsel.application_inbox i
+        join counsel.purchases p on p.id = i.resolved_purchase_id join counsel.sessions s on s.purchase_id = p.id where i.id = ${w.id}`
+      assertEquals([imp.source, imp.status, imp.inbox, imp.payload, imp.client_name], ['sheet_import', 'unassigned', 'created', null, null])
     })
 
     await cleanup()

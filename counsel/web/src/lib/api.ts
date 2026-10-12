@@ -1,7 +1,10 @@
 // 화면이 DB를 부르는 곳은 이 파일 하나다. 나중에 서랍 어드민의 호출 방식이 달라져도 이 파일만 바꾼다.
 import { CENTER_COLUMNS, type Center, type CenterInput } from '@counsel-core/centers.ts'
 import { CounselError, toCounselError } from '@counsel-core/errors.ts'
-import { PURCHASE_LIST_COLUMNS, type PurchaseInput, type PurchaseRow, type PurchaseType } from '@counsel-core/purchases.ts'
+import { NAVER_ORDER_COLUMNS, type NaverOrderInfo, type NaverOrdererMasked, type NaverSettlement } from '@counsel-core/naverOrder.ts'
+import { INBOX_COLUMNS, type InboxItem } from '@counsel-core/inbox.ts'
+import { PURCHASE_LIST_COLUMNS, type PurchaseInput, type PurchaseRow, type PurchaseType, type SessionStatus } from '@counsel-core/purchases.ts'
+import { SESSION_EVENT_COLUMNS, type SessionAction, type SessionEvent } from '@counsel-core/sessions.ts'
 import type { MyContext } from '../shell/session'
 import { supabase } from '../shell/supabaseClient'
 
@@ -31,40 +34,162 @@ export function listPurchases(): Promise<PurchaseRow[]> {
   return run<PurchaseRow[]>(supabase.from('purchases').select(PURCHASE_LIST_COLUMNS).order('created_at', { ascending: false }))
 }
 
-export type ApplicationDetail = {
-  purchase: { purchase_type: string; order_no: string | null; product_name: string | null; test_option: string | null; counsel_option: string | null; paid_on: string | null; purchase_memo: string | null; admin_memo: string | null }
+export type PurchaseDetail = {
+  purchase: {
+    purchase_type: PurchaseType | null; source: string; product_name: string | null; test_option: string | null; counsel_option: string | null
+    paid_at: string | null; purchase_memo: string | null; admin_memo: string | null; version: number
+  }
   application: Record<string, string | boolean | null> | null
   sensitive: { medication_diagnosis: string | null; result_file_url: string | null } | null
   marketing: { referral_source: string | null } | null
+  naver: NaverOrderInfo | null
+  orderer: NaverOrdererMasked | null
+  // 관리자가 아니면 DB가 0행을 돌려준다
+  settlement: NaverSettlement | null
+  sessions: SessionDetail[]
+  events: SessionEvent[]
+  notes: PurchaseNote[]
+  // 기록·메모를 남긴 사람의 이름(user id → 이름)
+  names: Record<string, string>
 }
 
-// 신청서 보기 창용. 민감정보·마케팅 정보는 따로 읽는다(나중에 센터에는 이 둘을 막는다).
-export async function getApplicationDetail(purchaseId: string): Promise<ApplicationDetail> {
-  const [purchase, application, sensitive, marketing] = await Promise.all([
-    run<ApplicationDetail['purchase']>(supabase.from('purchases')
-      .select('purchase_type, order_no, product_name, test_option, counsel_option, paid_on, purchase_memo, admin_memo').eq('id', purchaseId).single()),
-    run<ApplicationDetail['application']>(supabase.from('applications').select('*').eq('purchase_id', purchaseId).maybeSingle()),
-    run<ApplicationDetail['sensitive']>(supabase.from('application_sensitive').select('medication_diagnosis, result_file_url').eq('purchase_id', purchaseId).maybeSingle()),
-    run<ApplicationDetail['marketing']>(supabase.from('application_marketing').select('referral_source').eq('purchase_id', purchaseId).maybeSingle()),
+export type SessionDetail = {
+  id: string
+  seq: number
+  status: SessionStatus
+  center_id: string | null
+  scheduled_at: string | null
+  method: string | null
+  assigned_at: string | null
+  version: number
+}
+
+export type PurchaseNote = { id: number; body: string; author: string | null; created_at: string }
+
+// 구매 건 상세 페이지용. 민감정보·마케팅·주문자·정산은 표를 나눠 두고 따로 읽는다(볼 수 있는 사람이 다르다).
+export async function getPurchaseDetail(purchaseId: string): Promise<PurchaseDetail> {
+  const [purchase, application, sensitive, marketing, naver, orderer, settlement, sessions, notes] = await Promise.all([
+    run<PurchaseDetail['purchase']>(supabase.from('purchases')
+      .select('purchase_type, source, product_name, test_option, counsel_option, paid_at, purchase_memo, admin_memo, version').eq('id', purchaseId).single()),
+    run<PurchaseDetail['application']>(supabase.from('applications').select('*').eq('purchase_id', purchaseId).maybeSingle()),
+    run<PurchaseDetail['sensitive']>(supabase.from('application_sensitive').select('medication_diagnosis, result_file_url').eq('purchase_id', purchaseId).maybeSingle()),
+    run<PurchaseDetail['marketing']>(supabase.from('application_marketing').select('referral_source').eq('purchase_id', purchaseId).maybeSingle()),
+    run<PurchaseDetail['naver']>(supabase.from('naver_product_orders').select(NAVER_ORDER_COLUMNS).eq('purchase_id', purchaseId).maybeSingle()),
+    run<PurchaseDetail['orderer']>(supabase.from('naver_orderers').select('name_masked, tel_masked').eq('purchase_id', purchaseId).maybeSingle()),
+    run<PurchaseDetail['settlement']>(supabase.from('naver_settlements')
+      .select('expected_settlement_amount, payment_commission, channel_commission, sale_commission, shopping_interlock_commission').eq('purchase_id', purchaseId).maybeSingle()),
+    run<SessionDetail[]>(supabase.from('sessions')
+      .select('id, seq, status, center_id, scheduled_at, method, assigned_at, version').eq('purchase_id', purchaseId).order('seq')),
+    run<PurchaseNote[]>(supabase.from('purchase_notes').select('id, body, author, created_at').eq('purchase_id', purchaseId).order('created_at', { ascending: false })),
   ])
-  return { purchase, application, sensitive, marketing }
+  const events = sessions.length === 0 ? [] : await run<SessionEvent[]>(supabase.from('session_events')
+    .select(SESSION_EVENT_COLUMNS).in('session_id', sessions.map((x) => x.id)).order('at', { ascending: false }).order('id', { ascending: false }))
+  const people = [...new Set([...events.map((e) => e.actor), ...notes.map((n) => n.author)].filter((x): x is string => !!x))]
+  const profiles = people.length === 0 ? [] : await run<{ user_id: string; display_name: string }[]>(
+    supabase.from('profiles').select('user_id, display_name').in('user_id', people),
+  )
+  const names = Object.fromEntries(profiles.map((x) => [x.user_id, x.display_name]))
+  return { purchase, application, sensitive, marketing, naver, orderer, settlement, sessions, events, notes, names }
+}
+
+export function updateSession(
+  sessionId: string, version: number, action: SessionAction, scheduledAt: string | null, method: string | null, reason: string,
+): Promise<number> {
+  return run<number>(supabase.rpc('rpc_update_session', {
+    p_session_id: sessionId, p_version: version, p_action: action, p_scheduled_at: scheduledAt, p_method: method, p_reason: reason,
+  }))
+}
+
+export function addPurchaseNote(purchaseId: string, body: string): Promise<number> {
+  return run<number>(supabase.rpc('rpc_add_purchase_note', { p_purchase_id: purchaseId, p_body: body }))
+}
+
+export function listInbox(): Promise<InboxItem[]> {
+  return run<InboxItem[]>(supabase.from('application_inbox').select(INBOX_COLUMNS).eq('status', 'waiting').order('created_at'))
+}
+
+export async function countInbox(): Promise<number> {
+  const { count, error } = await supabase.from('application_inbox').select('id', { count: 'exact', head: true }).eq('status', 'waiting')
+  if (error) throw toCounselError(error)
+  return count ?? 0
+}
+
+export async function attachInbox(inboxId: string, purchaseId: string): Promise<void> {
+  await run(supabase.rpc('rpc_attach_inbox', { p_inbox_id: inboxId, p_purchase_id: purchaseId }))
+}
+
+export function createFromInbox(inboxIds: string[]): Promise<number> {
+  return run<number>(supabase.rpc('rpc_create_from_inbox', { p_inbox_ids: inboxIds }))
+}
+
+export function dismissInbox(inboxIds: string[]): Promise<number> {
+  return run<number>(supabase.rpc('rpc_dismiss_inbox', { p_inbox_ids: inboxIds }))
+}
+
+// 상품주문번호로 신청서가 아직 없는 구매 건을 찾는다(대기함에서 붙일 건 찾기)
+export async function findPurchaseByOrderId(orderId: string): Promise<string | null> {
+  const rows = await run<{ purchase_id: string; purchases: { applications: unknown } | null }[]>(supabase.from('naver_product_orders')
+    .select('purchase_id, purchases(applications(purchase_id))').eq('naver_product_order_id', orderId.replace(/[\s-]/g, '')))
+  const hit = rows.find((r) => !r.purchases?.applications)
+  return hit?.purchase_id ?? null
+}
+
+export type CenterSession = {
+  id: string
+  seq: number
+  status: SessionStatus
+  scheduled_at: string | null
+  assigned_at: string | null
+  purchase_id: string
+  purchases: {
+    purchase_type: PurchaseType | null
+    applications: { client_name: string | null; guardian_name: string | null } | null
+    naver_orderers: { name_masked: string | null } | null
+  } | null
+}
+
+export function listCenterSessions(centerId: string): Promise<CenterSession[]> {
+  return run<CenterSession[]>(supabase.from('sessions')
+    .select('id, seq, status, scheduled_at, assigned_at, purchase_id, purchases(purchase_type, applications(client_name, guardian_name), naver_orderers(name_masked))')
+    .eq('center_id', centerId).order('assigned_at', { ascending: false }))
+}
+
+export type Counselor = { id: string; name: string; memo: string | null; active: boolean; version: number }
+
+export function listCounselors(centerId: string): Promise<Counselor[]> {
+  return run<Counselor[]>(supabase.from('center_counselors').select('id, name, memo, active, version').eq('center_id', centerId).order('name'))
+}
+
+export function saveCounselor(centerId: string, c: { id: string | null; version: number; name: string; memo: string; active: boolean }): Promise<string> {
+  return run<string>(supabase.rpc('rpc_save_counselor', {
+    p_id: c.id, p_version: c.version, p_center_id: centerId, p_name: c.name, p_memo: c.memo, p_active: c.active,
+  }))
+}
+
+export function setPurchaseType(purchaseId: string, version: number, type: PurchaseType): Promise<number> {
+  return run<number>(supabase.rpc('rpc_set_purchase_type', { p_purchase_id: purchaseId, p_version: version, p_purchase_type: type }))
+}
+
+export async function resolveNaverReview(purchaseId: string): Promise<void> {
+  await run(supabase.rpc('rpc_resolve_naver_review', { p_purchase_id: purchaseId }))
 }
 
 export function createPurchase(v: PurchaseInput): Promise<string> {
   return run<string>(supabase.rpc('rpc_create_purchase', {
     p_purchase_type: v.purchase_type,
-    p_order_no: v.order_no,
+    p_naver_product_order_id: v.naver_product_order_id,
     p_product_name: v.product_name,
     p_test_option: v.test_option,
     p_counsel_option: v.counsel_option,
-    p_paid_on: v.paid_on || null,
+    // 결제일만 고르면 그날 0시(한국 시각)로 둔다
+    p_paid_at: v.paid_on ? `${v.paid_on}T00:00:00+09:00` : null,
     p_purchase_memo: v.purchase_memo,
     p_admin_memo: v.admin_memo,
     p_application: v.with_application ? v.application : null,
   }))
 }
 
-export function importApplications(type: PurchaseType, rows: Record<string, unknown>[]): Promise<{ inserted: number; duplicates: number }> {
+export function importApplications(type: PurchaseType, rows: Record<string, unknown>[]): Promise<{ attached: number; waiting: number; duplicates: number }> {
   return run(supabase.rpc('rpc_import_applications', { p_purchase_type: type, p_rows: rows }))
 }
 

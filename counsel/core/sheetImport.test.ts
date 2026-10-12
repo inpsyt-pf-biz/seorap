@@ -84,3 +84,12 @@ Deno.test('미리보기: 칸 길이를 넘는 줄은 빼고 알린다', () => {
   assertEquals(p.rows[0].fields, ['reason'])
   assertEquals(importPayload(p).length, 0)
 })
+
+Deno.test('상품주문번호 열이 있으면 번호를 꺼내고(공백·하이픈 빼고), 가져오기 줄에 담는다', () => {
+  const h = ['타임스탬프', '네이버 상품주문번호를 적어 주세요.', '아이의 이름을 작성해 주세요.', '연락처를 작성해 주세요.']
+  const csv = [h, ['2026. 10. 9 오전 9:00:00', '2026-1001-0000-0006', '거너더', '010-0000-2116']].map((r) => r.join(',')).join(String.fromCharCode(10))
+  const p = previewImport(csv)
+  assertEquals(p.mapping.columns.naver_product_order_id, 1)
+  assertEquals(p.rows[0].row.naver_product_order_id, '2026100100000006')
+  assertEquals(importPayload(p)[0].naver_product_order_id, '2026100100000006')
+})

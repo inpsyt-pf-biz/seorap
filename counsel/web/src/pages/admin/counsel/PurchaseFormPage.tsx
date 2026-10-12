@@ -83,7 +83,7 @@ export default function PurchaseFormPage() {
     }
   }
 
-  const orderError = orderDuplicate ? t('error.DUPLICATE_ORDER') : fieldErrors.order_no ? t(fieldErrors.order_no) : undefined
+  const orderError = orderDuplicate ? t('error.DUPLICATE_ORDER') : fieldErrors.naver_product_order_id ? t(fieldErrors.naver_product_order_id) : undefined
 
   return (
     <Stack spacing={2} component="form" onSubmit={onSubmit} noValidate>
@@ -98,8 +98,8 @@ export default function PurchaseFormPage() {
             <TextField select label={t('purchase.field.type')} value={values.purchase_type} onChange={(e) => set({ purchase_type: e.target.value as PurchaseType })}>
               {PURCHASE_TYPES.map((p) => <MenuItem key={p} value={p}>{purchaseTypeLabel(p)}</MenuItem>)}
             </TextField>
-            <TextField label={t('purchase.field.orderNo')} value={values.order_no} onChange={(e) => set({ order_no: e.target.value })}
-              error={!!orderError} helperText={orderError} slotProps={{ htmlInput: { maxLength: 40 } }} />
+            <TextField label={t('purchase.field.naverProductOrderId')} value={values.naver_product_order_id} onChange={(e) => set({ naver_product_order_id: e.target.value })}
+              error={!!orderError} helperText={orderError ?? t('purchaseForm.orderHelp')} slotProps={{ htmlInput: { maxLength: 40, inputMode: 'numeric' } }} />
             {PURCHASE_TEXT.map((f) => (
               <TextField key={f.key} label={t(f.label)} value={values[f.key]} onChange={(e) => set({ [f.key]: e.target.value })}
                 slotProps={{ htmlInput: { maxLength: 200 } }} />

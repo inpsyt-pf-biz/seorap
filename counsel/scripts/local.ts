@@ -27,20 +27,31 @@ export function readEnvFile(text: string): Record<string, string> {
   return env
 }
 
-// .env.local 은 첫 시드 때 만든다. 있으면 COUNSEL_ENV=local 일 때만 진행한다.
-export async function localEnv(): Promise<{ password: string }> {
-  let text: string | null = null
+const randomKey = () => btoa(String.fromCharCode(...crypto.getRandomValues(new Uint8Array(32))))
+
+// 로컬 시드·시험 전용 값. 주문자 정보 암호화 키(base64 32바이트)는 이 PC에서만 쓰는 가짜 키다.
+export type LocalEnv = { password: string; piiEncKey: string; piiHmacKey: string }
+
+// .env.local 은 첫 시드 때 만들고, 빠진 값만 덧붙인다. 있으면 COUNSEL_ENV=local 일 때만 진행한다.
+export async function localEnv(): Promise<LocalEnv> {
+  let text = ''
   try { text = await Deno.readTextFile(ENV_FILE) } catch { /* 첫 실행 */ }
-  if (text === null) {
-    const bytes = crypto.getRandomValues(new Uint8Array(12))
-    const password = 'Local-' + Array.from(bytes, (b) => b.toString(16).padStart(2, '0')).join('')
-    await Deno.writeTextFile(ENV_FILE, `COUNSEL_ENV=local\nCOUNSEL_SEED_PASSWORD=${password}\n`)
-    return { password }
-  }
   const env = readEnvFile(text)
-  if (env.COUNSEL_ENV !== 'local') throw new Error('counsel/.env.local 의 COUNSEL_ENV 가 local 이 아니다')
-  if (!env.COUNSEL_SEED_PASSWORD) throw new Error('counsel/.env.local 에 COUNSEL_SEED_PASSWORD 가 없다')
-  return { password: env.COUNSEL_SEED_PASSWORD }
+  if (text && env.COUNSEL_ENV !== 'local') throw new Error('counsel/.env.local 의 COUNSEL_ENV 가 local 이 아니다')
+  const add: Record<string, string> = {}
+  if (!env.COUNSEL_ENV) add.COUNSEL_ENV = 'local'
+  if (!env.COUNSEL_SEED_PASSWORD) {
+    const bytes = crypto.getRandomValues(new Uint8Array(12))
+    add.COUNSEL_SEED_PASSWORD = 'Local-' + Array.from(bytes, (b) => b.toString(16).padStart(2, '0')).join('')
+  }
+  if (!env.COUNSEL_PII_ENC_KEY) add.COUNSEL_PII_ENC_KEY = randomKey()
+  if (!env.COUNSEL_PII_HMAC_KEY) add.COUNSEL_PII_HMAC_KEY = randomKey()
+  if (Object.keys(add).length > 0) {
+    const lines = Object.entries(add).map(([k, v]) => `${k}=${v}\n`).join('')
+    await Deno.writeTextFile(ENV_FILE, (text && !text.endsWith('\n') ? `${text}\n` : text) + lines)
+  }
+  const all = { ...env, ...add }
+  return { password: all.COUNSEL_SEED_PASSWORD, piiEncKey: all.COUNSEL_PII_ENC_KEY, piiHmacKey: all.COUNSEL_PII_HMAC_KEY }
 }
 
 export const SEED_ACCOUNTS = [

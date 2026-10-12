@@ -7,6 +7,8 @@ import { contractLabel, locationLabel, modesLabel, regionsLabel, targetsLabel, t
 import { t, type CopyKey } from '@counsel-core/copy.ko.ts'
 import { errorText, toCounselError, type CounselError } from '@counsel-core/errors.ts'
 import CenterAvatar from '../../../components/CenterAvatar'
+import CenterSessionsPanel from '../../../components/CenterSessionsPanel'
+import CounselorsPanel from '../../../components/CounselorsPanel'
 import LocationPicker from '../../../components/LocationPicker'
 import { ErrorBox, Loading } from '../../../components/PageState'
 import SpecialtyChips from '../../../components/SpecialtyChips'
@@ -34,6 +36,7 @@ export default function CenterDetailPage() {
   const toastMessage = navState?.toast
   const back = navState?.back ?? '/admin/counsel/centers'
   const [toastOpen, setToastOpen] = useState(!!toastMessage)
+  const [savedMessage, setSavedMessage] = useState<string | null>(null)
   const [center, setCenter] = useState<Center | null>(null)
   const [error, setError] = useState<CounselError | null>(null)
 
@@ -77,7 +80,12 @@ export default function CenterDetailPage() {
           <Row label="center.field.updatedAt">{text(formatKstDateTime(center.updated_at))}</Row>
         </Paper>
       )}
-      {toastMessage && <Toast message={toastMessage} open={toastOpen} onClose={() => setToastOpen(false)} />}
+      {center && <CenterSessionsPanel centerId={center.id} />}
+      {center && (
+        <CounselorsPanel centerId={center.id} canManage={hasCap(state, 'center.manage')}
+          onSaved={(m) => { setSavedMessage(m); setToastOpen(true) }} />
+      )}
+      {(savedMessage ?? toastMessage) && <Toast key={savedMessage ?? 'nav'} message={savedMessage ?? toastMessage ?? ''} open={toastOpen} onClose={() => setToastOpen(false)} />}
     </Stack>
   )
 }
