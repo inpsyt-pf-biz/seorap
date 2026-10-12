@@ -8,6 +8,8 @@ import AdminShell from './pages/admin/counsel/AdminShell'
 import CenterDetailPage from './pages/admin/counsel/CenterDetailPage'
 import CenterFormPage from './pages/admin/counsel/CenterFormPage'
 import CentersListPage from './pages/admin/counsel/CentersListPage'
+import PurchaseFormPage from './pages/admin/counsel/PurchaseFormPage'
+import PurchasesListPage from './pages/admin/counsel/PurchasesListPage'
 import { hasCap, isHq, useSession } from './shell/session'
 
 // 화면 가드는 길 안내일 뿐이다. 데이터는 DB 행 단위 권한과 쓰기 함수가 지킨다.
@@ -50,6 +52,8 @@ export default function App() {
         <Route path="centers/new" element={<RequireCap cap="center.manage"><CenterFormPage mode="create" /></RequireCap>} />
         <Route path="centers/:id" element={<CenterDetailPage />} />
         <Route path="centers/:id/edit" element={<RequireCap cap="center.manage"><CenterFormPage mode="edit" /></RequireCap>} />
+        <Route path="purchases" element={<PurchasesListPage />} />
+        <Route path="purchases/new" element={<RequireCap cap="purchase.manage"><PurchaseFormPage /></RequireCap>} />
       </Route>
       <Route path="*" element={<Home />} />
     </Routes>

@@ -1,5 +1,5 @@
-// 로컬 시안 시드: 가짜 계정 3개, 인싸이트 본사 행, 가짜 협력센터 7곳. 실제 정보는 넣지 않는다.
-// 센터는 화면과 같은 쓰기 함수(counsel.rpc_create_center)를 관리자 계정으로 불러 만든다.
+// 로컬 시안 시드: 가짜 계정 3개, 인싸이트 본사 행, 가짜 협력센터 7곳, 가짜 구매 건 15건. 실제 정보는 넣지 않는다.
+// 센터·구매 건은 화면과 같은 쓰기 함수(counsel.rpc_create_center 등)를 관리자 계정으로 불러 만든다.
 import { createClient } from '@supabase/supabase-js'
 import postgres from 'postgres'
 import { localEnv, localStatus, SEED_ACCOUNTS, WEB_ENV_FILE } from './local.ts'
@@ -35,6 +35,60 @@ const CENTERS = [
   { name: '푸른길 상담센터', status: 'paused', sido: '광주', sigungu: '광산', pos: [35.1396, 126.7937], targets: ['adult'], specialties: ['emotion', 'family'], regions: ['광주', '전남'], modes: ['offline'], phone: '062-0000-0107', address: '광주광역시 가상구 푸른길 7', hours: '평일 10:00~18:00', contact: ['윤예제', '010-0000-0107'], contract: ['2025-07-01', '2026-06-30'], memo: '상담사 충원 전까지 신규 배정 중지' },
 ] as const
 
+// 가짜 구매 건. 이름은 가나다 순 가명, 전화번호는 국번 0000. center 가 있으면 그 센터에 배정하고 status 까지 진행시킨다.
+// 예약 확정·상담 완료 같은 상태 바꾸기 화면은 다음 단계(MVP-2)라서, 시드는 상태만 DB에 직접 넣고 기록(session_events)을 함께 남긴다.
+type SeedPurchase = {
+  type: 'test_main' | 'counsel_main' | 'sponsored' | 'group_buy'
+  order?: string
+  app?: Record<string, string | boolean>
+  center?: string
+  status?: 'requested' | 'confirmed' | 'completed' | 'unable' | 'cancelled'
+  at?: string
+}
+const app = (submitted: string, name: string, guardian: string, test: string, residence: string, extra: Record<string, string | boolean> = {}) => ({
+  submitted_at: `${submitted}+09:00`, client_name: name, guardian_name: guardian, test_name: test, residence,
+  client_phone: '010-0000-1' + String(name.charCodeAt(0) % 1000).padStart(3, '0'), preferred_method: '대면', preferred_schedule: '평일 오후',
+  reason: '(가짜 예시) 상담을 받아 보고 싶어요', consent_third_party: true, refund_policy_checked: true, ...extra,
+})
+const CBCL = 'K-CBCL 아동·청소년 행동평가척도'
+const PURCHASES: SeedPurchase[] = [
+  { type: 'test_main', order: 'DEMO-1001', app: app('2026-09-22T10:12:00', '가나다', '가보호', CBCL, '서울 강남구'), center: '마음숲 상담센터', status: 'completed', at: '2026-09-30T16:00:00+09:00' },
+  { type: 'test_main', order: 'DEMO-1002', app: app('2026-09-25T14:30:00', '라마바', '라보호', CBCL, '서울 마포구'), center: '해봄 심리상담연구소', status: 'completed', at: '2026-10-06T11:00:00+09:00' },
+  { type: 'test_main', order: 'DEMO-1003', app: app('2026-10-01T09:05:00', '사아자', '사보호', 'MMPI-A 청소년 다면적 인성검사', '경기 성남시'), center: '새벽빛 가족상담센터', status: 'confirmed', at: '2026-10-15T17:00:00+09:00' },
+  { type: 'test_main', order: 'DEMO-1004', app: app('2026-10-03T20:41:00', '차카타', '차보호', CBCL, '서울 송파구', { preferred_schedule: '토요일 오전' }), center: '마음숲 상담센터', status: 'requested' },
+  { type: 'test_main', order: 'DEMO-1005', app: app('2026-10-08T13:20:00', '파하가', '파보호', 'K-WISC-V 아동 지능검사', '서울 강서구', { medication_diagnosis: '(가짜 예시) 진단명 예시' }) },
+  { type: 'test_main', order: 'DEMO-1006' },
+  { type: 'test_main', order: 'DEMO-1007', app: app('2026-09-28T08:00:00', '나다라', '나보호', CBCL, '인천 연수구'), status: 'cancelled' },
+  { type: 'counsel_main', order: 'DEMO-2001', app: app('2026-09-24T19:10:00', '마바사', '', 'SCT 문장완성검사', '부산 해운대구', { counsel_field: '진로', preferred_method: '비대면' }), center: '바다빛 심리연구소', status: 'completed', at: '2026-10-02T19:00:00+09:00' },
+  { type: 'counsel_main', order: 'DEMO-2002', app: app('2026-10-04T11:45:00', '아자차', '', 'TCI 기질 및 성격검사', '대전 유성구', { counsel_field: '대인관계' }), center: '온담 청소년상담센터', status: 'confirmed', at: '2026-10-14T15:00:00+09:00' },
+  { type: 'counsel_main', order: 'DEMO-2003', app: app('2026-10-09T22:02:00', '카타파', '', 'TCI 기질 및 성격검사', '경기 수원시', { counsel_field: '정서' }) },
+  { type: 'sponsored', app: app('2026-09-29T15:00:00', '하가나', '하보호', 'K-WISC-V 아동 지능검사', '서울 노원구'), center: '마음숲 상담센터', status: 'completed', at: '2026-10-08T10:00:00+09:00' },
+  { type: 'sponsored', app: app('2026-10-07T09:30:00', '다라마', '다보호', CBCL, '대구 수성구') },
+  { type: 'group_buy', app: app('2026-10-02T10:10:00', '바사아', '바보호', '아동 기질검사', '광주 북구'), center: '새벽빛 가족상담센터', status: 'unable' },
+  { type: 'group_buy', app: app('2026-10-05T16:40:00', '자차카', '자보호', '아동 기질검사', '대전 서구', { preferred_method: '비대면' }), center: '온담 청소년상담센터', status: 'requested' },
+  { type: 'group_buy', app: app('2026-10-10T08:15:00', '타파하', '타보호', '아동 기질검사', '경기 고양시') },
+]
+
+async function seedPurchases() {
+  await sql.begin(async (tx) => {
+    await tx`select set_config('request.jwt.claims', ${JSON.stringify({ sub: ids.admin, role: 'authenticated' })}, true)`
+    const centers = await tx<{ id: string; name: string }[]>`select id, name from counsel.centers`
+    const centerId = (name: string) => centers.find((c) => c.name === name)!.id
+    for (const x of PURCHASES) {
+      const [{ id }] = await tx<{ id: string }[]>`
+        select counsel.rpc_create_purchase(${x.type}, ${x.order ?? null}, ${null}, ${null}, ${null}, ${null}::date, ${null}, ${null}, ${x.app ? tx.json(x.app) : null}::jsonb) as id`
+      const [s] = await tx<{ id: string }[]>`select id from counsel.sessions where purchase_id = ${id}`
+      if (x.center) await tx`select counsel.rpc_assign_sessions(array[${s.id}]::uuid[], ${centerId(x.center)}, '')`
+      if (x.status && x.status !== 'requested') {
+        const from = x.center ? 'requested' : 'unassigned'
+        await tx`update counsel.sessions set status = ${x.status}, scheduled_at = ${x.at ?? null}::timestamptz, updated_by = ${ids.admin} where id = ${s.id}`
+        await tx`insert into counsel.session_events (session_id, actor, kind, from_status, to_status, note)
+          values (${s.id}, ${ids.admin}, 'status_changed', ${from}, ${x.status}, '시드')`
+      }
+    }
+  })
+}
+
 const sql = postgres(status.dbUrl, { max: 1, onnotice: () => {} })
 try {
   const [{ n }] = await sql<{ n: number }[]>`select count(*)::int as n from counsel.centers`
@@ -59,6 +113,14 @@ try {
       }
     })
     console.log(`시드 완료: 계정 ${SEED_ACCOUNTS.length}개, 센터 ${CENTERS.length}곳`)
+  }
+
+  const [{ p }] = await sql<{ p: number }[]>`select count(*)::int as p from counsel.purchases`
+  if (p > 0) {
+    console.log('구매 건 데이터가 이미 있다')
+  } else {
+    await seedPurchases()
+    console.log(`시드 완료: 구매 건 ${PURCHASES.length}건`)
   }
 } finally {
   await sql.end()

@@ -76,11 +76,11 @@ Deno.test({
       assertEquals(ctx.data.caps, [])
     })
 
-    await t.step('관리자 맥락에는 본사 소속과 center.manage 능력이 있다', async () => {
+    await t.step('관리자 맥락에는 본사 소속과 센터 관리·구매 건·배정 능력이 있다', async () => {
       const ctx = await admin.rpc('my_context')
       assertEquals(ctx.data.membership.is_headquarters, true)
       assertEquals(ctx.data.membership.role, 'hq_admin')
-      assertEquals(ctx.data.caps, ['center.manage'])
+      assertEquals(ctx.data.caps, ['center.manage', 'purchase.manage', 'session.assign'])
     })
 
     await t.step('표에 직접 쓰는 길은 막혀 있다', async () => {
