@@ -5,8 +5,8 @@ import {
   MenuItem, Paper, Stack, TextField, Typography,
 } from '@mui/material'
 import {
-  CATEGORIES, CENTER_STATUSES, DELIVERY_MODES, EMPTY_CENTER_INPUT, REGIONS,
-  categoryLabel, modeLabel, statusLabel, toInput, validateCenterInput,
+  CENTER_STATUSES, DELIVERY_MODES, EMPTY_CENTER_INPUT, REGIONS, SPECIALTIES, TARGET_GROUPS,
+  modeLabel, specialtyLabel, statusLabel, targetLabel, toInput, validateCenterInput,
   type CenterInput, type CenterInputErrors, type CenterStatus,
 } from '@counsel-core/centers.ts'
 import { t } from '@counsel-core/copy.ko.ts'
@@ -111,11 +111,22 @@ export default function CenterFormPage({ mode }: { mode: 'create' | 'edit' }) {
           </FormControl>
 
           <FormControl component="fieldset">
-            <FormLabel component="legend">{t('center.field.categories')}</FormLabel>
+            <FormLabel component="legend">{t('center.field.targets')}</FormLabel>
             <FormGroup row>
-              {CATEGORIES.map((v) => (
-                <FormControlLabel key={v} label={categoryLabel(v)} control={
-                  <Checkbox checked={values.categories.includes(v)} onChange={(e) => set({ categories: toggle(values.categories, v, e.target.checked) })} />
+              {TARGET_GROUPS.map((v) => (
+                <FormControlLabel key={v} label={targetLabel(v)} control={
+                  <Checkbox checked={values.target_groups.includes(v)} onChange={(e) => set({ target_groups: toggle(values.target_groups, v, e.target.checked) })} />
+                } />
+              ))}
+            </FormGroup>
+          </FormControl>
+
+          <FormControl component="fieldset">
+            <FormLabel component="legend">{t('center.field.specialties')}</FormLabel>
+            <FormGroup row>
+              {SPECIALTIES.map((v) => (
+                <FormControlLabel key={v} label={specialtyLabel(v)} control={
+                  <Checkbox checked={values.specialties.includes(v)} onChange={(e) => set({ specialties: toggle(values.specialties, v, e.target.checked) })} />
                 } />
               ))}
             </FormGroup>
@@ -143,6 +154,9 @@ export default function CenterFormPage({ mode }: { mode: 'create' | 'edit' }) {
               error={!!err('phone')} helperText={err('phone') ?? t('form.phoneHelp')} slotProps={{ htmlInput: { inputMode: 'tel' } }} />
             <TextField label={t('center.field.address')} value={values.address} onChange={(e) => set({ address: e.target.value })}
               error={!!err('address')} helperText={err('address')} />
+            <TextField label={t('center.field.operatingHours')} value={values.operating_hours} onChange={(e) => set({ operating_hours: e.target.value })}
+              error={!!err('operating_hours')} helperText={err('operating_hours') ?? t('form.operatingHoursHelp')} slotProps={{ htmlInput: { maxLength: 100 } }}
+              sx={{ gridColumn: { md: '1 / -1' } }} />
             <TextField label={t('center.field.contactName')} value={values.contact_name} onChange={(e) => set({ contact_name: e.target.value })}
               error={!!err('contact_name')} helperText={err('contact_name')} />
             <TextField label={t('center.field.contactPhone')} value={values.contact_phone} onChange={(e) => set({ contact_phone: e.target.value })}

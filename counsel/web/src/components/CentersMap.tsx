@@ -5,7 +5,7 @@ import { t } from '@counsel-core/copy.ko.ts'
 import { KOREA_VIEW, SIDO_ANCHORS, groupBySido, hasCoordinates } from '@counsel-core/geo.ts'
 import { MAP_ERROR_COPY, useNaverMaps } from '../lib/naverMaps'
 import { mapLook } from '../theme/admin'
-import CategoryChips from './CategoryChips'
+import SpecialtyChips from './SpecialtyChips'
 import CenterAvatar from './CenterAvatar'
 import { centerPinHtml, sidoBubbleHtml } from './mapMarkers'
 
@@ -103,7 +103,7 @@ export default function CentersMap({ centers, onOpen }: { centers: Center[]; onO
                   <Typography variant="body2" color="text.secondary">{locationLabel(selected.location_sido, selected.location_sigungu)}</Typography>
                 </Box>
               </Stack>
-              <CategoryChips values={selected.categories} />
+              <SpecialtyChips values={selected.specialties} />
               <Stack direction="row" spacing={1} sx={{ justifyContent: 'flex-end' }}>
                 <Button size="small" onClick={() => setSelected(null)}>{t('map.close')}</Button>
                 <Button size="small" variant="contained" onClick={() => onOpen(selected.id)}>{t('map.openDetail')}</Button>

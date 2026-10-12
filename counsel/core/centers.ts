@@ -8,8 +8,13 @@ export { REGIONS, type Region } from './regions.ts'
 export const CENTER_STATUSES = ['onboarding', 'active', 'paused', 'terminated'] as const
 export type CenterStatus = (typeof CENTER_STATUSES)[number]
 
-export const CATEGORIES = ['development', 'emotion', 'youth', 'learning', 'family'] as const
-export type Category = (typeof CATEGORIES)[number]
+// 대상: 누구를 상담하나 (기획 문서 Step 1 필터의 "상담 유형")
+export const TARGET_GROUPS = ['infant', 'child_youth', 'adult'] as const
+export type TargetGroup = (typeof TARGET_GROUPS)[number]
+
+// 전문 분야: 무엇을 다루나 (기획 문서 Step 2의 "상담 전문 분야")
+export const SPECIALTIES = ['development', 'emotion', 'youth', 'learning', 'family'] as const
+export type Specialty = (typeof SPECIALTIES)[number]
 
 export const DELIVERY_MODES = ['offline', 'online'] as const
 export type DeliveryMode = (typeof DELIVERY_MODES)[number]
@@ -22,11 +27,13 @@ export type Center = {
   location_sigungu: string | null
   latitude: number | null
   longitude: number | null
-  categories: string[]
+  target_groups: string[]
+  specialties: string[]
   regions: string[]
   delivery_modes: string[]
   phone: string | null
   address: string | null
+  operating_hours: string | null
   contact_name: string | null
   contact_phone: string | null
   contract_from: string | null
@@ -35,19 +42,25 @@ export type Center = {
   version: number
   created_at: string
   updated_at: string
-  // 이 센터에 배정된 예약 수. 예약 표가 생기는 단계(MVP-1)에서 목록 조회가 채운다. 그 전에는 0으로 본다.
+  // 배정·완료 건수. 구매 건과 상담 장부가 생기는 단계(MVP-1)에서 목록 조회가 채운다. 그 전에는 0으로 본다.
   assigned_count?: number
+  completed_count?: number
 }
 
 export const CENTER_COLUMNS =
-  'id, name, status, location_sido, location_sigungu, latitude, longitude, categories, regions, delivery_modes, phone, address, contact_name, contact_phone, contract_from, contract_to, memo, version, created_at, updated_at'
+  'id, name, status, location_sido, location_sigungu, latitude, longitude, target_groups, specialties, regions, delivery_modes, '
+  + 'phone, address, operating_hours, contact_name, contact_phone, contract_from, contract_to, memo, version, created_at, updated_at'
 
 export function statusLabel(s: string): string {
   return (CENTER_STATUSES as readonly string[]).includes(s) ? t(`center.status.${s}` as CopyKey) : s
 }
 
-export function categoryLabel(v: string): string {
-  return (CATEGORIES as readonly string[]).includes(v) ? t(`center.category.${v}` as CopyKey) : v
+export function targetLabel(v: string): string {
+  return (TARGET_GROUPS as readonly string[]).includes(v) ? t(`center.target.${v}` as CopyKey) : v
+}
+
+export function specialtyLabel(v: string): string {
+  return (SPECIALTIES as readonly string[]).includes(v) ? t(`center.specialty.${v}` as CopyKey) : v
 }
 
 export function modeLabel(v: string): string {
@@ -65,6 +78,10 @@ export function locationLabel(sido: string | null, sigungu: string | null): stri
   return parts.length ? parts.join(' ') : t('center.empty')
 }
 
+export function targetsLabel(targets: string[]): string {
+  return targets.length === 0 ? t('center.empty') : ordered(targets, TARGET_GROUPS).map(targetLabel).join(', ')
+}
+
 export function regionsLabel(regions: string[]): string {
   if (regions.length === 0) return t('center.empty')
   if (REGIONS.every((r) => regions.includes(r))) return t('center.regions.all')
@@ -80,14 +97,17 @@ export function contractLabel(from: string | null, to: string | null): string {
   return t('center.contract', { from: from ?? '', to: to ?? '' }).trim()
 }
 
-export type CenterFilter = { q: string; sido: string; status: string }
+export type CenterFilter = { q: string; sido: string; target: string; status: string }
 
-// 목록 거르기. 빈 값은 "전체"다. 지역은 소재지 시·도로 거른다.
-export function filterCenters<T extends Pick<Center, 'name' | 'location_sido' | 'status'>>(rows: T[], f: CenterFilter): T[] {
+export const EMPTY_FILTER: CenterFilter = { q: '', sido: '', target: '', status: '' }
+
+// 목록 거르기. 빈 값은 "전체"다. 지역은 소재지 시·도로, 대상은 하나라도 겹치면 맞는 것으로 본다.
+export function filterCenters<T extends Pick<Center, 'name' | 'location_sido' | 'status' | 'target_groups'>>(rows: T[], f: CenterFilter): T[] {
   const q = f.q.trim().toLowerCase()
   return rows.filter((r) =>
     (!q || r.name.toLowerCase().includes(q))
     && (!f.sido || r.location_sido === f.sido)
+    && (!f.target || r.target_groups.includes(f.target))
     && (!f.status || r.status === f.status),
   )
 }
@@ -100,11 +120,13 @@ export type CenterInput = {
   // 지도에서 찍은 위치. 둘 다 있거나 둘 다 없다.
   latitude: number | null
   longitude: number | null
-  categories: string[]
+  target_groups: string[]
+  specialties: string[]
   regions: string[]
   delivery_modes: string[]
   phone: string
   address: string
+  operating_hours: string
   contact_name: string
   contact_phone: string
   contract_from: string
@@ -114,16 +136,17 @@ export type CenterInput = {
 
 export const EMPTY_CENTER_INPUT: CenterInput = {
   name: '', status: 'onboarding', location_sido: '', location_sigungu: '', latitude: null, longitude: null,
-  categories: [], regions: [], delivery_modes: [],
-  phone: '', address: '', contact_name: '', contact_phone: '', contract_from: '', contract_to: '', memo: '',
+  target_groups: [], specialties: [], regions: [], delivery_modes: [],
+  phone: '', address: '', operating_hours: '', contact_name: '', contact_phone: '', contract_from: '', contract_to: '', memo: '',
 }
 
 export function toInput(c: Center): CenterInput {
   return {
     name: c.name, status: c.status, location_sido: c.location_sido ?? '', location_sigungu: c.location_sigungu ?? '',
     latitude: c.latitude, longitude: c.longitude,
-    categories: c.categories, regions: c.regions, delivery_modes: c.delivery_modes,
-    phone: c.phone ?? '', address: c.address ?? '', contact_name: c.contact_name ?? '', contact_phone: c.contact_phone ?? '',
+    target_groups: c.target_groups, specialties: c.specialties, regions: c.regions, delivery_modes: c.delivery_modes,
+    phone: c.phone ?? '', address: c.address ?? '', operating_hours: c.operating_hours ?? '',
+    contact_name: c.contact_name ?? '', contact_phone: c.contact_phone ?? '',
     contract_from: c.contract_from ?? '', contract_to: c.contract_to ?? '', memo: c.memo ?? '',
   }
 }
@@ -143,6 +166,7 @@ export function validateCenterInput(v: CenterInput): CenterInputErrors {
   if (v.phone.trim() && !PHONE.test(v.phone.trim())) e.phone = 'form.error.phone'
   if (v.contact_phone.trim() && !PHONE.test(v.contact_phone.trim())) e.contact_phone = 'form.error.phone'
   if (v.address.trim().length > 200) e.address = 'form.error.addressLength'
+  if (v.operating_hours.trim().length > 100) e.operating_hours = 'form.error.operatingHoursLength'
   if (v.contact_name.trim().length > 30) e.contact_name = 'form.error.contactNameLength'
   if (v.memo.trim().length > 500) e.memo = 'form.error.memoLength'
   if (v.contract_from && v.contract_to && v.contract_from > v.contract_to) e.contract_to = 'form.error.contractPeriod'

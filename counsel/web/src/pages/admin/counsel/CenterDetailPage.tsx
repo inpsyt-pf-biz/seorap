@@ -3,13 +3,13 @@ import { useLocation, useNavigate, useParams } from 'react-router-dom'
 import { Box, Button, Paper, Stack, Typography } from '@mui/material'
 import Toast from '@seorap-web/components/Toast.tsx'
 import { formatKstDateTime } from '@seorap-core/time.ts'
-import { contractLabel, locationLabel, modesLabel, regionsLabel, type Center } from '@counsel-core/centers.ts'
+import { contractLabel, locationLabel, modesLabel, regionsLabel, targetsLabel, type Center } from '@counsel-core/centers.ts'
 import { t, type CopyKey } from '@counsel-core/copy.ko.ts'
 import { errorText, toCounselError, type CounselError } from '@counsel-core/errors.ts'
-import CategoryChips from '../../../components/CategoryChips'
 import CenterAvatar from '../../../components/CenterAvatar'
 import LocationPicker from '../../../components/LocationPicker'
 import { ErrorBox, Loading } from '../../../components/PageState'
+import SpecialtyChips from '../../../components/SpecialtyChips'
 import StatusChip from '../../../components/StatusChip'
 import { getCenter } from '../../../lib/api'
 import { hasCap, useSession } from '../../../shell/session'
@@ -62,11 +62,13 @@ export default function CenterDetailPage() {
               ? <LocationPicker readOnly value={{ lat: center.latitude, lng: center.longitude }} />
               : text(null)}
           </Row>
-          <Row label="center.field.categories"><CategoryChips values={center.categories} /></Row>
+          <Row label="center.field.targets">{text(targetsLabel(center.target_groups))}</Row>
+          <Row label="center.field.specialties"><SpecialtyChips values={center.specialties} /></Row>
           <Row label="center.field.regions">{text(regionsLabel(center.regions))}</Row>
           <Row label="center.field.modes">{text(modesLabel(center.delivery_modes))}</Row>
           <Row label="center.field.phone">{text(center.phone)}</Row>
           <Row label="center.field.address">{text(center.address)}</Row>
+          <Row label="center.field.operatingHours">{text(center.operating_hours)}</Row>
           <Row label="center.field.contactName">{text(center.contact_name)}</Row>
           <Row label="center.field.contactPhone">{text(center.contact_phone)}</Row>
           <Row label="center.field.contract">{text(contractLabel(center.contract_from, center.contract_to))}</Row>

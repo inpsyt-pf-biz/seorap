@@ -31,9 +31,9 @@ await cleanup()
 const name = (s: string) => `[시험] ${s} ${crypto.randomUUID().slice(0, 6)}`
 const input = (n: string) => ({
   p_name: n, p_status: 'active', p_location_sido: '서울', p_location_sigungu: '강남',
-  p_latitude: 37.5172 as number | null, p_longitude: 127.0473 as number | null, p_categories: ['development'],
+  p_latitude: 37.5172 as number | null, p_longitude: 127.0473 as number | null, p_target_groups: ['child_youth'], p_specialties: ['development'],
   p_regions: ['서울'], p_delivery_modes: ['offline'],
-  p_phone: '02-0000-9999', p_address: '', p_contact_name: '', p_contact_phone: '', p_contract_from: null, p_contract_to: null, p_memo: '',
+  p_phone: '02-0000-9999', p_address: '', p_operating_hours: '', p_contact_name: '', p_contact_phone: '', p_contract_from: null, p_contract_to: null, p_memo: '',
 })
 
 Deno.test({
@@ -118,9 +118,11 @@ Deno.test({
       assertEquals(period.error?.message, 'COUNSEL:INVALID_INPUT')
     })
 
-    await t.step('목록에 없는 카테고리, 시·도 없는 구·시는 INVALID_INPUT', async () => {
-      const cat = await admin.rpc('rpc_create_center', { ...input(name('카테고리')), p_categories: ['individual'] })
+    await t.step('목록에 없는 전문 분야·대상, 시·도 없는 구·시는 INVALID_INPUT', async () => {
+      const cat = await admin.rpc('rpc_create_center', { ...input(name('전문분야')), p_specialties: ['individual'] })
       assertEquals(cat.error?.message, 'COUNSEL:INVALID_INPUT')
+      const target = await admin.rpc('rpc_create_center', { ...input(name('대상')), p_target_groups: ['senior'] })
+      assertEquals(target.error?.message, 'COUNSEL:INVALID_INPUT')
       const loc = await admin.rpc('rpc_create_center', { ...input(name('소재지')), p_location_sido: '', p_location_sigungu: '강남' })
       assertEquals(loc.error?.message, 'COUNSEL:INVALID_INPUT')
     })
@@ -136,9 +138,9 @@ Deno.test({
 
     await t.step('등록한 소재지·카테고리가 그대로 읽힌다', async () => {
       const n = name('소재지읽기')
-      const created = await admin.rpc('rpc_create_center', { ...input(n), p_categories: ['family', 'emotion', 'family'] })
-      const row = await admin.from('centers').select('location_sido, location_sigungu, latitude, longitude, categories').eq('id', created.data).single()
-      assertEquals(row.data, { location_sido: '서울', location_sigungu: '강남', latitude: 37.5172, longitude: 127.0473, categories: ['emotion', 'family'] })
+      const created = await admin.rpc('rpc_create_center', { ...input(n), p_specialties: ['family', 'emotion', 'family'], p_operating_hours: ' 평일 10:00~19:00 ' })
+      const row = await admin.from('centers').select('location_sido, location_sigungu, latitude, longitude, target_groups, specialties, operating_hours').eq('id', created.data).single()
+      assertEquals(row.data, { location_sido: '서울', location_sigungu: '강남', latitude: 37.5172, longitude: 127.0473, target_groups: ['child_youth'], specialties: ['emotion', 'family'], operating_hours: '평일 10:00~19:00' })
     })
 
     await t.step('본사 행은 수정 함수로 고치지 못하고, 없는 센터와 같은 응답이다', async () => {

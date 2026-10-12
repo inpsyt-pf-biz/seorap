@@ -1,6 +1,6 @@
 import { createTheme } from '@mui/material/styles'
 import { theme, tokens } from '@seorap-web/theme/seorap.ts'
-import type { Category } from '@counsel-core/centers.ts'
+import type { Specialty } from '@counsel-core/centers.ts'
 
 // 서랍 테마를 그대로 쓰고, PC 폭 어드민에 필요한 것만 더한다. 색은 서랍 tokens 에서만 꺼낸다.
 export const adminLayout = { contentMaxWidth: 1200, navWidth: 220 } as const
@@ -20,8 +20,8 @@ export const adminTheme = createTheme(theme, {
   },
 })
 
-// 카테고리 태그 색. 연한 바탕 + 진한 글자(대비 4.5:1 이상).
-export const categoryColors: Record<Category, { bg: string; fg: string }> = {
+// 전문 분야 태그 색. 연한 바탕 + 진한 글자(대비 4.5:1 이상).
+export const specialtyColors: Record<Specialty, { bg: string; fg: string }> = {
   development: { bg: '#EEF0FF', fg: '#4338CA' },
   emotion: { bg: '#FFF4E0', fg: '#8A5A00' },
   youth: { bg: '#E6F4FB', fg: '#0B6E99' },

@@ -26,13 +26,13 @@ for (const a of SEED_ACCOUNTS) ids[a.key] = await ensureUser(a.email)
 // 지도 위치(pos)는 각 구·시청 근처의 대략적인 좌표다. 새싹은 위치를 비워 "지도 위치 미지정"을 보여 준다.
 const ALL = ['서울', '부산', '대구', '인천', '광주', '대전', '울산', '세종', '경기', '강원', '충북', '충남', '전북', '전남', '경북', '경남', '제주']
 const CENTERS = [
-  { name: '마음숲 상담센터', status: 'active', sido: '서울', sigungu: '강남', pos: [37.5172, 127.0473], categories: ['development', 'emotion'], regions: ['서울'], modes: ['offline', 'online'], phone: '02-0000-0101', address: '서울특별시 가상구 예시로 101', contact: ['김예시', '010-0000-0101'], contract: ['2026-01-01', '2026-12-31'], memo: '주말 상담 가능' },
-  { name: '해봄 심리상담연구소', status: 'active', sido: '서울', sigungu: '마포', pos: [37.5663, 126.9019], categories: ['youth', 'learning'], regions: ['서울', '경기'], modes: ['offline'], phone: '02-0000-0102', address: '서울특별시 가상구 샘플로 22', contact: ['이샘플', '010-0000-0102'], contract: ['2026-03-01', '2027-02-28'], memo: '' },
-  { name: '새벽빛 가족상담센터', status: 'active', sido: '경기', sigungu: '성남', pos: [37.42, 127.1265], categories: ['emotion', 'family'], regions: ['경기', '서울'], modes: ['offline', 'online'], phone: '031-0000-0103', address: '경기도 가상시 새벽로 3', contact: ['박가상', '010-0000-0103'], contract: ['2026-05-01', '2027-04-30'], memo: '' },
-  { name: '바다빛 심리연구소', status: 'active', sido: '부산', sigungu: '해운대', pos: [35.1631, 129.1636], categories: ['development'], regions: ['부산', '울산', '경남'], modes: ['offline'], phone: '051-0000-0104', address: '부산광역시 가상구 바닷가로 4', contact: ['최임시', '010-0000-0104'], contract: ['2026-02-01', '2027-01-31'], memo: '' },
-  { name: '온담 청소년상담센터', status: 'active', sido: '대전', sigungu: '유성', pos: [36.3624, 127.3563], categories: ['youth', 'emotion'], regions: ALL, modes: ['offline', 'online'], phone: '042-0000-0105', address: '대전광역시 가상구 온담길 5', contact: ['정테스트', '010-0000-0105'], contract: ['2026-02-01', '2027-01-31'], memo: '비대면 상담은 전 지역 가능' },
-  { name: '새싹 아동발달센터', status: 'onboarding', sido: '대구', sigungu: '수성', pos: [null, null], categories: ['development', 'learning'], regions: ['대구', '경북'], modes: ['offline'], phone: '053-0000-0106', address: '대구광역시 가상구 새싹길 6', contact: ['한더미', '010-0000-0106'], contract: [null, null], memo: '계약서 회신 대기' },
-  { name: '푸른길 상담센터', status: 'paused', sido: '광주', sigungu: '광산', pos: [35.1396, 126.7937], categories: ['emotion', 'family'], regions: ['광주', '전남'], modes: ['offline'], phone: '062-0000-0107', address: '광주광역시 가상구 푸른길 7', contact: ['윤예제', '010-0000-0107'], contract: ['2025-07-01', '2026-06-30'], memo: '상담사 충원 전까지 신규 배정 중지' },
+  { name: '마음숲 상담센터', status: 'active', sido: '서울', sigungu: '강남', pos: [37.5172, 127.0473], targets: ['infant', 'child_youth'], specialties: ['development', 'emotion'], regions: ['서울'], modes: ['offline', 'online'], phone: '02-0000-0101', address: '서울특별시 가상구 예시로 101', hours: '평일 10:00~19:00, 토 10:00~15:00', contact: ['김예시', '010-0000-0101'], contract: ['2026-01-01', '2026-12-31'], memo: '주말 상담 가능' },
+  { name: '해봄 심리상담연구소', status: 'active', sido: '서울', sigungu: '마포', pos: [37.5663, 126.9019], targets: ['child_youth', 'adult'], specialties: ['youth', 'learning'], regions: ['서울', '경기'], modes: ['offline'], phone: '02-0000-0102', address: '서울특별시 가상구 샘플로 22', hours: '평일 11:00~20:00', contact: ['이샘플', '010-0000-0102'], contract: ['2026-03-01', '2027-02-28'], memo: '' },
+  { name: '새벽빛 가족상담센터', status: 'active', sido: '경기', sigungu: '성남', pos: [37.42, 127.1265], targets: ['child_youth', 'adult'], specialties: ['emotion', 'family'], regions: ['경기', '서울'], modes: ['offline', 'online'], phone: '031-0000-0103', address: '경기도 가상시 새벽로 3', hours: '화~토 10:00~18:00', contact: ['박가상', '010-0000-0103'], contract: ['2026-05-01', '2027-04-30'], memo: '' },
+  { name: '바다빛 심리연구소', status: 'active', sido: '부산', sigungu: '해운대', pos: [35.1631, 129.1636], targets: ['infant', 'child_youth'], specialties: ['development'], regions: ['부산', '울산', '경남'], modes: ['offline'], phone: '051-0000-0104', address: '부산광역시 가상구 바닷가로 4', hours: '평일 09:30~18:30', contact: ['최임시', '010-0000-0104'], contract: ['2026-02-01', '2027-01-31'], memo: '' },
+  { name: '온담 청소년상담센터', status: 'active', sido: '대전', sigungu: '유성', pos: [36.3624, 127.3563], targets: ['child_youth'], specialties: ['youth', 'emotion'], regions: ALL, modes: ['offline', 'online'], phone: '042-0000-0105', address: '대전광역시 가상구 온담길 5', hours: '평일 13:00~21:00, 토 10:00~17:00', contact: ['정테스트', '010-0000-0105'], contract: ['2026-02-01', '2027-01-31'], memo: '비대면 상담은 전 지역 가능' },
+  { name: '새싹 아동발달센터', status: 'onboarding', sido: '대구', sigungu: '수성', pos: [null, null], targets: ['infant'], specialties: ['development', 'learning'], regions: ['대구', '경북'], modes: ['offline'], phone: '053-0000-0106', address: '대구광역시 가상구 새싹길 6', hours: '', contact: ['한더미', '010-0000-0106'], contract: [null, null], memo: '계약서 회신 대기' },
+  { name: '푸른길 상담센터', status: 'paused', sido: '광주', sigungu: '광산', pos: [35.1396, 126.7937], targets: ['adult'], specialties: ['emotion', 'family'], regions: ['광주', '전남'], modes: ['offline'], phone: '062-0000-0107', address: '광주광역시 가상구 푸른길 7', hours: '평일 10:00~18:00', contact: ['윤예제', '010-0000-0107'], contract: ['2025-07-01', '2026-06-30'], memo: '상담사 충원 전까지 신규 배정 중지' },
 ] as const
 
 const sql = postgres(status.dbUrl, { max: 1, onnotice: () => {} })
@@ -54,8 +54,8 @@ try {
       await tx`select set_config('request.jwt.claims', ${JSON.stringify({ sub: ids.admin, role: 'authenticated' })}, true)`
       for (const c of CENTERS) {
         await tx`select counsel.rpc_create_center(
-          ${c.name}, ${c.status}, ${c.sido}, ${c.sigungu}, ${c.pos[0]}::float8, ${c.pos[1]}::float8, ${[...c.categories]}::text[], ${[...c.regions]}::text[], ${[...c.modes]}::text[],
-          ${c.phone}, ${c.address}, ${c.contact[0]}, ${c.contact[1]}, ${c.contract[0]}::date, ${c.contract[1]}::date, ${c.memo})`
+          ${c.name}, ${c.status}, ${c.sido}, ${c.sigungu}, ${c.pos[0]}::float8, ${c.pos[1]}::float8, ${[...c.targets]}::text[], ${[...c.specialties]}::text[],
+          ${[...c.regions]}::text[], ${[...c.modes]}::text[], ${c.phone}, ${c.address}, ${c.hours}, ${c.contact[0]}, ${c.contact[1]}, ${c.contract[0]}::date, ${c.contract[1]}::date, ${c.memo})`
       }
     })
     console.log(`시드 완료: 계정 ${SEED_ACCOUNTS.length}개, 센터 ${CENTERS.length}곳`)

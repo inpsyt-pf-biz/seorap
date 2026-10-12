@@ -1,7 +1,7 @@
 import { assertEquals } from '@std/assert'
 import {
-  CATEGORIES, CENTER_STATUSES, DELIVERY_MODES, EMPTY_CENTER_INPUT, REGIONS,
-  contractLabel, filterCenters, locationLabel, modesLabel, ordered, regionsLabel, validateCenterInput,
+  CENTER_STATUSES, DELIVERY_MODES, EMPTY_CENTER_INPUT, EMPTY_FILTER, REGIONS, SPECIALTIES, TARGET_GROUPS,
+  contractLabel, filterCenters, locationLabel, modesLabel, ordered, regionsLabel, targetsLabel, validateCenterInput,
 } from './centers.ts'
 import { toCounselError } from './errors.ts'
 
@@ -19,7 +19,9 @@ Deno.test('허용값 목록이 DB CHECK 와 같다', () => {
   assertEquals(checkList('regions'), [...REGIONS])
   assertEquals(checkList('location_sido'), [...REGIONS])
   assertEquals(checkList('status'), [...CENTER_STATUSES])
-  assertEquals(checkList('categories'), [...CATEGORIES])
+  // 전문 분야는 categories 로 만든 뒤 specialties 로 이름만 바꿨다(20261012000002)
+  assertEquals(checkList('categories'), [...SPECIALTIES])
+  assertEquals(checkList('target_groups'), [...TARGET_GROUPS])
   assertEquals(checkList('delivery_modes'), [...DELIVERY_MODES])
 })
 
@@ -35,8 +37,10 @@ Deno.test('상담 가능 지역 표시: 17개 전부면 전지역, 없으면 -, 
   assertEquals(regionsLabel(['경기', '서울']), '서울, 경기')
 })
 
-Deno.test('카테고리·방식은 정의 순서로 정렬한다', () => {
-  assertEquals(ordered(['family', 'development'], CATEGORIES), ['development', 'family'])
+Deno.test('전문 분야·대상·방식은 정의 순서로 정렬한다', () => {
+  assertEquals(ordered(['family', 'development'], SPECIALTIES), ['development', 'family'])
+  assertEquals(targetsLabel(['adult', 'infant']), '영유아, 성인')
+  assertEquals(targetsLabel([]), '-')
   assertEquals(modesLabel(['online', 'offline']), '대면 · 비대면')
 })
 
@@ -46,16 +50,17 @@ Deno.test('계약 기간 표시', () => {
   assertEquals(contractLabel('2026-01-01', null), '2026-01-01 ~')
 })
 
-Deno.test('목록 거르기: 이름은 대소문자 무시 부분 일치, 지역(소재지 시·도)·상태는 정확히', () => {
+Deno.test('목록 거르기: 이름은 대소문자 무시 부분 일치, 지역(소재지 시·도)·상태는 정확히, 대상은 하나라도 겹치면', () => {
   const rows = [
-    { name: '마음숲 상담센터', location_sido: '서울', status: 'active' as const },
-    { name: 'Onda 온라인상담', location_sido: '서울', status: 'paused' as const },
-    { name: '바다빛 가족상담센터', location_sido: '부산', status: 'active' as const },
-    { name: '지역 미정 센터', location_sido: null, status: 'onboarding' as const },
+    { name: '마음숲 상담센터', location_sido: '서울', status: 'active' as const, target_groups: ['infant', 'child_youth'] },
+    { name: 'Onda 온라인상담', location_sido: '서울', status: 'paused' as const, target_groups: ['adult'] },
+    { name: '바다빛 가족상담센터', location_sido: '부산', status: 'active' as const, target_groups: ['child_youth', 'adult'] },
+    { name: '지역 미정 센터', location_sido: null, status: 'onboarding' as const, target_groups: [] },
   ]
-  assertEquals(filterCenters(rows, { q: '', sido: '', status: '' }).length, 4)
-  assertEquals(filterCenters(rows, { q: 'onda', sido: '', status: '' }).map((r) => r.name), ['Onda 온라인상담'])
-  assertEquals(filterCenters(rows, { q: '', sido: '서울', status: 'active' }).map((r) => r.name), ['마음숲 상담센터'])
+  assertEquals(filterCenters(rows, EMPTY_FILTER).length, 4)
+  assertEquals(filterCenters(rows, { ...EMPTY_FILTER, q: 'onda' }).map((r) => r.name), ['Onda 온라인상담'])
+  assertEquals(filterCenters(rows, { ...EMPTY_FILTER, sido: '서울', status: 'active' }).map((r) => r.name), ['마음숲 상담센터'])
+  assertEquals(filterCenters(rows, { ...EMPTY_FILTER, target: 'adult' }).map((r) => r.name), ['Onda 온라인상담', '바다빛 가족상담센터'])
 })
 
 Deno.test('입력 검사', () => {
@@ -66,6 +71,7 @@ Deno.test('입력 검사', () => {
   assertEquals(validateCenterInput({ ...ok, contract_to: '2025-12-31' }), { contract_to: 'form.error.contractPeriod' })
   assertEquals(validateCenterInput({ ...ok, name: 'x'.repeat(61) }), { name: 'form.error.nameLength' })
   assertEquals(validateCenterInput({ ...ok, location_sido: '' }), { location_sido: 'form.error.sidoRequired' })
+  assertEquals(validateCenterInput({ ...ok, operating_hours: 'x'.repeat(101) }), { operating_hours: 'form.error.operatingHoursLength' })
 })
 
 Deno.test('DB 오류 문구에서 코드를 꺼낸다. 모르는 오류는 generic', () => {

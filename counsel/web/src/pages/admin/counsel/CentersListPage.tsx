@@ -5,23 +5,27 @@ import {
   TablePagination, TableRow, TextField, ToggleButton, ToggleButtonGroup, Typography,
 } from '@mui/material'
 import CentersMap from '../../../components/CentersMap'
-import { CENTER_STATUSES, REGIONS, filterCenters, locationLabel, statusLabel, type Center, type CenterFilter } from '@counsel-core/centers.ts'
+import {
+  CENTER_STATUSES, EMPTY_FILTER, REGIONS, TARGET_GROUPS, filterCenters, locationLabel, statusLabel, targetLabel, targetsLabel,
+  type Center, type CenterFilter,
+} from '@counsel-core/centers.ts'
 import { t, type CopyKey } from '@counsel-core/copy.ko.ts'
 import { errorText, toCounselError, type CounselError } from '@counsel-core/errors.ts'
-import CategoryChips from '../../../components/CategoryChips'
 import CenterAvatar from '../../../components/CenterAvatar'
 import { ErrorBox, Loading } from '../../../components/PageState'
+import SpecialtyChips from '../../../components/SpecialtyChips'
 import StatusChip from '../../../components/StatusChip'
 import { listCenters } from '../../../lib/api'
 import { hasCap, useSession } from '../../../shell/session'
 import { centerListLook } from '../../../theme/admin'
 
 const COLUMNS: { label: CopyKey; width: string }[] = [
-  { label: 'centers.col.name', width: '33%' },
+  { label: 'centers.col.name', width: '26%' },
   { label: 'centers.col.location', width: '13%' },
-  { label: 'centers.col.categories', width: '22%' },
-  { label: 'centers.col.assigned', width: '12%' },
-  { label: 'centers.col.phone', width: '20%' },
+  { label: 'centers.col.targets', width: '17%' },
+  { label: 'centers.col.specialties', width: '16%' },
+  { label: 'centers.col.progress', width: '12%' },
+  { label: 'centers.col.phone', width: '16%' },
 ]
 
 export default function CentersListPage() {
@@ -32,7 +36,7 @@ export default function CentersListPage() {
   const view = params.get('view') === 'map' ? 'map' : 'list'
   const [rows, setRows] = useState<Center[] | null>(null)
   const [error, setError] = useState<CounselError | null>(null)
-  const [filter, setFilter] = useState<CenterFilter>({ q: '', sido: '', status: '' })
+  const [filter, setFilter] = useState<CenterFilter>(EMPTY_FILTER)
   const [page, setPage] = useState(0)
   const [perPage, setPerPage] = useState(20)
 
@@ -67,6 +71,10 @@ export default function CentersListPage() {
           <MenuItem value="">{t('centers.filter.all')}</MenuItem>
           {REGIONS.map((r) => <MenuItem key={r} value={r}>{r}</MenuItem>)}
         </TextField>
+        <TextField size="small" select label={t('centers.filter.target')} value={filter.target} onChange={(e) => change({ target: e.target.value })} sx={{ minWidth: 150 }}>
+          <MenuItem value="">{t('centers.filter.all')}</MenuItem>
+          {TARGET_GROUPS.map((g) => <MenuItem key={g} value={g}>{targetLabel(g)}</MenuItem>)}
+        </TextField>
         <TextField size="small" select label={t('centers.filter.status')} value={filter.status} onChange={(e) => change({ status: e.target.value })} sx={{ minWidth: 160 }}>
           <MenuItem value="">{t('centers.filter.all')}</MenuItem>
           {CENTER_STATUSES.map((s) => <MenuItem key={s} value={s}>{statusLabel(s)}</MenuItem>)}
@@ -79,7 +87,7 @@ export default function CentersListPage() {
       {rows && view === 'list' && (
         <Paper sx={{ borderRadius: 4, overflow: 'hidden' }}>
           <TableContainer>
-            <Table sx={{ tableLayout: 'fixed', minWidth: 760 }}>
+            <Table sx={{ tableLayout: 'fixed', minWidth: 900 }}>
               <TableHead>
                 <TableRow>
                   {COLUMNS.map((c) => (
@@ -103,15 +111,20 @@ export default function CentersListPage() {
                     <TableCell>
                       <Stack direction="row" sx={{ alignItems: 'center', gap: 1.5, minWidth: 0 }}>
                         <CenterAvatar />
-                        <Typography variant="body1" noWrap sx={{ fontWeight: 700 }}>{c.name}</Typography>
-                        {c.status !== 'active' && <StatusChip status={c.status} />}
+                        <Stack sx={{ minWidth: 0, alignItems: 'flex-start', gap: 0.5 }}>
+                          <Typography variant="body1" noWrap sx={{ fontWeight: 700, maxWidth: '100%' }}>{c.name}</Typography>
+                          {c.status !== 'active' && <StatusChip status={c.status} />}
+                        </Stack>
                       </Stack>
                     </TableCell>
-                    <TableCell><Typography variant="body2" noWrap>{locationLabel(c.location_sido, c.location_sigungu)}</Typography></TableCell>
-                    <TableCell><CategoryChips values={c.categories} /></TableCell>
-                    <TableCell>
-                      <Typography component="span" variant="h6" sx={{ color: centerListLook.countColor, fontWeight: 700 }}>{c.assigned_count ?? 0}</Typography>
-                      <Typography component="span" variant="caption" color="text.secondary" sx={{ ml: 0.5 }}>{t('centers.assignedUnit')}</Typography>
+                    <TableCell><Typography variant="body2">{locationLabel(c.location_sido, c.location_sigungu)}</Typography></TableCell>
+                    <TableCell><Typography variant="body2">{targetsLabel(c.target_groups)}</Typography></TableCell>
+                    <TableCell><SpecialtyChips values={c.specialties} /></TableCell>
+                    <TableCell sx={{ whiteSpace: 'nowrap' }}>
+                      <Typography component="span" variant="h6" sx={{ color: centerListLook.countColor, fontWeight: 700 }}>{c.completed_count ?? 0}</Typography>
+                      <Typography component="span" variant="body2" color="text.secondary" sx={{ mx: 0.5 }}>/</Typography>
+                      <Typography component="span" variant="body1" sx={{ fontWeight: 600 }}>{c.assigned_count ?? 0}</Typography>
+                      <Typography component="span" variant="caption" color="text.secondary" sx={{ ml: 0.5 }}>{t('centers.progressUnit')}</Typography>
                     </TableCell>
                     <TableCell><Typography variant="body2" noWrap>{c.phone ?? t('center.empty')}</Typography></TableCell>
                   </TableRow>
