@@ -37,4 +37,16 @@ export const centerListLook = {
   rowBorder: tokens.surface[100],
 } as const
 
+// 지도 위 표시(네이버 지도에 HTML 로 얹는 것이라 MUI 테마 밖에서 그린다)
+export const mapLook = {
+  bubbleBg: tokens.brand[700],
+  bubbleFg: tokens.surface[0],
+  pinFill: tokens.brand[500],
+  pinBorder: tokens.surface[0],
+  shadow: '0 2px 6px rgba(27, 27, 34, 0.25)',
+  mapHeight: 560,
+  pickerHeight: 280,
+  detailHeight: 220,
+} as const
+
 export { tokens }

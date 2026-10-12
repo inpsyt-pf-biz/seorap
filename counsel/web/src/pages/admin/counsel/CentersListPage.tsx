@@ -1,9 +1,10 @@
 import { useEffect, useMemo, useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useSearchParams } from 'react-router-dom'
 import {
   Box, Button, MenuItem, Paper, Stack, Table, TableBody, TableCell, TableContainer, TableHead,
-  TablePagination, TableRow, TextField, Typography,
+  TablePagination, TableRow, TextField, ToggleButton, ToggleButtonGroup, Typography,
 } from '@mui/material'
+import CentersMap from '../../../components/CentersMap'
 import { CENTER_STATUSES, REGIONS, filterCenters, locationLabel, statusLabel, type Center, type CenterFilter } from '@counsel-core/centers.ts'
 import { t, type CopyKey } from '@counsel-core/copy.ko.ts'
 import { errorText, toCounselError, type CounselError } from '@counsel-core/errors.ts'
@@ -26,6 +27,9 @@ const COLUMNS: { label: CopyKey; width: string }[] = [
 export default function CentersListPage() {
   const { state } = useSession()
   const navigate = useNavigate()
+  // 목록/지도 보기는 주소(?view=map)에 남겨, 상세를 보고 돌아와도 같은 보기로 열린다
+  const [params, setParams] = useSearchParams()
+  const view = params.get('view') === 'map' ? 'map' : 'list'
   const [rows, setRows] = useState<Center[] | null>(null)
   const [error, setError] = useState<CounselError | null>(null)
   const [filter, setFilter] = useState<CenterFilter>({ q: '', sido: '', status: '' })
@@ -39,7 +43,7 @@ export default function CentersListPage() {
   const filtered = useMemo(() => (rows ? filterCenters(rows, filter) : []), [rows, filter])
   const shown = filtered.slice(page * perPage, page * perPage + perPage)
   const change = (patch: Partial<CenterFilter>) => { setFilter((f) => ({ ...f, ...patch })); setPage(0) }
-  const open = (id: string) => navigate(`/admin/counsel/centers/${id}`)
+  const open = (id: string) => navigate(`/admin/counsel/centers/${id}`, { state: { back: `/admin/counsel/centers${view === 'map' ? '?view=map' : ''}` } })
 
   return (
     <Stack spacing={2.5}>
@@ -47,6 +51,11 @@ export default function CentersListPage() {
         <Typography variant="h5">{t('centers.title')}</Typography>
         {rows && <Typography variant="body2" color="text.secondary">{t('centers.count', { n: filtered.length })}</Typography>}
         <Box sx={{ flexGrow: 1 }} />
+        <ToggleButtonGroup size="small" exclusive value={view}
+          onChange={(_, v: 'list' | 'map' | null) => { if (v) setParams(v === 'map' ? { view: 'map' } : {}, { replace: true }) }}>
+          <ToggleButton value="list" sx={{ px: 2 }}>{t('map.viewList')}</ToggleButton>
+          <ToggleButton value="map" sx={{ px: 2 }}>{t('map.viewMap')}</ToggleButton>
+        </ToggleButtonGroup>
         {hasCap(state, 'center.manage') && (
           <Button variant="contained" onClick={() => navigate('/admin/counsel/centers/new')}>{t('centers.create')}</Button>
         )}
@@ -66,7 +75,8 @@ export default function CentersListPage() {
 
       {error && <ErrorBox message={errorText(error)} />}
       {!rows && !error && <Loading />}
-      {rows && (
+      {rows && view === 'map' && <CentersMap centers={filtered} onOpen={open} />}
+      {rows && view === 'list' && (
         <Paper sx={{ borderRadius: 4, overflow: 'hidden' }}>
           <TableContainer>
             <Table sx={{ tableLayout: 'fixed', minWidth: 760 }}>

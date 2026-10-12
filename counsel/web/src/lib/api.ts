@@ -33,6 +33,8 @@ function centerParams(v: CenterInput) {
     p_status: v.status,
     p_location_sido: v.location_sido,
     p_location_sigungu: v.location_sigungu,
+    p_latitude: v.latitude,
+    p_longitude: v.longitude,
     p_categories: v.categories,
     p_regions: v.regions,
     p_delivery_modes: v.delivery_modes,

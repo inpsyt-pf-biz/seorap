@@ -8,6 +8,7 @@ import { t, type CopyKey } from '@counsel-core/copy.ko.ts'
 import { errorText, toCounselError, type CounselError } from '@counsel-core/errors.ts'
 import CategoryChips from '../../../components/CategoryChips'
 import CenterAvatar from '../../../components/CenterAvatar'
+import LocationPicker from '../../../components/LocationPicker'
 import { ErrorBox, Loading } from '../../../components/PageState'
 import StatusChip from '../../../components/StatusChip'
 import { getCenter } from '../../../lib/api'
@@ -29,7 +30,9 @@ export default function CenterDetailPage() {
   const { state } = useSession()
   const navigate = useNavigate()
   const location = useLocation()
-  const toastMessage = (location.state as { toast?: string } | null)?.toast
+  const navState = location.state as { toast?: string; back?: string } | null
+  const toastMessage = navState?.toast
+  const back = navState?.back ?? '/admin/counsel/centers'
   const [toastOpen, setToastOpen] = useState(!!toastMessage)
   const [center, setCenter] = useState<Center | null>(null)
   const [error, setError] = useState<CounselError | null>(null)
@@ -43,7 +46,7 @@ export default function CenterDetailPage() {
       <Stack direction="row" sx={{ alignItems: 'center', gap: 1.5 }}>
         {center && <CenterAvatar size={40} />}
         <Typography variant="h5" sx={{ flexGrow: 1 }}>{center?.name ?? t('centers.title')}</Typography>
-        <Button variant="outlined" onClick={() => navigate('/admin/counsel/centers')}>{t('detail.back')}</Button>
+        <Button variant="outlined" onClick={() => navigate(back)}>{t('detail.back')}</Button>
         {center && hasCap(state, 'center.manage') && (
           <Button variant="contained" onClick={() => navigate(`/admin/counsel/centers/${center.id}/edit`)}>{t('detail.edit')}</Button>
         )}
@@ -54,6 +57,11 @@ export default function CenterDetailPage() {
         <Paper sx={{ px: 3, py: 1, borderRadius: 4 }}>
           <Row label="center.field.status"><StatusChip status={center.status} /></Row>
           <Row label="center.field.location">{text(locationLabel(center.location_sido, center.location_sigungu))}</Row>
+          <Row label="picker.label">
+            {center.latitude !== null && center.longitude !== null
+              ? <LocationPicker readOnly value={{ lat: center.latitude, lng: center.longitude }} />
+              : text(null)}
+          </Row>
           <Row label="center.field.categories"><CategoryChips values={center.categories} /></Row>
           <Row label="center.field.regions">{text(regionsLabel(center.regions))}</Row>
           <Row label="center.field.modes">{text(modesLabel(center.delivery_modes))}</Row>

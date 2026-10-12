@@ -11,6 +11,7 @@ import {
 } from '@counsel-core/centers.ts'
 import { t } from '@counsel-core/copy.ko.ts'
 import { errorText, toCounselError, type CounselError } from '@counsel-core/errors.ts'
+import LocationPicker from '../../../components/LocationPicker'
 import { ErrorBox, Loading } from '../../../components/PageState'
 import { createCenter, getCenter, updateCenter } from '../../../lib/api'
 
@@ -98,6 +99,16 @@ export default function CenterFormPage({ mode }: { mode: 'create' | 'edit' }) {
               onChange={(e) => set({ location_sigungu: e.target.value })}
               error={!!err('location_sigungu')} helperText={err('location_sigungu') ?? t('form.sigunguHelp')} slotProps={{ htmlInput: { maxLength: 20 } }} />
           </Box>
+
+          <FormControl component="fieldset">
+            <FormLabel component="legend" sx={{ mb: 1 }}>{t('picker.label')}</FormLabel>
+            <LocationPicker
+              value={values.latitude !== null && values.longitude !== null ? { lat: values.latitude, lng: values.longitude } : null}
+              onChange={(p) => set({ latitude: p?.lat ?? null, longitude: p?.lng ?? null })}
+              sido={values.location_sido}
+              error={err('latitude')}
+            />
+          </FormControl>
 
           <FormControl component="fieldset">
             <FormLabel component="legend">{t('center.field.categories')}</FormLabel>

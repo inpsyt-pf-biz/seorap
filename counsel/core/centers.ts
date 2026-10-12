@@ -1,12 +1,9 @@
 // 협력센터 코드와 표시 규칙. 허용값 목록은 DB 마이그레이션의 CHECK 와 같아야 하고, centers.test.ts 가 두 곳을 대조한다.
 import { t, type CopyKey } from './copy.ko.ts'
+import { isInKorea } from './geo.ts'
+import { REGIONS } from './regions.ts'
 
-// 시·도 17개. 출처: teacherson-admin/lib/regions.ts (REGION_OPTIONS). 소재지와 상담 가능 지역이 같은 목록을 쓴다.
-export const REGIONS = [
-  '서울', '부산', '대구', '인천', '광주', '대전', '울산', '세종',
-  '경기', '강원', '충북', '충남', '전북', '전남', '경북', '경남', '제주',
-] as const
-export type Region = (typeof REGIONS)[number]
+export { REGIONS, type Region } from './regions.ts'
 
 export const CENTER_STATUSES = ['onboarding', 'active', 'paused', 'terminated'] as const
 export type CenterStatus = (typeof CENTER_STATUSES)[number]
@@ -23,6 +20,8 @@ export type Center = {
   status: CenterStatus
   location_sido: string | null
   location_sigungu: string | null
+  latitude: number | null
+  longitude: number | null
   categories: string[]
   regions: string[]
   delivery_modes: string[]
@@ -41,7 +40,7 @@ export type Center = {
 }
 
 export const CENTER_COLUMNS =
-  'id, name, status, location_sido, location_sigungu, categories, regions, delivery_modes, phone, address, contact_name, contact_phone, contract_from, contract_to, memo, version, created_at, updated_at'
+  'id, name, status, location_sido, location_sigungu, latitude, longitude, categories, regions, delivery_modes, phone, address, contact_name, contact_phone, contract_from, contract_to, memo, version, created_at, updated_at'
 
 export function statusLabel(s: string): string {
   return (CENTER_STATUSES as readonly string[]).includes(s) ? t(`center.status.${s}` as CopyKey) : s
@@ -98,6 +97,9 @@ export type CenterInput = {
   status: CenterStatus
   location_sido: string
   location_sigungu: string
+  // 지도에서 찍은 위치. 둘 다 있거나 둘 다 없다.
+  latitude: number | null
+  longitude: number | null
   categories: string[]
   regions: string[]
   delivery_modes: string[]
@@ -111,13 +113,15 @@ export type CenterInput = {
 }
 
 export const EMPTY_CENTER_INPUT: CenterInput = {
-  name: '', status: 'onboarding', location_sido: '', location_sigungu: '', categories: [], regions: [], delivery_modes: [],
+  name: '', status: 'onboarding', location_sido: '', location_sigungu: '', latitude: null, longitude: null,
+  categories: [], regions: [], delivery_modes: [],
   phone: '', address: '', contact_name: '', contact_phone: '', contract_from: '', contract_to: '', memo: '',
 }
 
 export function toInput(c: Center): CenterInput {
   return {
     name: c.name, status: c.status, location_sido: c.location_sido ?? '', location_sigungu: c.location_sigungu ?? '',
+    latitude: c.latitude, longitude: c.longitude,
     categories: c.categories, regions: c.regions, delivery_modes: c.delivery_modes,
     phone: c.phone ?? '', address: c.address ?? '', contact_name: c.contact_name ?? '', contact_phone: c.contact_phone ?? '',
     contract_from: c.contract_from ?? '', contract_to: c.contract_to ?? '', memo: c.memo ?? '',
@@ -142,5 +146,9 @@ export function validateCenterInput(v: CenterInput): CenterInputErrors {
   if (v.contact_name.trim().length > 30) e.contact_name = 'form.error.contactNameLength'
   if (v.memo.trim().length > 500) e.memo = 'form.error.memoLength'
   if (v.contract_from && v.contract_to && v.contract_from > v.contract_to) e.contract_to = 'form.error.contractPeriod'
+  if ((v.latitude === null) !== (v.longitude === null)
+    || (v.latitude !== null && v.longitude !== null && !isInKorea({ lat: v.latitude, lng: v.longitude }))) {
+    e.latitude = 'form.error.position'
+  }
   return e
 }
