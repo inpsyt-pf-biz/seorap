@@ -11,8 +11,9 @@ export const tokens = {
     300: '#A9B2E0',
     100: '#E8EBF7',
   },
-  // 서랍 포인트 컬러. 흰 배경 대비 약 3.6:1 → 로고·큰 제목·그림에만 (작은 글씨·흰 글씨 버튼 금지)
-  seorapAccent: '#D4664B',
+  // 서랍 포인트 컬러 = 로고 파랑(10-21 로고 교체). 흰 배경 대비 약 3.5:1, 쪽 배경 대비 약 3.1:1 → 로고·큰 굵은 제목에만 (작은 글씨·흰 글씨 버튼 금지)
+  // 이전 값: '#D4664B'(산호색)
+  seorapAccent: '#0088FF',
   seorapAccentSoft: '#FCC9A5',
   surface: {
     // 쪽 배경. 브랜드 남색을 옅게 푼 색이라 흰 카드·입력 칸이 배경 위에 떠 보인다
@@ -31,7 +32,7 @@ export const tokens = {
   // 화면은 폰 한 칸짜리 주 컬럼 하나다 (PC 별도 배치 없음). 시트·토스트·페이지 폭은 모두 이 값을 따른다
   layout: { maxWidth: 480 },
   logo: {
-    src: '/brand/seorap-logo-temp.png',
+    src: '/brand/seorap-logo.png',
     alt: '인싸이트 서랍',
   },
 } as const
