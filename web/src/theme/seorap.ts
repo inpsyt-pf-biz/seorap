@@ -11,10 +11,13 @@ export const tokens = {
     300: '#A9B2E0',
     100: '#E8EBF7',
   },
-  // 서랍 포인트 컬러. 흰 배경 대비 약 3.6:1 → 로고·큰 제목·그림에만 (작은 글씨·흰 글씨 버튼 금지)
-  seorapAccent: '#D4664B',
+  // 서랍 포인트 컬러 = 로고 파랑(10-21 로고 교체). 흰 배경 대비 약 3.5:1, 쪽 배경 대비 약 3.1:1 → 로고·큰 굵은 제목에만 (작은 글씨·흰 글씨 버튼 금지)
+  // 이전 값: '#D4664B'(산호색)
+  seorapAccent: '#0088FF',
   seorapAccentSoft: '#FCC9A5',
   surface: {
+    // 쪽 배경. 브랜드 남색을 옅게 푼 색이라 흰 카드·입력 칸이 배경 위에 떠 보인다
+    page: '#EEF0F7',
     0: '#FFFFFF',
     50: '#F7F7F9',
     100: '#EEEEF2',
@@ -26,8 +29,10 @@ export const tokens = {
     secondary: '#555566',
     disabled: '#8A8A99',
   },
+  // 화면은 폰 한 칸짜리 주 컬럼 하나다 (PC 별도 배치 없음). 시트·토스트·페이지 폭은 모두 이 값을 따른다
+  layout: { maxWidth: 480 },
   logo: {
-    src: '/brand/seorap-logo-temp.png',
+    src: '/brand/seorap-logo.png',
     alt: '인싸이트 서랍',
   },
 } as const
@@ -35,7 +40,7 @@ export const tokens = {
 export const theme = createTheme({
   palette: {
     primary: { main: tokens.brand[700], dark: tokens.brand[900], light: tokens.brand[500], contrastText: '#FFFFFF' },
-    background: { default: tokens.surface[50], paper: tokens.surface[0] },
+    background: { default: tokens.surface.page, paper: tokens.surface[0] },
     text: { primary: tokens.text.primary, secondary: tokens.text.secondary, disabled: tokens.text.disabled },
     divider: tokens.surface[200],
   },
@@ -53,9 +58,17 @@ export const theme = createTheme({
   },
   shape: { borderRadius: 12 },
   components: {
+    // 한글은 낱말 중간에서 줄을 바꾸지 않는다(keep-all). 띄어쓰기 없는 긴 주소·토큰은 넘치지 않게 아무 곳에서나 끊는다.
+    MuiCssBaseline: {
+      styleOverrides: { body: { wordBreak: 'keep-all', overflowWrap: 'anywhere' } },
+    },
     MuiButton: {
       defaultProps: { disableElevation: true },
       styleOverrides: { root: { minHeight: 44 } },
+    },
+    // 쪽 배경이 옅은 색이라 글자 입력 칸은 흰색으로 둔다
+    MuiOutlinedInput: {
+      styleOverrides: { root: { backgroundColor: tokens.surface[0] } },
     },
   },
 })
