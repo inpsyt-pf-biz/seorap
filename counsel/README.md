@@ -67,6 +67,7 @@ VITE_NAVER_MAPS_KEY_ID=<네이버 클라우드 Maps Application 의 Client ID>
 | `deno task db:reset` | DB를 비우고 마이그레이션 + 시드를 다시 넣는다 |
 | `deno task web` | 화면(5180) |
 | `deno task check` | 규칙 시험, DB 권한 시험, 화면 타입 검사·린트·시험을 모두 돌린다. DB가 켜져 있어야 한다 |
+| `deno task demo [결과 파일 경로]` | 체험판(가짜 데이터를 넣어 HTML 한 파일로 도는 어드민)을 만든다. 기본 위치는 `web/.demo/상담예약관리-체험판.html`. 아래 '체험판' 참고 |
 
 ## 포트
 
@@ -85,12 +86,13 @@ VITE_NAVER_MAPS_KEY_ID=<네이버 클라우드 Maps Application 의 Client ID>
 counsel/
   core/            순수 규칙(권역·센터·구매 건 코드, 시트 열 맞춤, 네이버 주문 칸 변환·이름표, 문구·오류 코드·입력 검사). 화면과 시험이 같이 쓴다
   supabase/        로컬 DB 설정과 마이그레이션
-  scripts/         시드(seed.ts), 로컬 접속값 읽기(local.ts), 주문자 정보 암호화(pii.ts)
+  scripts/         시드(seed.ts), 로컬 접속값 읽기(local.ts), 주문자 정보 암호화(pii.ts), 체험판 만들기(demo-*.ts)
     samples/       구글시트 가져오기 연습용 가짜 CSV
   tests/           DB 권한·네이버 입구 시험
   docs/            가정 목록, 네이버 상품주문 칸 목록
   web/             화면 (Vite + React + MUI)
     src/pages/admin/counsel/   인싸이트 화면. 나중에 서랍 어드민으로 옮길 폴더
+    src/demo/      체험판 전용(가짜 DB·안내 띠·검수 의견). 평소 화면은 쓰지 않는다
 ```
 
 서랍 원본에서 그대로 가져다 쓰는 파일이 있습니다(복사본 없음). 서랍 쪽이 바뀌면 이 화면도 같이 바뀝니다.
@@ -128,6 +130,17 @@ counsel/
 ## 구글시트 가져오기 연습
 
 `scripts/samples/`의 가짜 CSV로 연습합니다. 실제 신청자 응답 파일은 올리지 않습니다. 파일별 내용은 `scripts/samples/README.md`에 있습니다.
+
+## 체험판
+
+서버 없이 HTML 파일 하나를 더블클릭해 실제 화면을 눌러 볼 수 있게 만든 검수용 판입니다. 메신저·메일로 보내면 됩니다.
+
+- 화면 코드는 그대로 쓰고, DB 연결(`shell/supabaseClient`)과 맨 위 안내 띠(`components/DemoBanner`)만 `web/src/demo/`의 것으로 바꿔 끼워 따로 빌드합니다(`web/vite.demo.config.ts`). 평소 화면(`deno task web`)에는 영향이 없습니다.
+- 데이터는 로컬 DB를 관리자 계정으로 읽어 넣습니다(`scripts/demo-snapshot.ts`). 시드가 만든 가짜 데이터만 담기 위해, 빈 DB에 시드를 넣은 시각(`web/.demo/seeded-at.json`) 뒤에 생기거나 바뀐 줄이 있으면 멈춥니다. 전화번호 칸이 시드 번호(가운데 0000)가 아니어도 멈춥니다. 그러니 만들기 전에 `deno task db:reset`을 하고, 화면에서 아무것도 바꾸지 않은 채 `deno task demo`를 돌립니다.
+- 배정·예약 확정·상담 완료·메모·신청서 대기함 처리 같은 쓰기는 DB 함수를 흉내 낸 `web/src/demo/rpc.ts`가 맡습니다. 규칙의 정본은 SQL이므로 DB 함수를 바꾸면 여기도 같이 고칩니다(`web/src/demo/demo.test.ts`가 실제 `lib/api.ts`를 붙여 확인).
+- 바꾼 내용은 받는 사람 브라우저에만 남고, 맨 위 [처음 상태로]로 되돌립니다. 오른쪽 아래 [검수 의견]에서 확인할 점에 답하고 의견을 복사해 보냅니다.
+- 지도 키·접속값은 넣지 않습니다(`.env.local`을 읽지 않음). 만든 뒤 `.env.local`의 값이 파일 안에 없는지 검사하고, 있으면 파일을 만들지 않습니다.
+- `web/.demo/`(데이터·빌드 결과)는 저장소에 올리지 않습니다.
 
 ## 다음 단계
 

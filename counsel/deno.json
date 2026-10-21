@@ -10,6 +10,7 @@
     "db:reset": "supabase db reset && deno run -A scripts/seed.ts",
     "seed": "deno run -A scripts/seed.ts",
     "web": "npm --prefix web run dev",
+    "demo": "deno run -A scripts/demo-build.ts",
     "test:core": "deno test --allow-read core",
     "test:db": "deno test -A tests",
     "check": "deno task test:core && deno task test:db && npm --prefix web run typecheck && npm --prefix web run lint && npm --prefix web test"

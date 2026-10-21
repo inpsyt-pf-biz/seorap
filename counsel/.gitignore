@@ -3,3 +3,5 @@
 .env.*.local
 web/node_modules/
 web/dist/
+# 체험판 데이터·빌드 결과(deno task demo 가 만든다)
+web/.demo/

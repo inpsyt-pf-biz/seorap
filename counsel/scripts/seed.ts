@@ -247,6 +247,10 @@ async function seedPurchases() {
 }
 
 const sql = postgres(status.dbUrl, { max: 1, onnotice: () => {} })
+// 빈 DB에 센터와 구매 건을 모두 이번에 넣었으면, 끝난 시각을 web/.demo/seeded-at.json 에 남긴다.
+// 체험판(scripts/demo-snapshot.ts)은 이 시각 뒤에 바뀐 데이터가 하나도 없을 때만 만든다(시드가 아닌 자료가 섞이지 않게).
+let centersSeeded = false
+let purchasesSeeded = false
 try {
   const [{ n }] = await sql<{ n: number }[]>`select count(*)::int as n from counsel.centers`
   if (n > 0) {
@@ -270,6 +274,7 @@ try {
       }
     })
     console.log(`시드 완료: 계정 ${SEED_ACCOUNTS.length}개, 센터 ${CENTERS.length}곳`)
+    centersSeeded = true
   }
 
   const [{ p, naverRows }] = await sql<{ p: number; naverRows: number }[]>`
@@ -281,6 +286,13 @@ try {
   } else {
     await seedPurchases()
     console.log(`시드 완료: 구매 건 ${PURCHASES.length}건`)
+    purchasesSeeded = true
+  }
+  if (centersSeeded && purchasesSeeded) {
+    const [{ at }] = await sql<{ at: string }[]>`select to_char(clock_timestamp() at time zone 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"') as at`
+    const dir = new URL('../web/.demo/', import.meta.url)
+    await Deno.mkdir(dir, { recursive: true })
+    await Deno.writeTextFile(new URL('seeded-at.json', dir), JSON.stringify({ seededAt: at }))
   }
 } finally {
   await sql.end()
