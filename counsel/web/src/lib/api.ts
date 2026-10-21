@@ -2,6 +2,7 @@
 import { CENTER_COLUMNS, type Center, type CenterInput } from '@counsel-core/centers.ts'
 import { CounselError, toCounselError } from '@counsel-core/errors.ts'
 import { NAVER_ORDER_COLUMNS, type NaverOrderInfo, type NaverOrdererMasked, type NaverSettlement } from '@counsel-core/naverOrder.ts'
+import { PURCHASE_TEST_COLUMNS, type PurchaseTest } from '@counsel-core/exams.ts'
 import { INBOX_COLUMNS, type InboxItem } from '@counsel-core/inbox.ts'
 import { PURCHASE_LIST_COLUMNS, type PurchaseInput, type PurchaseRow, type PurchaseType, type SessionStatus } from '@counsel-core/purchases.ts'
 import { SESSION_EVENT_COLUMNS, type SessionAction, type SessionEvent } from '@counsel-core/sessions.ts'
@@ -37,7 +38,7 @@ export function listPurchases(): Promise<PurchaseRow[]> {
 export type PurchaseDetail = {
   purchase: {
     purchase_type: PurchaseType | null; source: string; product_name: string | null; test_option: string | null; counsel_option: string | null
-    paid_at: string | null; purchase_memo: string | null; admin_memo: string | null; version: number
+    paid_at: string | null; purchase_memo: string | null; admin_memo: string | null; version: number; created_at: string
   }
   application: Record<string, string | boolean | null> | null
   sensitive: { medication_diagnosis: string | null; result_file_url: string | null } | null
@@ -49,6 +50,8 @@ export type PurchaseDetail = {
   sessions: SessionDetail[]
   events: SessionEvent[]
   notes: PurchaseNote[]
+  // 구매자 아래 검사들(실시 상태·응시자·결과지)
+  tests: PurchaseTest[]
   // 기록·메모를 남긴 사람의 이름(user id → 이름)
   names: Record<string, string>
 }
@@ -68,9 +71,9 @@ export type PurchaseNote = { id: number; body: string; author: string | null; cr
 
 // 구매 건 상세 페이지용. 민감정보·마케팅·주문자·정산은 표를 나눠 두고 따로 읽는다(볼 수 있는 사람이 다르다).
 export async function getPurchaseDetail(purchaseId: string): Promise<PurchaseDetail> {
-  const [purchase, application, sensitive, marketing, naver, orderer, settlement, sessions, notes] = await Promise.all([
+  const [purchase, application, sensitive, marketing, naver, orderer, settlement, sessions, notes, tests] = await Promise.all([
     run<PurchaseDetail['purchase']>(supabase.from('purchases')
-      .select('purchase_type, source, product_name, test_option, counsel_option, paid_at, purchase_memo, admin_memo, version').eq('id', purchaseId).single()),
+      .select('purchase_type, source, product_name, test_option, counsel_option, paid_at, purchase_memo, admin_memo, version, created_at').eq('id', purchaseId).single()),
     run<PurchaseDetail['application']>(supabase.from('applications').select('*').eq('purchase_id', purchaseId).maybeSingle()),
     run<PurchaseDetail['sensitive']>(supabase.from('application_sensitive').select('medication_diagnosis, result_file_url').eq('purchase_id', purchaseId).maybeSingle()),
     run<PurchaseDetail['marketing']>(supabase.from('application_marketing').select('referral_source').eq('purchase_id', purchaseId).maybeSingle()),
@@ -81,6 +84,7 @@ export async function getPurchaseDetail(purchaseId: string): Promise<PurchaseDet
     run<SessionDetail[]>(supabase.from('sessions')
       .select('id, seq, status, center_id, scheduled_at, method, assigned_at, version').eq('purchase_id', purchaseId).order('seq')),
     run<PurchaseNote[]>(supabase.from('purchase_notes').select('id, body, author, created_at').eq('purchase_id', purchaseId).order('created_at', { ascending: false })),
+    run<PurchaseTest[]>(supabase.from('purchase_tests').select(PURCHASE_TEST_COLUMNS).eq('purchase_id', purchaseId).order('unit_no').order('created_at')),
   ])
   const events = sessions.length === 0 ? [] : await run<SessionEvent[]>(supabase.from('session_events')
     .select(SESSION_EVENT_COLUMNS).in('session_id', sessions.map((x) => x.id)).order('at', { ascending: false }).order('id', { ascending: false }))
@@ -89,7 +93,7 @@ export async function getPurchaseDetail(purchaseId: string): Promise<PurchaseDet
     supabase.from('profiles').select('user_id, display_name').in('user_id', people),
   )
   const names = Object.fromEntries(profiles.map((x) => [x.user_id, x.display_name]))
-  return { purchase, application, sensitive, marketing, naver, orderer, settlement, sessions, events, notes, names }
+  return { purchase, application, sensitive, marketing, naver, orderer, settlement, sessions, events, notes, tests, names }
 }
 
 export function updateSession(

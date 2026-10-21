@@ -8,6 +8,7 @@ const purchase = (id: string, opts: { name?: string; tel?: string; type?: Purcha
   applications: opts.hasApp ? { client_name: 'x', guardian_name: null, test_name: null, submitted_at: null, residence: null, preferred_method: null, preferred_schedule: null } : null,
   naver_product_orders: null,
   naver_orderers: { name_masked: opts.name ?? null, tel_masked: opts.tel ?? null },
+  purchase_tests: [],
   sessions: [],
 })
 

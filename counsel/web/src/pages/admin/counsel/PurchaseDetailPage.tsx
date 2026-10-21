@@ -5,19 +5,22 @@ import Toast from '@seorap-web/components/Toast.tsx'
 import type { Center } from '@counsel-core/centers.ts'
 import { t } from '@counsel-core/copy.ko.ts'
 import { errorText, toCounselError, type CounselError } from '@counsel-core/errors.ts'
+import { computeProgress } from '@counsel-core/progress.ts'
 import { PURCHASE_TYPES, purchaseTypeLabel, type PurchaseType } from '@counsel-core/purchases.ts'
+import ExamsTab from '../../../components/ExamsTab'
 import HistoryList from '../../../components/HistoryList'
 import NotesPanel from '../../../components/NotesPanel'
 import { ErrorBox, Loading } from '../../../components/PageState'
-import { ApplicationTab, NaverTab } from '../../../components/PurchaseSections'
+import ProgressStepper from '../../../components/ProgressStepper'
+import { ApplicationTab, OrderTab } from '../../../components/PurchaseSections'
 import SessionsPanel from '../../../components/SessionsPanel'
 import { getPurchaseDetail, listCenters, resolveNaverReview, setPurchaseType, type PurchaseDetail } from '../../../lib/api'
 import { hasCap, useSession } from '../../../shell/session'
 
-type TabKey = 'sessions' | 'application' | 'naver' | 'history'
+type TabKey = 'sessions' | 'application' | 'exams' | 'naver' | 'history'
 type Notice = { message: string; key: number }
 
-// 구매 건 상세. 상담 회차의 진행과 메모는 '상담' 탭에서, 신청서·네이버 주문·이력은 각 탭에서 본다.
+// 구매 건 상세. 맨 위에 회차별 진행 단계와 '지금 할 일'을 두고, 상담 진행·메모는 '상담' 탭, 신청서·검사·주문 정보·이력은 각 탭에서 본다.
 // 미분류 구분 정하기와 '확인 필요' 내리기는 탭 위에 둔다(구매 건 전체에 걸린 일).
 export default function PurchaseDetailPage() {
   const { id = '' } = useParams()
@@ -67,6 +70,19 @@ export default function PurchaseDetailPage() {
   const a = detail.application
   const name = (a?.client_name as string | null) ?? (a?.guardian_name as string | null) ?? detail.orderer?.name_masked ?? t('center.empty')
   const canManage = hasCap(state, 'purchase.manage')
+  // 진행 단계는 취소되지 않은 회차마다 보인다(모두 취소됐으면 모두)
+  const live = detail.sessions.filter((x) => x.status !== 'cancelled')
+  const shown = live.length > 0 ? live : detail.sessions
+  const progressOf = (s: (typeof detail.sessions)[number]) => computeProgress({
+    paidAt: detail.purchase.paid_at,
+    createdAt: detail.purchase.created_at,
+    applicationAt: typeof a?.submitted_at === 'string' ? a.submitted_at : null,
+    hasApplication: !!a,
+    session: s,
+    completedAt: detail.events.find((e) => e.session_id === s.id && e.to_status === 'completed')?.at ?? null,
+    multiSession: live.length > 1,
+    tests: detail.tests,
+  })
 
   return (
     <Stack spacing={2}>
@@ -103,10 +119,22 @@ export default function PurchaseDetailPage() {
         </Alert>
       )}
 
+      {shown.length > 0 && (
+        <Paper sx={{ borderRadius: 4, px: 3, py: 2.5 }}>
+          <Typography variant="h6" sx={{ mb: 1.5 }}>{t('progress.title')}</Typography>
+          <Stack spacing={2.5}>
+            {shown.map((s) => (
+              <ProgressStepper key={s.id} progress={progressOf(s)} title={shown.length > 1 ? t('session.seq', { n: s.seq }) : undefined} />
+            ))}
+          </Stack>
+        </Paper>
+      )}
+
       <Paper sx={{ borderRadius: 4, px: 3, pb: 3 }}>
         <Tabs value={tab} onChange={(_, v: TabKey) => setTab(v)} sx={{ mb: 2, borderBottom: 1, borderColor: 'divider' }}>
           <Tab value="sessions" label={t('purchaseDetail.tab.sessions')} />
           <Tab value="application" label={t('purchaseDetail.tab.application')} />
+          <Tab value="exams" label={t('purchaseDetail.tab.exams')} />
           <Tab value="naver" label={t('purchaseDetail.tab.naver')} />
           <Tab value="history" label={t('purchaseDetail.tab.history')} />
         </Tabs>
@@ -117,7 +145,8 @@ export default function PurchaseDetailPage() {
           </Stack>
         )}
         {tab === 'application' && <ApplicationTab d={detail} />}
-        {tab === 'naver' && <NaverTab d={detail} showSettlement={hasCap(state, 'settlement.view')} />}
+        {tab === 'exams' && <ExamsTab d={detail} />}
+        {tab === 'naver' && <OrderTab d={detail} showSettlement={hasCap(state, 'settlement.view')} />}
         {tab === 'history' && <HistoryList events={detail.events} sessions={detail.sessions} centers={centers} names={detail.names} />}
       </Paper>
       {notice && <Toast key={notice.key} message={notice.message} open onClose={() => setNotice(null)} />}

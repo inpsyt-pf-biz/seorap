@@ -60,12 +60,6 @@ export function ApplicationTab({ d }: { d: PurchaseDetail }) {
           </>
         )}
       </Section>
-      <Divider />
-      <Section title="purchaseForm.purchase">
-        <Row label="purchase.field.type" value={purchaseTypeLabel(d.purchase.purchase_type)} />
-        <Row label="purchase.field.paidAt" value={when(d.purchase.paid_at)} />
-        {PURCHASE_FIELDS.filter(([, key]) => d.purchase[key]).map(([label, key]) => <Row key={key} label={label} value={d.purchase[key]} />)}
-      </Section>
       {a && (
         <>
           <Divider />
@@ -84,31 +78,46 @@ export function ApplicationTab({ d }: { d: PurchaseDetail }) {
   )
 }
 
-export function NaverTab({ d, showSettlement }: { d: PurchaseDetail; showSettlement: boolean }) {
+function PurchaseInfo({ d }: { d: PurchaseDetail }) {
+  return (
+    <Section title="purchaseForm.purchase">
+      <Row label="purchase.field.type" value={purchaseTypeLabel(d.purchase.purchase_type)} />
+      <Row label="purchase.field.paidAt" value={when(d.purchase.paid_at)} />
+      {PURCHASE_FIELDS.filter(([, key]) => d.purchase[key]).map(([label, key]) => <Row key={key} label={label} value={d.purchase[key]} />)}
+    </Section>
+  )
+}
+
+// 주문 정보 탭: 구매 정보는 늘 보이고, 네이버 칸은 네이버 주문일 때만 이어서 보인다
+export function OrderTab({ d, showSettlement }: { d: PurchaseDetail; showSettlement: boolean }) {
   const n = d.naver
-  if (!n) return <Typography variant="body2" color="text.secondary">{t('naver.none')}</Typography>
-  if (!n.last_received_at) {
+  if (!n || !n.last_received_at) {
     return (
-      <Stack spacing={1}>
-        <Alert severity="info">{t('naver.onlyId')}</Alert>
-        <Row label="naver.field.productOrderId" value={n.naver_product_order_id} />
+      <Stack spacing={2}>
+        <PurchaseInfo d={d} />
+        {!n && <Typography variant="body2" color="text.secondary">{t('naver.none')}</Typography>}
+        {n && (
+          <>
+            <Alert severity="info">{t('naver.onlyId')}</Alert>
+            <Row label="naver.field.productOrderId" value={n.naver_product_order_id} />
+          </>
+        )}
       </Stack>
     )
   }
   const s = d.settlement
   return (
     <Stack spacing={2}>
+      <PurchaseInfo d={d} />
+      <Divider />
       <Section title="naver.section.order">
         <Row label="naver.field.productOrderId" value={n.naver_product_order_id} />
         <Row label="naver.field.orderId" value={n.external_order_id} />
         <Row label="naver.field.orderedAt" value={when(n.ordered_at)} />
-        <Row label="naver.field.paidAt" value={when(d.purchase.paid_at)} />
         <Row label="naver.field.inflowPath" value={n.inflow_path} />
-        <Row label="naver.field.memo" value={d.purchase.purchase_memo} />
       </Section>
       <Divider />
       <Section title="naver.section.product">
-        <Row label="naver.field.productName" value={d.purchase.product_name} />
         <Row label="naver.field.option" value={n.option_name} />
         <Row label="naver.field.productId" value={n.naver_product_id} />
         <Row label="naver.field.originalProductId" value={n.original_product_id} />

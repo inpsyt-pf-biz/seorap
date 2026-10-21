@@ -1,4 +1,4 @@
-// 로컬 시안 시드: 가짜 계정 3개, 인싸이트 본사 행, 가짜 협력센터 7곳(상담사 포함), 가짜 구매 건 16건(네이버 14건, 직접 등록 3건 중 1건은 네이버 건과 합쳐짐), 신청서 대기함 2건. 실제 정보는 넣지 않는다.
+// 로컬 시안 시드: 가짜 계정 3개, 인싸이트 본사 행, 가짜 협력센터 7곳(상담사 포함), 가짜 구매 건 16건(네이버 14건, 직접 등록 3건 중 1건은 네이버 건과 합쳐짐), 신청서 대기함 2건, 검사 실시 현황 10줄. 실제 정보는 넣지 않는다.
 // 센터·직접 등록 건은 화면과 같은 쓰기 함수를 관리자 계정으로, 네이버 건은 연동과 같은 입구 함수를 service_role 로 불러 만든다.
 import { createClient } from '@supabase/supabase-js'
 import postgres from 'postgres'
@@ -185,7 +185,11 @@ async function seedPurchases() {
       // 네이버 건의 신청서는 신청서 붙이기 기능이 생기기 전까지 시드가 직접 붙인다
       if (x.naver && !x.manual && x.app) await tx`select counsel_private._insert_application(${id}, ${tx.json(x.app)}::jsonb)`
       const [s] = await tx<{ id: string }[]>`select id from counsel.sessions where purchase_id = ${id} order by seq limit 1`
-      if (x.center) await tx`select counsel.rpc_assign_sessions(array[${s.id}]::uuid[], ${centerId(x.center)}, '')`
+      if (x.center) {
+        await tx`select counsel.rpc_assign_sessions(array[${s.id}]::uuid[], ${centerId(x.center)}, '')`
+        // 가짜 데이터의 날짜가 앞뒤로 맞도록 배정 일시를 신청 다음 날로 둔다(배정 함수는 지금 시각을 적는다)
+        if (x.app) await tx`update counsel.sessions set assigned_at = ${String(x.app.submitted_at)}::timestamptz + interval '1 day' where id = ${s.id}`
+      }
       const step = async (action: string, at: string | null, reason: string) => {
         const [{ version }] = await tx<{ version: number }[]>`select version from counsel.sessions where id = ${s.id}`
         await tx`select counsel.rpc_update_session(${s.id}, ${version}, ${action}, ${at}::timestamptz, ${at ? 'offline' : null}, ${reason})`
@@ -210,6 +214,36 @@ async function seedPurchases() {
 
   // 네이버 2차 수집: 취소 요청·취소 완료·일부 취소가 들어온다
   await intake(PURCHASES.flatMap((x, i) => (x.naver && x.later ? [naverDetail(x, i, 2)] : [])))
+
+  // 검사 실시 현황(서랍 검사 코드 + 인싸이트 검사결과 API 자리). 같은 결제(주문번호)로 산 검사를 그 구매자 아래에 둔다.
+  // 실시 완료 줄의 응시자 이름·결과지 주소는 결과 API가 준 것처럼 넣은 가짜 값이다(결과지는 example.com).
+  const orderOf = (i: number) => `30261001${String(i + 1).padStart(8, '0')}`
+  const exam = (i: number, n: number, test: string, status: string, name: string | null = null, done: string | null = null) => ({
+    source_ref: `seed:${i}:${n}`, naver_order_id: orderOf(i), test_name: test, unit_no: n, exam_status: status,
+    exam_started_at: status === 'unused' ? null : '2026-10-03T10:00:00+09:00', exam_completed_at: done,
+    respondent_name: name, result_url: name ? `https://example.com/demo-result/${i}-${n}` : null,
+  })
+  const EXAMS = [
+    // 가나다: 구매자 본인·남편·아이가 각각 검사를 마침
+    exam(0, 1, 'STS 영아', 'completed', '가아기', '2026-09-26T20:00:00+09:00'),
+    exam(0, 2, 'STS 성인확장', 'completed', '가엄마', '2026-09-27T21:10:00+09:00'),
+    exam(0, 3, 'STS 성인확장', 'completed', '가아빠', '2026-09-28T09:30:00+09:00'),
+    // 사아자: 예약 확정 뒤 취소, 검사는 시작 전
+    exam(2, 1, 'MMPI-A 청소년 다면적 인성검사', 'unused'),
+    // 차카타: 검사 응시 중
+    exam(3, 1, 'K-CBCL 아동·청소년 행동평가척도', 'in_progress'),
+    // 파하가: 신청서는 있고 검사는 시작 전
+    exam(4, 1, 'K-WISC-V 아동 지능검사', 'unused'),
+    // 마바사: 상담은 끝났는데 검사 기록이 없음 → 진행 단계에 '누락'
+    exam(7, 1, 'SCT 문장완성검사', 'unused'),
+    // 아자차: 예약 확정, 두 검사 중 하나만 마침
+    exam(8, 1, 'TCI 기질 및 성격검사', 'completed', '아자차', '2026-10-06T19:00:00+09:00'),
+    exam(8, 2, 'TCI 기질 및 성격검사', 'unused'),
+    // 바사아: 공동구매, 아이 검사 마침
+    exam(12, 1, '아동 기질검사', 'completed', '바아기', '2026-10-04T15:00:00+09:00'),
+  ]
+  const { error } = await admin.schema('counsel').rpc('rpc_sync_purchase_tests', { p_rows: EXAMS })
+  if (error) throw new Error(`검사 현황 입구 실패: ${error.message} ${error.details ?? ''}`)
 }
 
 const sql = postgres(status.dbUrl, { max: 1, onnotice: () => {} })

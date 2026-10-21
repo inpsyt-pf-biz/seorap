@@ -22,6 +22,7 @@ const row = (id: string, status: SessionStatus, opts: Partial<{ center: string; 
   id, purchase_type: opts.type === undefined ? 'test_main' : opts.type, product_name: null, paid_at: null, source: 'manual', created_at: '2026-10-12T00:00:00Z',
   naver_product_orders: opts.naver ?? null,
   naver_orderers: null,
+  purchase_tests: [],
   applications: opts.client || opts.guardian || opts.test
     ? { client_name: opts.client ?? null, guardian_name: opts.guardian ?? null, test_name: opts.test ?? null, submitted_at: null, residence: null, preferred_method: null, preferred_schedule: null }
     : null,

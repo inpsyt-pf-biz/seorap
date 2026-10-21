@@ -9,6 +9,7 @@ import { formatKstMonthDay } from '@seorap-core/time.ts'
 import type { Center } from '@counsel-core/centers.ts'
 import { t, type CopyKey } from '@counsel-core/copy.ko.ts'
 import { errorText, toCounselError, type CounselError } from '@counsel-core/errors.ts'
+import { examSummary, examSummaryText } from '@counsel-core/exams.ts'
 import { PRODUCT_ORDER_STATUSES, naverCodeLabel, orderStatusText, orderTone } from '@counsel-core/naverOrder.ts'
 import {
   CENTER_NONE, EMPTY_PURCHASE_FILTER, ORDER_CLAIM, ORDER_NONE, ORDER_REVIEW, PURCHASE_TYPES, SESSION_STATUSES, TYPE_UNCLASSIFIED,
@@ -193,6 +194,9 @@ export default function PurchasesListPage() {
                   const a = r.applications
                   const n = r.naver_product_orders
                   const progress = sessionProgress(r)
+                  const examSum = examSummary(r.purchase_tests)
+                  const exams = examSummaryText(examSum)
+                  const examDone = examSum.total > 0 && examSum.completed === examSum.total
                   const guardian = a?.client_name && a.guardian_name ? a.guardian_name : null
                   const product = [r.product_name, n?.option_name].filter(Boolean).join(' · ')
                   const orderText = n ? orderStatusText(n.product_order_status, n.claim_status) : null
@@ -230,7 +234,9 @@ export default function PurchasesListPage() {
                           {n?.needs_review && <Chip size="small" label={t('naver.review')} color="error" />}
                         </Stack>
                       </TableCell>
-                      <TableCell><Typography variant="body2" color="text.secondary" noWrap title={t('purchases.testProgress.pending')}>{t('purchases.testProgress.pending')}</Typography></TableCell>
+                      <TableCell>
+                        <Typography variant="body2" noWrap title={exams} color={examDone ? 'success.main' : r.purchase_tests.length === 0 ? 'text.secondary' : 'text.primary'}>{exams}</Typography>
+                      </TableCell>
                       <TableCell>
                         <Typography variant="body2" noWrap color={a ? 'text.primary' : 'text.secondary'}>
                           {a ? t('purchases.application.done', { date: formatKstMonthDay(a.submitted_at ?? r.created_at) }) : t('purchases.application.missing')}

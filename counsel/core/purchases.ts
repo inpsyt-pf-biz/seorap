@@ -55,13 +55,15 @@ export type PurchaseRow = {
   naver_product_orders: NaverSummary | null
   // 주문자 가린 이름·연락처(본사만 읽는다). 신청서가 아직 없는 네이버 건의 이름 칸과 대기함 후보 찾기에 쓴다
   naver_orderers: { name_masked: string | null; tel_masked: string | null } | null
+  // 구매자 아래 검사들의 실시 상태(목록의 '검사 실시' 요약용)
+  purchase_tests: { exam_status: string }[]
   sessions: SessionSummary[]
 }
 
 export const PURCHASE_LIST_COLUMNS =
   'id, purchase_type, product_name, paid_at, source, created_at, '
   + 'applications(client_name, guardian_name, test_name, submitted_at, residence, preferred_method, preferred_schedule), '
-  + 'naver_product_orders(naver_product_order_id, product_order_status, claim_status, option_name, needs_review), naver_orderers(name_masked, tel_masked), '
+  + 'naver_product_orders(naver_product_order_id, product_order_status, claim_status, option_name, needs_review), naver_orderers(name_masked, tel_masked), purchase_tests(exam_status), '
   + 'sessions(id, seq, status, center_id, scheduled_at)'
 
 // 목록의 한 줄이 대표로 보여 줄 회차: 아직 끝나지 않은 첫 회차, 없으면 마지막 완료 회차, 그것도 없으면 첫 회차(모두 취소)
