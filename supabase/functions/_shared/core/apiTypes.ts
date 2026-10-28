@@ -40,6 +40,8 @@ export type HistoryItem = {
 }
 export type HistoryResponse = { items: HistoryItem[] }
 
+// 받는 분 1매 화면. 보낸 분 번호·같은 주문의 다른 검사·코드는 담지 않는다 (build-spec §4-7)
+export type ForwardPageResponse = { senderName: string; testName: string; launched: boolean; contact: string }
 export type LaunchResponse = { url: string }
 export type CodeResponse = { code: string }
 export type ForwardResponse = { forwardId: string; created: boolean }
