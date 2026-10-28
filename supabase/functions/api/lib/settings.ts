@@ -7,6 +7,8 @@ export const DEFAULTS = {
   otp_per_phone_hour: 5,
   otp_per_phone_day: 10,
   otp_lock_minutes: 15,
+  pin_max_attempts: 5,
+  pin_set_window_min: 10,
   session_mobile_idle_min: 60,
   session_mobile_max_hours: 24,
   session_desktop_idle_min: 30,

@@ -5,6 +5,7 @@ import { forwardCancel, forwardCreate, forwardDirect, forwardResend } from './ha
 import { history } from './handlers/history.ts'
 import { logout } from './handlers/logout.ts'
 import { otpRequest, otpVerify } from './handlers/otp.ts'
+import { pinSet, pinVerify } from './handlers/pin.ts'
 import { voucherCode, voucherLaunch } from './handlers/voucher.ts'
 import { ApiError, json } from './lib/http.ts'
 
@@ -13,6 +14,8 @@ export const routes: Record<string, Handler> = {
   'POST entry': entry,
   'POST otp/request': otpRequest,
   'POST otp/verify': otpVerify,
+  'POST pin/set': pinSet,
+  'POST pin/verify': pinVerify,
   'POST logout': logout,
   'GET box': box,
   'GET history': history,

@@ -8,7 +8,20 @@ const k = () => btoa(String.fromCharCode(...crypto.getRandomValues(new Uint8Arra
 Deno.env.set('SEORAP_HMAC_KEY', hmacKeyB64)
 Deno.env.set('SEORAP_ENC_KEY_A', k())
 Deno.env.set('SEORAP_ENC_KEY_B', k())
-const { decrypt, encrypt, hmac, phoneHash, randomToken, sixDigits, decodeKey } = await import('./crypto.ts')
+const { decrypt, encrypt, hashPin, hmac, phoneHash, randomToken, sixDigits, decodeKey, verifyPin } = await import('./crypto.ts')
+
+Deno.test('hashPin/verifyPin: 맞는 PIN 만 통과, 매번 다른 저장값, 원문 없음', async () => {
+  const a = await hashPin('135792')
+  const b = await hashPin('135792')
+  assertNotEquals(a, b)
+  assert(a.startsWith('v1.'))
+  assert(!a.includes('135792'))
+  assert(await verifyPin('135792', a))
+  assert(await verifyPin('135792', b))
+  assertEquals(await verifyPin('135793', a), false)
+  assertEquals(await verifyPin('135792', 'v2.x.y'), false)
+  assertEquals(await verifyPin('135792', ''), false)
+})
 
 Deno.test('hmac: 같은 입력은 같은 값, 64자 hex', async () => {
   const a = await hmac('x')
