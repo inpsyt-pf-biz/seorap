@@ -86,6 +86,7 @@ export const copy = {
   'forward.more': '더보기',
   'forward.direct': '번호 없이 링크 복사하기',
   'forward.direct.warn': '직접 공유하면 받는 분이 기록되지 않아요',
+  'forward.caution': '링크를 받은 분은 누구나 검사를 시작할 수 있어요. 잘못 보내거나 공유해 검사가 진행되면 환불·재발급이 안 돼요',
   'forward.direct.copied': '링크를 복사했어요. 원하는 곳에 붙여넣어 주세요',
   'forward.direct.text': '[인싸이트 서랍] {sender}님이 심리검사를 보냈어요. {url}',
   'forward.sent': '{name}님께 보냈어요',
