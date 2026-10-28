@@ -6,7 +6,7 @@ import { history } from './handlers/history.ts'
 import { logout } from './handlers/logout.ts'
 import { otpRequest, otpVerify } from './handlers/otp.ts'
 import { pinSet, pinVerify } from './handlers/pin.ts'
-import { forwardCode, forwardLaunch, forwardPage } from './handlers/receiver.ts'
+import { forwardCode, forwardLaunch, forwardPage, help } from './handlers/receiver.ts'
 import { voucherCode, voucherLaunch } from './handlers/voucher.ts'
 import { ApiError, json } from './lib/http.ts'
 
@@ -30,6 +30,7 @@ export const routes: Record<string, Handler> = {
   'POST forward/page': forwardPage,
   'POST forward/launch': forwardLaunch,
   'POST forward/code': forwardCode,
+  'GET help': help,
   'GET dev/outbox': devOutbox,
 }
 

@@ -1,4 +1,4 @@
-import type { CodeResponse, ForwardPageResponse, LaunchResponse } from '../../_shared/core/apiTypes.ts'
+import type { CodeResponse, ForwardPageResponse, HelpResponse, LaunchResponse } from '../../_shared/core/apiTypes.ts'
 import { decrypt, hmac } from '../../_shared/crypto.ts'
 import { db, must } from '../lib/db.ts'
 import { logEvent } from '../lib/events.ts'
@@ -49,6 +49,12 @@ export async function forwardLaunch(req: Request): Promise<Response> {
   const { voucherId, code } = await use(req, true)
   await logEvent('forward_launch', { voucherId })
   const body: LaunchResponse = { url: platformTestUrl(code) }
+  return json(200, body)
+}
+
+// 도움말 화면의 문의처 (세션 없이). 받는 분 화면과 같은 설정값
+export async function help(_req: Request): Promise<Response> {
+  const body: HelpResponse = { contact: (await getSettings()).contact_line }
   return json(200, body)
 }
 
