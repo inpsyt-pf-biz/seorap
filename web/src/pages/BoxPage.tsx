@@ -61,11 +61,13 @@ export default function BoxPage() {
   const load = useCallback(async () => {
     try {
       const r = await api<BoxResponse>('box')
+      // OTP 로 들어와 PIN 을 아직 정하지 않았으면 PIN 부터 정한다 (build-spec §4-2a)
+      if (!r.pinSet) { navigate('/pin', { replace: true }); return }
       for (const g of r.groups) if (!expandedMemory.has(g.orderId)) expandedMemory.set(g.orderId, !g.done)
       setExpanded(Object.fromEntries(expandedMemory))
       setBox(r)
     } catch (e) { if (isSessionEnd(e)) setExpired(true); else setError(t('error.generic')) }
-  }, [])
+  }, [navigate])
   const toggle = (orderId: string, open: boolean) => {
     expandedMemory.set(orderId, open)
     setExpanded(Object.fromEntries(expandedMemory))
