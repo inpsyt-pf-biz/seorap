@@ -5,6 +5,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import { t } from '@core/copy.ko.ts'
 import EntryPage from './EntryPage'
 import PinSetPage from './PinSetPage'
+import { tokens } from '../theme/seorap'
 
 afterEach(() => {
   cleanup()
@@ -148,5 +149,20 @@ describe('PIN 설정', () => {
     await typeAndPress(t('pin.set.title'), '135792', t('pin.set.next'))
     await typeAndPress(t('pin.set.again'), '135792', t('pin.set.done'))
     await waitFor(() => expect(screen.getByText(t('pin.set.expired'))).toBeTruthy())
+  })
+})
+
+describe('닫힌 서랍 화면 (R1 restyle: 입장 화면은 청록 바탕)', () => {
+  it('진입(인증번호·비밀번호) 화면은 닫힌 서랍 바탕이고, 로고는 청록 바탕용이다', async () => {
+    stubApi({ entry: () => json(200, entryBody({ hasPin: true })) })
+    openAt(`/${TOKEN}`)
+    await screen.findByLabelText(t('pin.enter'))
+    expect(document.querySelector('main')?.getAttribute('data-surface')).toBe('closed')
+    expect(document.querySelector('[data-part="logo-body"]')?.getAttribute('fill')).toBe(tokens.teal[500])
+  })
+  it('비밀번호 설정 화면도 닫힌 서랍 바탕이다', async () => {
+    openAt('/pin')
+    await screen.findByLabelText(t('pin.set.title'))
+    expect(document.querySelector('main')?.getAttribute('data-surface')).toBe('closed')
   })
 })

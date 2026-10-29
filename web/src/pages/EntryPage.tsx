@@ -1,13 +1,12 @@
-import { Alert, Box, Button, Collapse, Stack, TextField, Typography } from '@mui/material'
+import { Alert, Button, Collapse, Stack, TextField, Typography } from '@mui/material'
 import { useEffect, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import type { EntryResponse, OtpRequestResponse } from '@core/apiTypes.ts'
 import { t } from '@core/copy.ko.ts'
 import { formatKstDateTime } from '@core/time.ts'
-import Wordmark from '../components/Wordmark'
+import ClosedShell from '../components/ClosedShell'
 import { api, ApiError } from '../lib/api'
 import { useCountdown } from '../lib/useCountdown'
-import { tokens } from '../theme/seorap'
 import StatePage, { type StateKind } from './StatePage'
 
 const TOKEN_RE = /^[A-Za-z0-9]{32}$/
@@ -84,9 +83,7 @@ export default function EntryPage() {
   const forgotPin = () => { setUsePin(false); setPin(''); setMessage(null) }
 
   return (
-    <Box component="main" sx={{ maxWidth: tokens.layout.maxWidth, mx: 'auto', px: 2, py: 4 }}>
-      <Stack spacing={3}>
-        <Wordmark />
+    <ClosedShell>
         {entry.noticeBanner && <Alert severity="info">{entry.noticeBanner}</Alert>}
         <Typography variant="h5">{t('entry.title', { name: entry.nameMasked })}</Typography>
         {usePin ? (
@@ -128,7 +125,6 @@ export default function EntryPage() {
           </>
         )}
         {message && <Alert severity="warning">{message}</Alert>}
-      </Stack>
-    </Box>
+    </ClosedShell>
   )
 }

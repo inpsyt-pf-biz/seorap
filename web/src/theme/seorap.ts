@@ -138,3 +138,26 @@ export const theme = createTheme({
     },
   },
 })
+
+// 닫힌 서랍 테마 (입장 화면: 인증번호·비밀번호). 청록 바탕에 종이색 글자, 주 버튼은 종이색 바탕 + 청록 글자.
+// 흰 입력 칸 안의 글자는 진한 색으로 되돌리고, 포커스 링은 호박빛으로 바꾼다 (ClosedShell 이 감싼다)
+export const closedTheme = createTheme(theme, {
+  palette: {
+    primary: { main: tokens.surface.page, dark: tokens.surface[0], light: tokens.surface[0], contrastText: tokens.teal[700] },
+    background: { default: tokens.teal[700], paper: tokens.surface[0] },
+    text: { primary: tokens.surface.page, secondary: tokens.teal[100], disabled: tokens.teal[100] },
+    action: { disabled: 'rgba(246, 242, 234, 0.6)', disabledBackground: 'rgba(246, 242, 234, 0.18)' },
+  },
+  components: {
+    MuiOutlinedInput: {
+      styleOverrides: {
+        root: {
+          backgroundColor: tokens.surface[0],
+          borderRadius: tokens.radius.control,
+          color: tokens.text.primary,
+          '&.Mui-focused .MuiOutlinedInput-notchedOutline': { borderColor: tokens.amber[500] },
+        },
+      },
+    },
+  },
+})

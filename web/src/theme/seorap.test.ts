@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { contrast, theme, tokens } from './seorap'
+import { closedTheme, contrast, theme, tokens } from './seorap'
 
 describe('theme', () => {
   it('한글은 단어 중간에서 끊지 않고, 긴 주소·토큰은 넘치지 않게 끊는다', () => {
@@ -101,5 +101,21 @@ describe('화면 코드는 컬럼 폭·색·반경 숫자를 직접 쓰지 않�
   })
   it('borderRadius 에 숫자를 쓰지 않는다 (테마 12px 의 배수가 되어 24·36px 로 커진다)', () => {
     expect(screens.filter(([, src]) => /borderRadius:\s*\d/.test(src)).map(([path]) => path)).toEqual([])
+  })
+})
+
+describe('닫힌 서랍 테마 (입장 화면)', () => {
+  it('바탕은 청록, 글자·주 버튼은 종이색, 주 버튼 글자는 청록이다', () => {
+    expect(closedTheme.palette.background.default).toBe(tokens.teal[700])
+    expect(closedTheme.palette.text.primary).toBe(tokens.surface.page)
+    expect(closedTheme.palette.primary.main).toBe(tokens.surface.page)
+    expect(closedTheme.palette.primary.contrastText).toBe(tokens.teal[700])
+  })
+  it('보조 글자도 청록 위에서 4.5:1 이상이다', () => {
+    expect(contrast(closedTheme.palette.text.secondary, tokens.teal[700])).toBeGreaterThanOrEqual(4.5)
+  })
+  it('흰 입력 칸 안의 글자는 진한 글자색이다 (종이색 글자가 흰 칸에 묻히지 않게)', () => {
+    const root = closedTheme.components?.MuiOutlinedInput?.styleOverrides?.root as { color?: string } | undefined
+    expect(root?.color).toBe(tokens.text.primary)
   })
 })
