@@ -116,7 +116,7 @@ export const copy = {
   'counsel.card.doneTitle': '상담 신청서를 제출했어요',
   'counsel.card.doneBody': '상담센터에서 영업일 7일 안에 연락드려요',
   'counsel.title': '상담 신청서',
-  'counsel.back': '서랍으로',
+  'counsel.back': '메인으로',
   'counsel.submit': '상담 신청서 제출',
   'counsel.fix': '표시된 문항을 확인해 주세요',
   'counsel.changed': '신청서 내용이 바뀌어 새로 불러왔어요. 다시 확인하고 내 주세요',

@@ -1,4 +1,4 @@
-import { Box, Checkbox, Chip, Divider, FormControlLabel, FormHelperText, Radio, RadioGroup, Stack, TextField, ToggleButton, Typography } from '@mui/material'
+import { Box, Button, Checkbox, Divider, FormControlLabel, FormHelperText, Radio, RadioGroup, Stack, TextField, ToggleButton, Typography } from '@mui/material'
 import {
   type AnswerProblem, type Answers, type AvailabilityAnswer, type FormDefinition, type FormField, DEFAULT_AVAILABILITY, LIMITS,
 } from '@core/counselForm.ts'
@@ -71,14 +71,17 @@ function Availability({ f, value, onChange, disabled }: { f: FormField; value: A
         opts.length > 0 && (
           <Stack key={key} spacing={1}>
             <Typography variant="body2">{t(label)}</Typography>
-            <Stack direction="row" sx={{ flexWrap: 'wrap', gap: 1 }}>
+            {/* 손가락으로 누르기 쉽게 줄을 채우는 큰 버튼 (10-29 휴대폰 검수: 칩은 작다). 3개까지는 한 줄, 그보다 많으면 두 칸씩 */}
+            <Box sx={{ display: 'grid', gridTemplateColumns: `repeat(${opts.length <= 3 ? opts.length : 2}, 1fr)`, gap: 1 }}>
               {opts.map((o) => (
-                <Chip
-                  key={o} label={o} clickable disabled={disabled} color={a[key] === o ? 'primary' : 'default'}
-                  variant={a[key] === o ? 'filled' : 'outlined'} aria-pressed={a[key] === o} onClick={() => pick(key, o)}
-                />
+                <Button
+                  key={o} disabled={disabled} variant={a[key] === o ? 'contained' : 'outlined'} aria-pressed={a[key] === o}
+                  onClick={() => pick(key, o)} sx={{ minHeight: 48 }}
+                >
+                  {o}
+                </Button>
               ))}
-            </Stack>
+            </Box>
           </Stack>
         ))}
     </Stack>
