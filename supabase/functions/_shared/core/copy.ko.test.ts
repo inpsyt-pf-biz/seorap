@@ -30,6 +30,6 @@ Deno.test('문구에 엠대시가 없다', () => {
 
 Deno.test('줄 상태·주문 묶음 문구는 점(·)으로 이어 붙이지 않는다 (UX 진단 F5)', () => {
   for (const [k, v] of Object.entries(copy)) {
-    if (/^(line\.|box\.group)/.test(k)) assertEquals(v.includes('·'), false, k)
+    if (/^(line\.|box\.group|counsel\.card\.|history\.)/.test(k)) assertEquals(v.includes('·'), false, k)
   }
 })

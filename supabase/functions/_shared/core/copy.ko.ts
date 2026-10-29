@@ -118,7 +118,7 @@ export const copy = {
   'history.empty': '아직 전달한 검사가 없어요',
   // 상담 신청서 문구는 "쓰기·내기"보다 "작성·제출"로 (10-29 건우님: 더 친절하게)
   'counsel.card.title': '상담 신청서를 작성해 주세요',
-  'counsel.card.body': '{product} · 신청서를 제출하면 검사를 시작할 수 있어요',
+  'counsel.card.body': '{product}, 신청서를 제출하면 검사를 시작할 수 있어요',
   'counsel.card.button': '상담 신청서 작성',
   'counsel.card.doneTitle': '상담 신청서를 제출했어요',
   'counsel.card.doneBody': '상담센터에서 영업일 7일 안에 연락드려요',
