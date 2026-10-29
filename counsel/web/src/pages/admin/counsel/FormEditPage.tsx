@@ -6,17 +6,83 @@ import {
 } from '@mui/material'
 import CounselForm from '@seorap-web/components/CounselForm'
 import { tokens as seorapTokens } from '@seorap-web/theme/seorap'
-import { type Answers, type FieldType, type FormDefinition, type FormField, checkDefinition, takesAnswer } from '@seorap-core/counselForm.ts'
+import {
+  type Answers, type AvailabilityConfig, type AvailabilityLabel, type FieldType, type FormDefinition, type FormField,
+  DEFAULT_AVAILABILITY, checkDefinition, takesAnswer,
+} from '@seorap-core/counselForm.ts'
+import { t as seorapT } from '@seorap-core/copy.ko.ts'
 import { t, type CopyKey } from '@counsel-core/copy.ko.ts'
 import { toCounselError, type CounselError } from '@counsel-core/errors.ts'
 import {
-  FIELD_TYPES, STANDARD_FIELDS, fieldTypeLabel, formErrorText, moveField, newField, standardFieldLabel, tidyDefinition, type FormTemplateDetail,
+  FIELD_TYPES, STANDARD_FIELDS, fieldTypeLabel, formErrorText, moveField, newField, nextRowId, standardFieldLabel, tidyDefinition,
+  type FormTemplateDetail,
 } from '@counsel-core/forms.ts'
 import { ErrorBox, Loading } from '../../../components/PageState'
 import { duplicateFormTemplate, getFormTemplate, publishFormTemplate, saveFormDraft } from '../../../lib/api'
 import { hasCap, useSession } from '../../../shell/session'
 
 const CONSENT_KINDS = ['third_party', 'sensitive', 'other'] as const
+
+// 가능 시간대 문항의 요일·시간대·상담 방식·연락 시간과 그 질문 문구. 문구를 비우면 서랍 기본 문구가 보인다
+function AvailabilityEditor({ a, readOnly, onChange }: {
+  a: AvailabilityConfig; readOnly: boolean; onChange: (next: AvailabilityConfig) => void
+}) {
+  const set = (patch: Partial<AvailabilityConfig>) => onChange({ ...a, ...patch })
+  const labelField = (k: AvailabilityLabel) => (
+    <TextField size="small" label={t(`forms.edit.avail.${k}` as CopyKey)} value={a.labels?.[k] ?? ''} placeholder={seorapT(`form.avail.${k}`)}
+      helperText={t('forms.edit.avail.defaultHint')} disabled={readOnly} slotProps={{ inputLabel: { shrink: true } }}
+      onChange={(e) => set({ labels: { ...a.labels, [k]: e.target.value } })} />
+  )
+  const listField = (key: 'methods' | 'contactTimes') => (
+    <TextField size="small" label={t(`forms.edit.avail.${key}` as CopyKey)} value={a[key].join('\n')} disabled={readOnly} multiline minRows={2}
+      onChange={(e) => set({ [key]: e.target.value.split('\n') })} />
+  )
+  const removeButton = (disabled: boolean, onClick: () => void) => !readOnly && (
+    <Button size="small" color="error" disabled={disabled} onClick={onClick}>{t('forms.edit.avail.removeRow')}</Button>
+  )
+  return (
+    <Stack spacing={1.5} sx={{ p: 1.5, bgcolor: 'action.hover', borderRadius: 1 }}>
+      <Typography variant="subtitle2">{t('forms.edit.avail.title')}</Typography>
+      {labelField('pick')}
+      <Typography variant="body2">{t('forms.edit.avail.days')}</Typography>
+      {a.days.map((d, i) => (
+        <Stack key={d.id} direction="row" spacing={1} sx={{ alignItems: 'center' }}>
+          <TextField size="small" label={t('forms.edit.avail.day')} value={d.label} disabled={readOnly} sx={{ flexGrow: 1 }}
+            onChange={(e) => set({ days: a.days.map((x, j) => (j === i ? { ...x, label: e.target.value } : x)) })} />
+          {removeButton(a.days.length <= 1, () => set({ days: a.days.filter((_, j) => j !== i) }))}
+        </Stack>
+      ))}
+      {!readOnly && (
+        <Button size="small" sx={{ alignSelf: 'flex-start' }} onClick={() => set({ days: [...a.days, { id: nextRowId('d', a.days), label: '' }] })}>
+          {t('forms.edit.avail.addDay')}
+        </Button>
+      )}
+      <Typography variant="body2">{t('forms.edit.avail.slots')}</Typography>
+      {a.slots.map((s, i) => (
+        <Stack key={s.id} direction="row" spacing={1} sx={{ alignItems: 'center' }}>
+          <TextField size="small" label={t('forms.edit.avail.slotLabel')} value={s.label} disabled={readOnly} sx={{ flexGrow: 1 }}
+            onChange={(e) => set({ slots: a.slots.map((x, j) => (j === i ? { ...x, label: e.target.value } : x)) })} />
+          <TextField size="small" label={t('forms.edit.avail.slotHours')} value={s.hours} disabled={readOnly} sx={{ flexGrow: 1 }}
+            onChange={(e) => set({ slots: a.slots.map((x, j) => (j === i ? { ...x, hours: e.target.value } : x)) })} />
+          {removeButton(a.slots.length <= 1, () => set({ slots: a.slots.filter((_, j) => j !== i) }))}
+        </Stack>
+      ))}
+      {!readOnly && (
+        <Button size="small" sx={{ alignSelf: 'flex-start' }}
+          onClick={() => set({ slots: [...a.slots, { id: nextRowId('s', a.slots), label: '', hours: '' }] })}>
+          {t('forms.edit.avail.addSlot')}
+        </Button>
+      )}
+      <FormControlLabel label={t('forms.edit.avail.askStart')} disabled={readOnly}
+        control={<Switch checked={a.askStartDate} onChange={(e) => set({ askStartDate: e.target.checked })} />} />
+      {a.askStartDate && labelField('start')}
+      {labelField('method')}
+      {listField('methods')}
+      {labelField('contact')}
+      {listField('contactTimes')}
+    </Stack>
+  )
+}
 
 function FieldCard({ f, index, count, readOnly, onChange, onMove, onRemove }: {
   f: FormField; index: number; count: number; readOnly: boolean
@@ -55,6 +121,9 @@ function FieldCard({ f, index, count, readOnly, onChange, onMove, onRemove }: {
             <TextField size="small" label={t('forms.edit.consentOption')} value={f.options?.[0] ?? ''} disabled={readOnly} sx={{ flexGrow: 1 }}
               onChange={(e) => set({ options: e.target.value ? [e.target.value] : undefined })} />
           </Stack>
+        )}
+        {f.type === 'availability' && (
+          <AvailabilityEditor a={f.availability ?? DEFAULT_AVAILABILITY} readOnly={readOnly} onChange={(availability) => set({ availability })} />
         )}
         {input && (
           <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.5} sx={{ alignItems: { sm: 'center' } }}>

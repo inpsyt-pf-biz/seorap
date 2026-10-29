@@ -1,6 +1,6 @@
 import { assertEquals } from '@std/assert'
 import { checkDefinition } from '../../supabase/functions/_shared/core/counselForm.ts'
-import { MANAGE_CODE_RE, moveField, newField, nextFieldId, tidyDefinition } from './forms.ts'
+import { MANAGE_CODE_RE, moveField, newField, nextFieldId, nextRowId, tidyDefinition } from './forms.ts'
 
 Deno.test('nextFieldId: 지운 자리를 다시 쓰지 않고 겹치지 않는 id', () => {
   assertEquals(nextFieldId([]), 'f1')
@@ -28,6 +28,39 @@ Deno.test('tidyDefinition: 빈 선택지를 빼고 공백을 지운 뒤에는 �
   })
   assertEquals(def, { intro: '안내', fields: [{ id: 'f1', type: 'single', label: '결혼 예정', options: ['예', '아니오'] }] })
   assertEquals(checkDefinition(def), [])
+})
+
+Deno.test('tidyDefinition: 가능 시간대의 빈 줄·빈 선택지·빈 문구를 정리한다', () => {
+  const def = tidyDefinition({
+    intro: '',
+    fields: [{
+      id: 'f1', type: 'availability', label: '시간',
+      availability: {
+        days: [{ id: 'weekday', label: ' 평일 ' }, { id: 'd1', label: ' ' }],
+        slots: [{ id: 'morning', label: '오전', hours: ' 9~12시 ' }, { id: 's1', label: '', hours: '' }],
+        askStartDate: false, methods: ['방문', ' ', ' 전화 '], contactTimes: [' '],
+        labels: { pick: ' ', method: ' 희망하는 상담 형태 ' },
+      },
+    }],
+  })
+  assertEquals(def.fields[0].availability, {
+    days: [{ id: 'weekday', label: '평일' }], slots: [{ id: 'morning', label: '오전', hours: '9~12시' }],
+    askStartDate: false, methods: ['방문', '전화'], contactTimes: [], labels: { method: '희망하는 상담 형태' },
+  })
+  assertEquals(checkDefinition(def), [])
+})
+
+Deno.test('tidyDefinition: 가능 시간대 문구를 모두 비우면 labels 를 남기지 않는다', () => {
+  const def = tidyDefinition({
+    intro: '',
+    fields: [{ id: 'f1', type: 'availability', label: '시간', availability: { ...newField('availability', []).availability!, labels: { start: ' ' } } }],
+  })
+  assertEquals('labels' in def.fields[0].availability!, false)
+})
+
+Deno.test('nextRowId: 요일·시간대 줄에 겹치지 않는 id', () => {
+  assertEquals(nextRowId('d', [{ id: 'weekday' }, { id: 'sat' }]), 'd1')
+  assertEquals(nextRowId('d', [{ id: 'weekday' }, { id: 'd1' }]), 'd2')
 })
 
 Deno.test('MANAGE_CODE_RE: 영문·숫자·-·_ 20자', () => {

@@ -1,7 +1,7 @@
 // 신청서 템플릿 편집 규칙 (서랍 B2). 문항 정의와 검사의 정본은 서랍 _shared/core/counselForm.ts 이고,
 // 여기에는 편집 화면이 쓰는 이름표·새 문항 만들기·순서 바꾸기만 둔다.
 import {
-  DEFAULT_AVAILABILITY, STANDARD_FIELDS, type FieldType, type FormDefinition, type FormField, type StandardField,
+  DEFAULT_AVAILABILITY, STANDARD_FIELDS, type AvailabilityConfig, type AvailabilityLabel, type FieldType, type FormDefinition, type FormField, type StandardField,
 } from '../../supabase/functions/_shared/core/counselForm.ts'
 import { t, type CopyKey } from './copy.ko.ts'
 import { errorText, type CounselError } from './errors.ts'
@@ -53,7 +53,31 @@ export function moveField(fields: FormField[], index: number, delta: -1 | 1): Fo
   return next
 }
 
-// 게시 직전 정리: 빈 선택지를 빼고 앞뒤 공백을 지운다
+// 가능 시간대의 요일·시간대 줄 id (d1, s1, ...). 기존 줄 id(weekday 등)는 그대로 두고 겹치지 않게만 만든다
+export function nextRowId(prefix: string, rows: { id: string }[]): string {
+  const used = new Set(rows.map((r) => r.id))
+  for (let n = 1; ; n++) if (!used.has(`${prefix}${n}`)) return `${prefix}${n}`
+}
+
+const tidyList = (xs: string[]) => xs.map((x) => x.trim()).filter(Boolean)
+
+function tidyAvailability(a: AvailabilityConfig): AvailabilityConfig {
+  const labels: NonNullable<AvailabilityConfig['labels']> = {}
+  for (const [k, v] of Object.entries(a.labels ?? {}) as [AvailabilityLabel, string | undefined][]) {
+    if (v?.trim()) labels[k] = v.trim()
+  }
+  const { labels: _drop, ...rest } = a
+  return {
+    ...rest,
+    days: a.days.map((d) => ({ ...d, label: d.label.trim() })).filter((d) => d.label),
+    slots: a.slots.map((s) => ({ ...s, label: s.label.trim(), hours: s.hours.trim() })).filter((s) => s.label),
+    methods: tidyList(a.methods),
+    contactTimes: tidyList(a.contactTimes),
+    ...(Object.keys(labels).length ? { labels } : {}),
+  }
+}
+
+// 게시 직전 정리: 빈 선택지·빈 줄을 빼고 앞뒤 공백을 지운다
 export function tidyDefinition(def: FormDefinition): FormDefinition {
   return {
     intro: def.intro.trim(),
@@ -61,7 +85,8 @@ export function tidyDefinition(def: FormDefinition): FormDefinition {
       ...f,
       label: f.label.trim(),
       ...(f.help !== undefined ? { help: f.help.trim() || undefined } : {}),
-      ...(f.options ? { options: f.options.map((o) => o.trim()).filter(Boolean) } : {}),
+      ...(f.options ? { options: tidyList(f.options) } : {}),
+      ...(f.availability ? { availability: tidyAvailability(f.availability) } : {}),
     })),
   }
 }
