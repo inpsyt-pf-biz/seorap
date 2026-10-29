@@ -220,4 +220,24 @@ await order({
   tests: [GOLDEN1], units: [{}], counsel: true, manageCode: 'MOCK-FAIL',
 })
 
+// 검수용 추가 서랍 (미리보기에서 여러 사람이 각자 S2 와 같은 흐름을 해 보게). 공개 저장소에 실제 이름을 두지 않도록
+// 이름 목록은 저장소 밖 JSON 파일(SEED_EXTRA_FILE, ["이름", ...])로 받는다. 서랍 토큰은 T1·T2… , 번호는 010-7000-000N
+const extraFile = Deno.env.get('SEED_EXTRA_FILE')
+if (extraFile) {
+  const names = JSON.parse(await Deno.readTextFile(extraFile)) as string[]
+  if (names.length > 9) throw new Error('추가 서랍은 9개까지 (토큰 T10 은 T1 과 겹친다)')
+  for (const [i, name] of names.entries()) {
+    const n = i + 1
+    const r = await recipient(name, `0107000000${n}`, '2026-10-29T01:00:00Z', '2026-10-29T01:00:00Z')
+    await boxLink(r, `T${n}`)
+    await order({
+      // 가짜 검사 코드가 주문번호 끝 4자리를 쓰므로 9001~ 로 잡아 위 시나리오(0001~0016)와 겹치지 않게
+      recipientId: r, recipientName: name, orderNo: `202610290${9000 + n}`, paidAt: '2026-10-29T01:00:00Z',
+      productName: 'STS 커플상담 패키지', optionName: '커플상담 1회 + STS 성인 기질검사 2매', amount: 150000,
+      tests: [STS_ADULT2], units: [{}, {}], counsel: true, manageCode: 'STS-CPL-S',
+    })
+  }
+  console.log(`추가 서랍 ${names.length}개 (T1~T${names.length})`)
+}
+
 console.log('seed done')
