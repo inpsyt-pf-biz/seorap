@@ -129,7 +129,8 @@ export default function BoxPage() {
         </Stack>
         {box.noticeBanner && <Alert severity="info">{box.noticeBanner}</Alert>}
         <Typography variant="h5">{t('box.title', { name: box.ownerName })}</Typography>
-        <Typography variant="body2" color="text.secondary">{t('box.summary', { n: box.notStartedCount })}</Typography>
+        {/* 0매면 말할 것이 없다 (잠긴 줄·준비 중 줄만 있는 서랍에서 "실시 전 0매"가 오해를 부른다) */}
+        {box.notStartedCount > 0 && <Typography variant="body2" color="text.secondary">{t('box.summary', { n: box.notStartedCount })}</Typography>}
         {/* 상담 카드 (B2): 신청서를 내기 전에는 검사가 잠겨 있으므로 맨 위에 둔다 */}
         {box.counsel.map((c) => (
           <Box key={c.orderId} sx={{ p: 2, borderRadius: tokens.radius.card, bgcolor: tokens.surface[0], border: `1px solid ${c.submitted ? tokens.surface[200] : tokens.teal[500]}` }}>
@@ -151,15 +152,23 @@ export default function BoxPage() {
         {error && <Alert severity="warning">{error}</Alert>}
         {box.groups.length === 0 && <Typography variant="body1" color="text.secondary">{t('box.empty')}</Typography>}
         {box.groups.map((g) => (
-          <Accordion key={g.orderId} expanded={expanded[g.orderId] ?? !g.done} onChange={(_, open) => toggle(g.orderId, open)} disableGutters>
-            <AccordionSummary expandIcon={<ExpandChevron />}>
-              <Typography variant="body2" color="text.secondary">
-                {g.lineCount > 1
-                  ? t('box.group', { date: formatKstDate(g.purchasedAt), product: g.productName, n: g.lineCount })
-                  : t('box.groupSingle', { date: formatKstDate(g.purchasedAt), product: g.productName })}
-              </Typography>
+          // 묶음은 판으로 감싸지 않고 구분선과 제목으로만 나눈다. 줄 카드가 한 겹이 되게 (UX 진단 F4: 카드 안의 카드)
+          <Accordion
+            key={g.orderId} expanded={expanded[g.orderId] ?? !g.done} onChange={(_, open) => toggle(g.orderId, open)}
+            disableGutters elevation={0} square
+            sx={{ bgcolor: 'transparent', borderTop: 1, borderColor: 'divider', '&::before': { display: 'none' } }}
+          >
+            <AccordionSummary expandIcon={<ExpandChevron />} sx={{ px: 0 }}>
+              <Box>
+                <Typography variant="body1" sx={{ fontWeight: 600 }}>{g.productName}</Typography>
+                <Typography variant="body2" color="text.secondary">
+                  {g.lineCount > 1
+                    ? t('box.group', { date: formatKstDate(g.purchasedAt), n: g.lineCount })
+                    : t('box.groupSingle', { date: formatKstDate(g.purchasedAt) })}
+                </Typography>
+              </Box>
             </AccordionSummary>
-            <AccordionDetails>
+            <AccordionDetails sx={{ px: 0, pt: 0 }}>
               <Stack spacing={1}>
                 {g.lines.map((l) => <LineRow key={l.voucherId} line={l} onAction={(a, line) => onAction(a, line, g)} />)}
               </Stack>

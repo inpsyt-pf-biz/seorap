@@ -4,13 +4,17 @@ import { type CopyKey, t } from '@core/copy.ko.ts'
 import type { LineAction, LineTone } from '@core/lineStatus.ts'
 import { tokens } from '../theme/seorap'
 
-const CHIP: Record<LineTone, 'default' | 'info' | 'success' | 'warning'> = {
-  neutral: 'default', info: 'info', success: 'success', warning: 'warning', muted: 'default',
+// 줄 상태 톤 → 서랍 칩 색 (MUI 기본 info·warning 은 대비가 모자라 쓰지 않는다. UX 진단 F1·F2)
+const TONE: Record<LineTone, keyof typeof tokens.tone> = {
+  neutral: 'neutral', info: 'teal', success: 'teal', warning: 'caution', muted: 'muted', warm: 'warm',
 }
 
 export default function LineRow({ line, onAction }: { line: BoxLine; onAction: (a: LineAction | 'code', line: BoxLine) => void }) {
   // 코드를 직접 볼 수 있는 줄: 실시하기·이어서 하기·결과 보기가 있는 줄 (모두 플랫폼 검사 주소를 여는 동작)
   const canCode = line.status.actions.some((a) => a === 'launch' || a === 'continue' || a === 'result')
+  const tone = tokens.tone[TONE[line.status.tone]]
+  // 줄마다 마지막 버튼이 주 행동이다. 진한 채움 대신 옅은 청록(soft)으로 해, 여러 줄이 쌓여도 화면이 무겁지 않게 한다 (UX 진단 R2)
+  const variantAt = (i: number, n: number, a?: LineAction) => (i === n - 1 && a !== 'contact' ? 'soft' : 'outlined')
   return (
     <Box sx={{ border: 1, borderColor: 'divider', borderRadius: tokens.radius.card, p: 1.5, bgcolor: 'background.paper' }}>
       <Stack spacing={1}>
@@ -21,14 +25,22 @@ export default function LineRow({ line, onAction }: { line: BoxLine; onAction: (
               <Typography variant="body2" color="text.secondary">{t('line.unit', { n: line.unitsOfTest, k: line.unitNo })}</Typography>
             )}
           </Box>
-          <Chip size="small" label={line.status.label} color={CHIP[line.status.tone]} variant={line.status.tone === 'muted' ? 'outlined' : 'filled'} />
+          <Chip
+            size="small" label={line.status.label} data-tone={TONE[line.status.tone]}
+            sx={{ flexShrink: 0, bgcolor: tone.bg, color: tone.fg, ...('border' in tone ? { border: `1px solid ${tone.border}` } : {}) }}
+          />
         </Stack>
-        {line.forwardTo && <Typography variant="body2" color="primary">{`→ ${line.forwardTo.name} · ${line.forwardTo.phone}`}</Typography>}
+        {line.forwardTo && (
+          <Stack direction="row" spacing={1} sx={{ alignItems: 'baseline' }}>
+            <Typography variant="body2" color="text.secondary" sx={{ flexShrink: 0 }}>{t('line.forwardTo')}</Typography>
+            <Typography variant="body2">{`${line.forwardTo.name} ${line.forwardTo.phone}`}</Typography>
+          </Stack>
+        )}
         {line.status.note && <Typography variant="body2" color="text.secondary">{line.status.note}</Typography>}
         {line.status.actions.length > 0 && (
           <Stack direction="row" spacing={1}>
             {line.status.actions.map((a, i) => (
-              <Button key={a} fullWidth variant={i === line.status.actions.length - 1 && a !== 'contact' ? 'contained' : 'outlined'} onClick={() => onAction(a, line)}>
+              <Button key={a} fullWidth variant={variantAt(i, line.status.actions.length, a)} onClick={() => onAction(a, line)}>
                 {t(`action.${a}` as CopyKey)}
               </Button>
             ))}
@@ -38,7 +50,7 @@ export default function LineRow({ line, onAction }: { line: BoxLine; onAction: (
         {line.status.actions.length === 0 && (line.status.disabled ?? []).length > 0 && (
           <Stack direction="row" spacing={1}>
             {line.status.disabled!.map((a, i) => (
-              <Button key={a} fullWidth disabled variant={i === line.status.disabled!.length - 1 ? 'contained' : 'outlined'}>
+              <Button key={a} fullWidth disabled variant={variantAt(i, line.status.disabled!.length)}>
                 {t(`action.${a}` as CopyKey)}
               </Button>
             ))}

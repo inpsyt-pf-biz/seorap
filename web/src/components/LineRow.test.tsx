@@ -32,13 +32,33 @@ describe('LineRow', () => {
     await userEvent.click(screen.getByRole('button', { name: '전달하기' }))
     expect(onAction).toHaveBeenCalledWith('forward', expect.objectContaining({ voucherId: 'v1' }))
   })
-  it('전달한 줄은 받는 분 이름·번호를 보여 준다', () => {
-    render(<LineRow line={line({ forwardTo: { name: '김영희', phone: '010-2222-3333' }, status: { label: '전달함 · 김영희', tone: 'info', actions: ['resend'], note: '받는 분이 열어 봄' } })} onAction={() => {}} />)
-    expect(screen.getByText('→ 김영희 · 010-2222-3333')).toBeTruthy()
+  it('전달한 줄은 "받는 분" 이름표 옆에 이름·번호를 보여 준다 (화살표·점 이음 없이)', () => {
+    const { container } = render(<LineRow line={line({ forwardTo: { name: '김영희', phone: '010-2222-3333' }, status: { label: '김영희님께 전달', tone: 'warm', actions: ['resend'], note: '받는 분이 열어 봄' } })} onAction={() => {}} />)
+    expect(screen.getByText('받는 분')).toBeTruthy()
+    expect(screen.getByText('김영희 010-2222-3333')).toBeTruthy()
     expect(screen.getByText('받는 분이 열어 봄')).toBeTruthy()
+    expect(container.textContent).not.toMatch(/→/)
+  })
+  it('상태 칩은 MUI 기본 색이 아니라 서랍 톤으로 칠한다 (전달함 = 호박빛)', () => {
+    const { container } = render(<LineRow line={line({ status: { label: '김영희님께 전달', tone: 'warm', actions: [] } })} onAction={() => {}} />)
+    const chip = container.querySelector('.MuiChip-root')!
+    expect(chip.getAttribute('data-tone')).toBe('warm')
+    expect(chip.className).not.toMatch(/MuiChip-color(Info|Warning|Success)/)
+  })
+  it('잠긴 줄은 짧은 칩 아래에 이유를 한 줄로 보인다', () => {
+    render(<LineRow line={line({ status: { label: '대기 중', tone: 'neutral', actions: [], disabled: ['launch', 'forward'], note: '상담 신청서를 제출하면 열려요' } })} onAction={() => {}} />)
+    expect(screen.getByText('대기 중')).toBeTruthy()
+    expect(screen.getByText('상담 신청서를 제출하면 열려요')).toBeTruthy()
+    expect((screen.getByRole('button', { name: '전달하기' }) as HTMLButtonElement).disabled).toBe(true)
+  })
+  it('줄 버튼에는 진한 채움 버튼이 없다: 주 행동은 옅은 청록(soft), 나머지는 테두리', () => {
+    const { container } = render(<LineRow line={line()} onAction={() => {}} />)
+    expect(container.querySelector('.MuiButton-contained')).toBeNull()
+    expect(screen.getByRole('button', { name: '전달하기' }).className).toMatch(/MuiButton-soft/)
+    expect(screen.getByRole('button', { name: '실시하기' }).className).toMatch(/MuiButton-outlined/)
   })
   it('링크로 직접 공유한 줄은 이름·번호 줄 없이 [다른 분께]만 보인다', () => {
-    render(<LineRow line={line({ forwardTo: null, status: { label: '링크로 전달함', tone: 'info', actions: ['reforward'], note: '아직 안 열어 봄' } })} onAction={() => {}} />)
+    render(<LineRow line={line({ forwardTo: null, status: { label: '링크로 전달함', tone: 'warm', actions: ['reforward'], note: '아직 안 열어 봄' } })} onAction={() => {}} />)
     expect(screen.getByText('링크로 전달함')).toBeTruthy()
     expect(screen.queryByText(/^→/)).toBeNull()
     expect(screen.getByText('아직 안 열어 봄')).toBeTruthy()
@@ -68,8 +88,8 @@ describe('LineRow', () => {
     expect(screen.queryByRole('button', { name: '코드 보기' })).toBeNull()
   })
   it('본인이 코드를 본 줄은 [실시하기]와 [코드 보기]만 보인다', () => {
-    render(<LineRow line={line({ status: { label: '코드 확인함 · 10-23', tone: 'info', actions: ['launch'] } })} onAction={() => {}} />)
-    expect(screen.getByText('코드 확인함 · 10-23')).toBeTruthy()
+    render(<LineRow line={line({ status: { label: '코드 확인함 (10-23)', tone: 'info', actions: ['launch'] } })} onAction={() => {}} />)
+    expect(screen.getByText('코드 확인함 (10-23)')).toBeTruthy()
     expect(screen.getByRole('button', { name: '실시하기' })).toBeTruthy()
     expect(screen.getByRole('button', { name: '코드 보기' })).toBeTruthy()
     expect(screen.queryByRole('button', { name: '전달하기' })).toBeNull()

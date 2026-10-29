@@ -23,7 +23,7 @@ const launchable: BoxLine = {
 const forwarded: BoxLine = {
   ...launchable, voucherId: 'v2',
   forwardTo: { name: '홍길동', phone: '010-1234-5678' },
-  status: { label: '전달함 · 홍길동', tone: 'info', actions: ['resend', 'reforward'] },
+  status: { label: '홍길동님께 전달', tone: 'warm', actions: ['resend', 'reforward'] },
 }
 const boxOf = (lines: BoxLine[]): BoxResponse => ({
   ownerName: '김서랍', notStartedCount: lines.length, noticeBanner: null, pinSet: true, counsel: [],
@@ -276,7 +276,7 @@ describe('BoxPage 묶음 펼침', () => {
   it('처음 볼 때 끝난 묶음은 접혀 있고, 눌러서 펼 수 있다', async () => {
     vi.stubGlobal('fetch', vi.fn(async () => json(200, groupOf('o-done', true, [sent]))))
     open()
-    await screen.findByText('전달함 · 홍길동')
+    await screen.findByText('홍길동님께 전달')
     expect(summary().getAttribute('aria-expanded')).toBe('false')
     await userEvent.click(summary())
     expect(summary().getAttribute('aria-expanded')).toBe('true')
@@ -289,7 +289,7 @@ describe('BoxPage 묶음 펼침', () => {
     await screen.findByRole('button', { name: '실시하기' })
     expect(summary().getAttribute('aria-expanded')).toBe('true')
     await forwardFirstLine()
-    expect(await screen.findByText('전달함 · 홍길동')).toBeTruthy()
+    expect(await screen.findByText('홍길동님께 전달')).toBeTruthy()
     expect(summary().getAttribute('aria-expanded')).toBe('true')
     expect(errors.mock.calls.some((c) => String(c[0]).includes('uncontrolled'))).toBe(false)
   })
@@ -307,7 +307,7 @@ describe('BoxPage 묶음 펼침', () => {
     await forwardFirstLine()
     await userEvent.click(screen.getByRole('tab', { name: '전달 이력' }))
     await userEvent.click(await screen.findByRole('link', { name: 'back' }))
-    expect(await screen.findByText('전달함 · 홍길동')).toBeTruthy()
+    expect(await screen.findByText('홍길동님께 전달')).toBeTruthy()
     expect(summary().getAttribute('aria-expanded')).toBe('true')
   })
 })
@@ -415,5 +415,32 @@ describe('BoxPage 결과 보기·이어서 하기', () => {
     open()
     await userEvent.click(await screen.findByRole('button', { name: '코드 보기' }))
     expect(await screen.findByText(/TEST-0002-0001/)).toBeTruthy()
+  })
+})
+
+describe('BoxPage 배치 (R1 restyle)', () => {
+  it('주문 묶음은 상품명을 제목으로, 구매일·매수를 그 아래 한 줄로 보인다 (점 이음 없이)', async () => {
+    stubApi([launchable, { ...launchable, voucherId: 'v3', unitNo: 2, unitsOfTest: 2 }], {})
+    open()
+    expect(await screen.findByText('STS')).toBeTruthy()
+    expect(screen.getByText('2026-10-01 구매, 2매로 나눠 보여 드려요')).toBeTruthy()
+  })
+  it('묶음은 그림자 판으로 감싸지 않는다 (카드 안의 카드 해소)', async () => {
+    stubApi([launchable], {})
+    const { container } = render(<MemoryRouter><BoxPage /></MemoryRouter>)
+    await screen.findByText('STS')
+    const acc = container.querySelector('.MuiAccordion-root')!
+    expect(acc.className).toMatch(/MuiPaper-elevation0/)
+  })
+  it('실시 전 매수가 0이면 요약 줄을 보이지 않는다', async () => {
+    stubApi([forwarded], {})
+    vi.mocked(fetch).mockImplementation(async (url) => {
+      const path = String(url).replace(/^\/api\//, '')
+      if (path === 'box') return json(200, { ...boxOf([forwarded]), notStartedCount: 0 })
+      throw new Error(`unexpected call: ${path}`)
+    })
+    open()
+    await screen.findByText('홍길동님께 전달')
+    expect(screen.queryByText('실시 전 0매')).toBeNull()
   })
 })

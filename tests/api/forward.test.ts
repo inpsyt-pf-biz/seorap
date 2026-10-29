@@ -20,7 +20,7 @@ Deno.test('전달: 이름·번호로 보내면 이력 1줄과 받는 분 링크'
   assertEquals(r.status, 200)
   assertEquals(r.body.created, true)
   const after = (await lines(c)).find((l: any) => l.voucherId === target.voucherId)
-  assertEquals(after.status.label, '전달함 · 이몽룡')
+  assertEquals(after.status.label, '이몽룡님께 전달')
   assertEquals(after.forwardTo.phone, '010-9876-5432')
   const hist = (await c.call('history')).body.items
   assertEquals(hist[0].toName, '이몽룡')

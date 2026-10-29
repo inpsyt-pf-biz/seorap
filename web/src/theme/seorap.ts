@@ -1,5 +1,9 @@
 import { createTheme } from '@mui/material/styles'
 
+declare module '@mui/material/Button' {
+  interface ButtonPropsVariantOverrides { soft: true }
+}
+
 // 서랍 테마 토큰. 색·반경·로고는 이 파일에서만 바꾼다.
 // 색 ① (01-plan §0 10-29): "닫힌 서랍은 고요하게, 열린 서랍은 따뜻하게". 깊은 청록 + 종이 + 호박빛.
 // 대비는 seorap.test.ts 가 계산해서 막는다 (글자 4.5:1, 포커스 링 3:1)
@@ -106,9 +110,24 @@ export const theme = createTheme({
     MuiButtonBase: {
       styleOverrides: { root: { '&.Mui-focusVisible': { outline: '2px solid var(--seorap-focus)', outlineOffset: '2px' } } },
     },
+    // soft: 줄 카드의 주 행동. 진한 채움(contained)은 화면당 하나(상담 신청서 작성, 시트의 다음 등)로 아낀다
     MuiButton: {
       defaultProps: { disableElevation: true },
-      styleOverrides: { root: { minHeight: 44, borderRadius: tokens.radius.control } },
+      styleOverrides: {
+        root: {
+          minHeight: 44,
+          borderRadius: tokens.radius.control,
+          variants: [{
+            props: { variant: 'soft' },
+            style: {
+              backgroundColor: tokens.teal[100],
+              color: tokens.teal[700],
+              '&:hover': { backgroundColor: tokens.teal[50] },
+              '&.Mui-disabled': { backgroundColor: tokens.surface[100], color: tokens.text.disabled },
+            },
+          }],
+        },
+      },
     },
     // 쪽 배경이 종이색이라 글자 입력 칸은 흰색으로 둔다
     MuiOutlinedInput: {
