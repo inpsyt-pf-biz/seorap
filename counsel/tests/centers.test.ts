@@ -80,7 +80,7 @@ Deno.test({
       const ctx = await admin.rpc('my_context')
       assertEquals(ctx.data.membership.is_headquarters, true)
       assertEquals(ctx.data.membership.role, 'hq_admin')
-      assertEquals(ctx.data.caps, ['center.manage', 'note.write', 'purchase.manage', 'session.assign', 'session.manage', 'settlement.view'])
+      assertEquals(ctx.data.caps, ['center.manage', 'form.manage', 'note.write', 'purchase.manage', 'session.assign', 'session.manage', 'settlement.view'])
     })
 
     await t.step('표에 직접 쓰는 길은 막혀 있다', async () => {

@@ -5,6 +5,7 @@ import postgres from 'postgres'
 import { toIntakeParts, type NaverIntakeRow, type NaverProductOrderDetail } from '../core/naverIntake.ts'
 import { localEnv, localStatus, SEED_ACCOUNTS, WEB_ENV_FILE } from './local.ts'
 import { piiTools } from './pii.ts'
+import { SEED_FORM, SEED_FORM_MANAGE_CODE } from './seedForms.ts'
 
 const status = await localStatus()
 const env = await localEnv()
@@ -287,6 +288,19 @@ try {
     await seedPurchases()
     console.log(`시드 완료: 구매 건 ${PURCHASES.length}건`)
     purchasesSeeded = true
+  }
+  // 신청서 템플릿(서랍 B2): 현재 Google 신청서를 옮긴 템플릿 1개를 게시하고 서랍 시드 S2 의 관리코드에 연결한다
+  const [{ f }] = await sql<{ f: number }[]>`select count(*)::int as f from counsel.form_templates`
+  if (f > 0) {
+    console.log('신청서 템플릿이 이미 있다')
+  } else {
+    await sql.begin(async (tx) => {
+      await tx`select set_config('request.jwt.claims', ${JSON.stringify({ sub: ids.admin, role: 'authenticated' })}, true)`
+      const [{ id }] = await tx<{ id: string }[]>`select counsel.rpc_create_form_template(${SEED_FORM.name}, ${tx.json(SEED_FORM.definition)}) as id`
+      await tx`select counsel.rpc_publish_form_template(${id}, 1)`
+      await tx`select counsel.rpc_set_form_link(${SEED_FORM_MANAGE_CODE}, ${id}, 'sponsored', true, 'STS 커플상담(협찬)')`
+    })
+    console.log(`시드 완료: 신청서 템플릿 1개 (관리코드 ${SEED_FORM_MANAGE_CODE})`)
   }
   if (centersSeeded && purchasesSeeded) {
     const [{ at }] = await sql<{ at: string }[]>`select to_char(clock_timestamp() at time zone 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"') as at`
