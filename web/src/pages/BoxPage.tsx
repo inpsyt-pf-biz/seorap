@@ -1,7 +1,7 @@
 import { Accordion, AccordionDetails, AccordionSummary, Alert, Box, Button, Stack, Tab, Tabs, Typography } from '@mui/material'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import type { BoxGroup, BoxLine, BoxResponse, CodeResponse, ForwardResponse, LaunchResponse } from '@core/apiTypes.ts'
+import type { BoxGroup, BoxLine, BoxResponse, ForwardResponse, LaunchResponse } from '@core/apiTypes.ts'
 import { t } from '@core/copy.ko.ts'
 import type { LineAction } from '@core/lineStatus.ts'
 import { formatKstDate } from '@core/time.ts'
@@ -10,8 +10,8 @@ import ForwardSheet from '../components/ForwardSheet'
 import LineRow from '../components/LineRow'
 import Toast from '../components/Toast'
 import BoxHeader from '../components/BoxHeader'
-import CodeDialog from '../components/CodeDialog'
 import { api, ApiError, isSessionEnd } from '../lib/api'
+import { openInNewWindow } from '../lib/openInNewWindow'
 import { failText } from '../lib/failText'
 import { tokens } from '../theme/seorap'
 import StatePage from './StatePage'
@@ -31,7 +31,6 @@ function ExpandChevron() {
 
 type Pending =
   | { kind: 'choose'; line: BoxLine; sibling: BoxLine }
-  | { kind: 'code'; code: string }
   | { kind: 'resend'; line: BoxLine }
   | { kind: 'reforward'; line: BoxLine }
   | null
@@ -96,12 +95,13 @@ export default function BoxPage() {
     }
   }
 
+  // 검사는 새 창으로 연다. 서랍은 남아 있으므로 바뀐 상태(실시함)를 보이게 다시 불러온다 (10-29 검수)
   const launch = (voucherId: string) => guard(async () => {
-    const r = await api<LaunchResponse>('voucher/launch', { voucherId })
-    window.location.assign(r.url)
-  }, true)
+    await openInNewWindow(async () => (await api<LaunchResponse>('voucher/launch', { voucherId })).url)
+    void load()
+  })
 
-  const onAction = (a: LineAction | 'code', line: BoxLine, group: BoxGroup) => {
+  const onAction = (a: LineAction, line: BoxLine, group: BoxGroup) => {
     // 결과 보기는 선택 창 없이 바로 플랫폼 주소를 연다. 플랫폼이 결과를, 아직 끝나지 않았으면 검사 화면을 보인다.
     if (a === 'result') void launch(line.voucherId)
     else if (a === 'launch' || a === 'continue') {
@@ -109,8 +109,6 @@ export default function BoxPage() {
       const sibling = group.lines.find((l) => l.testItemId === line.testItemId && l.voucherId !== line.voucherId && l.firstLaunchedAt && l.status.actions.includes('continue'))
       if (a === 'launch' && sibling) { setPending({ kind: 'choose', line, sibling }); return }
       void launch(line.voucherId)
-    } else if (a === 'code') {
-      void guard(async () => setPending({ kind: 'code', code: (await api<CodeResponse>('voucher/code', { voucherId: line.voucherId })).code }))
     } else if (a === 'forward') setSheetLine(line)
     else if (a === 'resend') setPending({ kind: 'resend', line })
     else if (a === 'reforward') setPending({ kind: 'reforward', line })
@@ -159,9 +157,7 @@ export default function BoxPage() {
               <Box>
                 <Typography variant="body1" sx={{ fontWeight: 600 }}>{g.productName}</Typography>
                 <Typography variant="body2" color="text.secondary">
-                  {g.lineCount > 1
-                    ? t('box.group', { date: formatKstDate(g.purchasedAt), n: g.lineCount })
-                    : t('box.groupSingle', { date: formatKstDate(g.purchasedAt) })}
+                  {t('box.group', { date: formatKstDate(g.purchasedAt) })}
                 </Typography>
               </Box>
             </AccordionSummary>
@@ -182,11 +178,6 @@ export default function BoxPage() {
         onConfirm={() => { if (pending?.kind === 'choose') void launch(pending.sibling.voucherId); setPending(null) }}
         onCancel={() => { if (pending?.kind === 'choose') void launch(pending.line.voucherId); setPending(null) }}
         onDismiss={() => setPending(null)}
-      />
-      <CodeDialog
-        code={pending?.kind === 'code' ? pending.code : null}
-        onClose={() => setPending(null)}
-        onCopied={() => { setPending(null); showToast(t('code.copied')) }}
       />
       <ConfirmDialog
         open={pending?.kind === 'resend'}

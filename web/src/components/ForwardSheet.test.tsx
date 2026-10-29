@@ -350,3 +350,18 @@ describe('ForwardSheet', () => {
     expect(onClose).toHaveBeenCalledTimes(1)
   })
 })
+
+describe('ForwardSheet 10-29 검수', () => {
+  it('[더보기]를 펼치면 이름이 [간략히]로 바뀐다', async () => {
+    render(<ForwardSheet line={line} onClose={noop} onDone={noop} onExpired={noop} />)
+    await userEvent.click(screen.getByRole('button', { name: '더보기' }))
+    expect(screen.getByRole('button', { name: '간략히' })).toBeTruthy()
+    expect(screen.queryByRole('button', { name: '더보기' })).toBeNull()
+  })
+  it('"만 14세 미만…" 안내와 "직접 공유하면…" 문구는 없다 (검사마다 실시 연령이 이미 있다)', async () => {
+    render(<ForwardSheet line={line} onClose={noop} onDone={noop} onExpired={noop} />)
+    expect(screen.queryByText(/만 14세 미만/)).toBeNull()
+    await userEvent.click(screen.getByRole('button', { name: '더보기' }))
+    expect(screen.queryByText(/직접 공유하면/)).toBeNull()
+  })
+})

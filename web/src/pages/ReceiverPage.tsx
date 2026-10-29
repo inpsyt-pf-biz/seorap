@@ -7,6 +7,7 @@ import CodeDialog from '../components/CodeDialog'
 import Wordmark from '../components/Wordmark'
 import Toast from '../components/Toast'
 import { api, ApiError } from '../lib/api'
+import { openInNewWindow } from '../lib/openInNewWindow'
 import { tokens } from '../theme/seorap'
 import StatePage from './StatePage'
 
@@ -31,6 +32,7 @@ export default function ReceiverPage() {
   const [blocked, setBlocked] = useState<{ kind: 'linkInvalid' | 'linkRevoked' | 'error'; message?: string } | null>(null)
   const [code, setCode] = useState<string | null>(null)
   const [copied, setCopied] = useState(false)
+  const [more, setMore] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
   const busyRef = useRef(false)
@@ -59,10 +61,11 @@ export default function ReceiverPage() {
     catch (e) { if (!fail(e)) setError(t('error.generic')) }
     finally { if (!(ok && keepBusyOnSuccess)) { busyRef.current = false; setBusy(false) } }
   }
+  // 검사는 새 창으로 연다. 이 화면은 남으므로 버튼을 [이어서 하기]로 바꾼다 (10-29 검수)
   const launch = () => guard(async () => {
-    const r = await api<LaunchResponse>('forward/launch', { token })
-    window.location.assign(r.url)
-  }, true)
+    await openInNewWindow(async () => (await api<LaunchResponse>('forward/launch', { token })).url)
+    setPage((p) => p && { ...p, launched: true })
+  }, false)
   const showCode = () => guard(async () => setCode((await api<CodeResponse>('forward/code', { token })).code), false)
 
   if (!valid) return <StatePage kind="notFound" />
@@ -78,8 +81,8 @@ export default function ReceiverPage() {
         <Button variant="contained" size="large" disabled={busy} onClick={launch}>
           {t(page.launched ? 'action.continue' : 'action.launch')}
         </Button>
-        <Accordion disableGutters elevation={0}>
-          <AccordionSummary><Typography variant="body2">{t('forward.more')}</Typography></AccordionSummary>
+        <Accordion disableGutters elevation={0} expanded={more} onChange={(_, v) => setMore(v)}>
+          <AccordionSummary><Typography variant="body2">{t(more ? 'forward.less' : 'forward.more')}</Typography></AccordionSummary>
           <AccordionDetails>
             <Button variant="outlined" fullWidth disabled={busy} onClick={showCode}>{t('receiver.codePc')}</Button>
           </AccordionDetails>

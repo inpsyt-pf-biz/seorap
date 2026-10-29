@@ -14,7 +14,7 @@ Deno.test('명세 §10 필수 키가 모두 있다', () => {
   const required = [
     'otp.sms', 'entry.title', 'entry.send', 'otp.wrong', 'otp.expired', 'otp.locked',
     'box.title', 'box.group', 'line.unit', 'forward.confirm', 'forward.self', 'forward.night',
-    'forward.direct.warn', 'history.line', 'maintenance',
+    'history.line', 'maintenance',
   ]
   for (const k of required) assertEquals(k in copy, true, k)
 })

@@ -50,9 +50,9 @@ function open() {
 }
 
 describe('BoxPage 처리 중 잠금', () => {
-  it('실시하기 연타는 한 번만 부르고, 성공한 뒤에는 이동 중이라 계속 잠근다', async () => {
+  it('실시하기 연타는 한 번만 부르고, 성공하면 새 창으로 열고 서랍을 다시 불러온다', async () => {
     const assign = vi.fn()
-    vi.stubGlobal('location', { ...window.location, assign })
+    vi.stubGlobal('open', vi.fn(() => ({ opener: {}, close: vi.fn(), location: { set href(v: string) { assign(v) } } })))
     let release: (r: Response) => void = () => {}
     const calls = stubApi([launchable], {
       'voucher/launch': () => new Promise<Response>((resolve) => { release = resolve }),
@@ -64,8 +64,8 @@ describe('BoxPage 처리 중 잠금', () => {
     expect(count(calls, 'voucher/launch')).toBe(1)
     await act(async () => { release(json(200, { url: 'https://exam.test/start' })) })
     await waitFor(() => expect(assign).toHaveBeenCalledWith('https://exam.test/start'))
-    await userEvent.click(screen.getByRole('button', { name: '실시하기' }))
-    expect(count(calls, 'voucher/launch')).toBe(1)
+    // 서랍은 그대로 남아 있으므로 바뀐 상태(실시함)를 보이게 다시 불러온다
+    await waitFor(() => expect(count(calls, 'box')).toBe(2))
   })
 
   it('실패하면 잠금이 풀려 다시 누를 수 있다', async () => {
@@ -211,15 +211,12 @@ describe('BoxPage 세션 끝 판단', () => {
   })
 })
 
-describe('BoxPage 코드 보기', () => {
-  it('코드 창에는 닫기 버튼이 하나뿐이다', async () => {
-    stubApi([launchable], { 'voucher/code': async () => json(200, { code: 'TEST-0001-0001' }) })
+describe('BoxPage 코드 보기 없음 (10-29 검수)', () => {
+  it('줄 카드에 [코드 보기]가 없다: 실시는 새 창으로 바로 연다', async () => {
+    stubApi([launchable], {})
     open()
-    await userEvent.click(await screen.findByRole('button', { name: '코드 보기' }))
-    expect(await screen.findByText(/TEST-0001-0001/)).toBeTruthy()
-    expect(screen.getAllByRole('button', { name: '닫기' })).toHaveLength(1)
-    await userEvent.click(screen.getByRole('button', { name: '닫기' }))
-    await waitFor(() => expect(screen.queryByText(/TEST-0001-0001/)).toBeNull())
+    await screen.findByRole('button', { name: '실시하기' })
+    expect(screen.queryByRole('button', { name: '코드 보기' })).toBeNull()
   })
 })
 
@@ -347,7 +344,7 @@ describe('BoxPage 결과 보기·이어서 하기', () => {
   // 실시 주소를 열기까지의 호출을 모은다: 어떤 줄로 launch 를 불렀는지, 어디로 이동했는지
   function stubLaunch(lines: BoxLine[]) {
     const assign = vi.fn()
-    vi.stubGlobal('location', { ...window.location, assign })
+    vi.stubGlobal('open', vi.fn(() => ({ opener: {}, close: vi.fn(), location: { set href(v: string) { assign(v) } } })))
     const ids: string[] = []
     vi.stubGlobal('fetch', vi.fn(async (url: string, init?: RequestInit) => {
       const path = url.replace(/^\/api\//, '')
@@ -410,20 +407,14 @@ describe('BoxPage 결과 보기·이어서 하기', () => {
     expect(screen.queryByText(CHOOSE)).toBeNull()
   })
 
-  it('실시한 줄도 [코드 보기]로 코드를 볼 수 있다', async () => {
-    stubApi([launched], { 'voucher/code': async () => json(200, { code: 'TEST-0002-0001' }) })
-    open()
-    await userEvent.click(await screen.findByRole('button', { name: '코드 보기' }))
-    expect(await screen.findByText(/TEST-0002-0001/)).toBeTruthy()
-  })
 })
 
 describe('BoxPage 배치 (R1 restyle)', () => {
-  it('주문 묶음은 상품명을 제목으로, 구매일·매수를 그 아래 한 줄로 보인다 (점 이음 없이)', async () => {
+  it('주문 묶음은 상품명을 제목으로, 구매일을 그 아래 한 줄로 (매수 문구 없이) 보인다 (점 이음 없이)', async () => {
     stubApi([launchable, { ...launchable, voucherId: 'v3', unitNo: 2, unitsOfTest: 2 }], {})
     open()
     expect(await screen.findByText('STS')).toBeTruthy()
-    expect(screen.getByText('2026-10-01 구매, 2매로 나눠 보여 드려요')).toBeTruthy()
+    expect(screen.getByText('2026-10-01 구매')).toBeTruthy()
   })
   it('묶음은 그림자 판으로 감싸지 않는다 (카드 안의 카드 해소)', async () => {
     stubApi([launchable], {})

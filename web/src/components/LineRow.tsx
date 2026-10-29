@@ -9,9 +9,8 @@ const TONE: Record<LineTone, keyof typeof tokens.tone> = {
   neutral: 'neutral', info: 'teal', success: 'teal', warning: 'caution', muted: 'muted', warm: 'warm',
 }
 
-export default function LineRow({ line, onAction }: { line: BoxLine; onAction: (a: LineAction | 'code', line: BoxLine) => void }) {
-  // 코드를 직접 볼 수 있는 줄: 실시하기·이어서 하기·결과 보기가 있는 줄 (모두 플랫폼 검사 주소를 여는 동작)
-  const canCode = line.status.actions.some((a) => a === 'launch' || a === 'continue' || a === 'result')
+// [코드 보기]는 두지 않는다 (10-29 검수: 실시하기가 새 창으로 검사를 바로 연다)
+export default function LineRow({ line, onAction }: { line: BoxLine; onAction: (a: LineAction, line: BoxLine) => void }) {
   const tone = tokens.tone[TONE[line.status.tone]]
   // 줄마다 마지막 버튼이 주 행동이다. 진한 채움 대신 옅은 청록(soft)으로 해, 여러 줄이 쌓여도 화면이 무겁지 않게 한다 (UX 진단 R2)
   const variantAt = (i: number, n: number, a?: LineAction) => (i === n - 1 && a !== 'contact' ? 'soft' : 'outlined')
@@ -55,9 +54,6 @@ export default function LineRow({ line, onAction }: { line: BoxLine; onAction: (
               </Button>
             ))}
           </Stack>
-        )}
-        {canCode && (
-          <Button variant="text" size="small" sx={{ alignSelf: 'flex-start' }} onClick={() => onAction('code', line)}>{t('action.code')}</Button>
         )}
       </Stack>
     </Box>

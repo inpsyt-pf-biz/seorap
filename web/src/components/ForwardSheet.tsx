@@ -16,6 +16,7 @@ export default function ForwardSheet({ line, onClose, onDone, onExpired }: {
 }) {
   const [prevLine, setPrevLine] = useState(line)
   const [step, setStep] = useState<Step>('input')
+  const [more, setMore] = useState(false)
   const [name, setName] = useState('')
   const [phone, setPhone] = useState('')
   const [error, setError] = useState<string | null>(null)
@@ -113,16 +114,14 @@ export default function ForwardSheet({ line, onClose, onDone, onExpired }: {
                 error={fieldError === 'phone'} helperText={fieldError === 'phone' ? t('forward.invalidPhone') : undefined}
                 onChange={(e) => { setPhone(formatPhoneInput(e.target.value)); if (fieldError === 'phone') setFieldError(null) }}
               />
-              <Typography variant="body2" color="text.secondary">{t('forward.child')}</Typography>
               {/* 밤 안내는 지금 시각이 기준이라 그리는 때마다 읽는다 (입력할 때마다 다시 그려져 시트를 열어 둔 사이에도 맞는다) */}
               {/* oxlint-disable-next-line react/purity */}
               {isNightKst(new Date()) && <Alert severity="info">{t('forward.night')}</Alert>}
               <Button variant="contained" size="large" onClick={next}>{t('forward.next')}</Button>
-              <Accordion disableGutters elevation={0}>
-                <AccordionSummary><Typography variant="body2">{t('forward.more')}</Typography></AccordionSummary>
+              <Accordion disableGutters elevation={0} expanded={more} onChange={(_, v) => setMore(v)}>
+                <AccordionSummary><Typography variant="body2">{t(more ? 'forward.less' : 'forward.more')}</Typography></AccordionSummary>
                 <AccordionDetails>
                   <Stack spacing={1}>
-                    <Typography variant="body2" color="text.secondary">{t('forward.direct.warn')}</Typography>
                     <Alert severity="info">{t('forward.caution')}</Alert>
                     <Button variant="outlined" disabled={busy} onClick={direct}>{t('forward.direct')}</Button>
                   </Stack>
