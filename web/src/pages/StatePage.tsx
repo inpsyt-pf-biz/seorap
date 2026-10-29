@@ -15,7 +15,8 @@ const KEY: Record<StateKind, CopyKey> = {
 // 막힌 화면에서 갈 곳은 도움말 하나 (build-spec §4-8)
 export default function StatePage({ kind, message }: { kind: StateKind; message?: string }) {
   return (
-    <Box component="main" sx={{ minHeight: '100dvh', display: 'flex', alignItems: 'center', justifyContent: 'center', px: 2 }}>
+    // 입장 경로(청록 바탕)에서도 보일 수 있으므로 종이 판을 화면 가득 깐다
+    <Box component="main" sx={{ minHeight: '100dvh', bgcolor: 'background.default', display: 'flex', alignItems: 'center', justifyContent: 'center', px: 2 }}>
       <Stack spacing={3} sx={{ alignItems: 'center', maxWidth: tokens.layout.maxWidth, textAlign: 'center' }}>
         <Wordmark size="lg" />
         <Typography variant="body1" color="text.secondary">{message ?? t(KEY[kind])}</Typography>

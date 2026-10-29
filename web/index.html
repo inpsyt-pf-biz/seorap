@@ -10,6 +10,14 @@
     <link rel="apple-touch-icon" href="/brand/seorap-logo.png" />
     <meta name="theme-color" content="#1E5552" />
     <title>인싸이트 서랍</title>
+    <!-- 앱이 뜨기 전 첫 순간의 바탕색. 경로 규칙은 src/lib/pageSurface.ts 의 isClosedPath 와 같게 둔다 (입장·비밀번호 설정 = 청록) -->
+    <script>
+      (function () {
+        var p = location.pathname
+        var closed = p === '/pin' || (/^\/[^/]+$/.test(p) && ['/', '/box', '/help', '/pin'].indexOf(p) < 0)
+        document.documentElement.style.backgroundColor = closed ? '#1E5552' : '#F6F2EA'
+      })()
+    </script>
     <!-- Pretendard 가변 서브셋을 비동기로 불러온다 (렌더 차단 금지, Booth 02_DESIGN_TOKENS) -->
     <link
       rel="stylesheet"

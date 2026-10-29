@@ -1,5 +1,6 @@
 import { lazy, Suspense } from 'react'
 import { Route, Routes } from 'react-router-dom'
+import { usePageSurface } from './lib/pageSurface'
 import EntryPage from './pages/EntryPage'
 import Placeholder from './pages/Placeholder'
 import StatePage from './pages/StatePage'
@@ -17,6 +18,7 @@ const isDev = import.meta.env.DEV || import.meta.env.VITE_SEORAP_ENV === 'local'
 const DevOutboxPage = isDev ? lazy(() => import('./pages/DevOutboxPage')) : null
 
 export default function App() {
+  usePageSurface()
   return (
     <Suspense fallback={null}>
       <Routes>
