@@ -9,15 +9,16 @@ export function isClosedPath(pathname: string): boolean {
   return /^\/[^/]+$/.test(pathname) && !OPEN_SINGLE.has(pathname)
 }
 
-// 페이지 바탕(body)과 휴대폰 상단 막대(theme-color)를 경로에 맞춰 칠한다.
+export type Surface = 'closed' | 'open'
+
+// 경로에 맞춰 html 에 data-surface 를 달고(바탕색은 테마의 CSS 가 칠한다), 휴대폰 상단 막대(theme-color)도 맞춘다.
 // 화면 안쪽 판만 칠하면 불러오는 동안·화면 전환 순간·당겨 내릴 때 다른 색이 비친다 (10-29 건우님 검수)
-export function usePageSurface() {
+export function usePageSurface(): Surface {
   const { pathname } = useLocation()
+  const surface: Surface = isClosedPath(pathname) ? 'closed' : 'open'
   useLayoutEffect(() => {
-    const color = isClosedPath(pathname) ? tokens.teal[700] : tokens.surface.page
-    // html 에도 칠한다: index.html 이 첫 화면 전에 html 을 칠해 두므로, 둘이 어긋나면 당겨 내릴 때 옛 색이 보인다
-    document.documentElement.style.backgroundColor = color
-    document.body.style.backgroundColor = color
-    document.querySelector('meta[name="theme-color"]')?.setAttribute('content', color)
-  }, [pathname])
+    document.documentElement.setAttribute('data-surface', surface)
+    document.querySelector('meta[name="theme-color"]')?.setAttribute('content', surface === 'closed' ? tokens.teal[700] : tokens.surface.page)
+  }, [surface])
+  return surface
 }

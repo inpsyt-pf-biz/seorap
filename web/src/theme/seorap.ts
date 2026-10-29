@@ -53,6 +53,13 @@ export const tokens = {
     caution: { bg: '#F8E1D8', fg: '#8A3B22' },
     muted: { bg: 'transparent', fg: '#6E675C', border: '#CFC6B6' },
   },
+  // 넓은 화면의 바깥 바탕(책상). 서랍 컬럼이 그 위에 한 장의 판으로 서 보이게 한 단계 짙게 깐다 (10-29 검수: 컬럼과 바깥이 같은 색이라 미완성처럼 보임)
+  desk: {
+    open: '#E3DACA',
+    closed: '#123836',
+    edge: 'rgba(34, 32, 28, 0.08)',
+    shadow: 'rgba(34, 32, 28, 0.10)',
+  },
   // 키보드 포커스 링. 종이·흰 바탕에서는 청록, 닫힌 서랍(청록 바탕)에서는 호박빛
   focus: { light: '#3F7A76', onTeal: '#F2B24C' },
   // sx 의 borderRadius 숫자는 테마 shape(12px)의 배수로 계산돼 24·36px 이 된다. 반경은 이 문자열만 쓴다
@@ -113,7 +120,17 @@ export const theme = createTheme({
     // 한글은 낱말 중간에서 줄을 바꾸지 않는다(keep-all). 띄어쓰기 없는 긴 주소·토큰은 넘치지 않게 아무 곳에서나 끊는다.
     // 포커스 링 색은 CSS 변수로 두어, 닫힌 서랍 화면이 호박빛으로 바꿔 쓸 수 있게 한다
     MuiCssBaseline: {
-      styleOverrides: { body: { wordBreak: 'keep-all', overflowWrap: 'anywhere', '--seorap-focus': tokens.focus.light } },
+      // 바탕색은 html 이 맡는다(경로별 data-surface). 휴대폰 폭에서는 판과 같은 색이라 당겨 내려도 같고,
+      // 넓은 화면(520px 이상)에서는 바깥을 책상색으로 깔아 서랍 컬럼(AppFrame)과 구분한다
+      styleOverrides: {
+        body: { wordBreak: 'keep-all', overflowWrap: 'anywhere', '--seorap-focus': tokens.focus.light, backgroundColor: 'transparent' },
+        'html[data-surface="open"]': { backgroundColor: tokens.surface.page },
+        'html[data-surface="closed"]': { backgroundColor: tokens.teal[700] },
+        '@media (min-width: 520px)': {
+          'html[data-surface="open"]': { backgroundColor: tokens.desk.open },
+          'html[data-surface="closed"]': { backgroundColor: tokens.desk.closed },
+        },
+      },
     },
     // 버튼·탭·칩·목록 단추는 모두 ButtonBase 다. 키보드로 왔을 때만 링이 바로 보인다(물결 효과만으로는 부족)
     MuiButtonBase: {

@@ -15,8 +15,7 @@ beforeEach(() => {
 afterEach(() => {
   cleanup()
   vi.unstubAllGlobals()
-  document.body.style.backgroundColor = ''
-  document.documentElement.style.backgroundColor = ''
+  document.documentElement.removeAttribute('data-surface')
 })
 
 const at = (path: string) => render(<MemoryRouter initialEntries={[path]}><App /></MemoryRouter>)
@@ -33,8 +32,7 @@ describe('페이지 바탕색 (닫힌 서랍은 청록, 서랍 안은 종이)', 
     ['첫 화면', '/', PAPER],
   ])('%s', (_name, path, color) => {
     at(path)
-    expect(document.body.style.backgroundColor).toBe(color)
-    expect(document.documentElement.style.backgroundColor).toBe(color)
+    expect(document.documentElement.getAttribute('data-surface')).toBe(color === TEAL ? 'closed' : 'open')
   })
 
   it('휴대폰 상단 막대 색(theme-color)도 같이 바뀐다', () => {
@@ -43,5 +41,18 @@ describe('페이지 바탕색 (닫힌 서랍은 청록, 서랍 안은 종이)', 
     cleanup()
     at('/box')
     expect(document.querySelector('meta[name="theme-color"]')?.getAttribute('content')).toBe('#F6F2EA')
+  })
+})
+
+describe('넓은 화면에서 서랍 컬럼은 바깥과 구분되는 한 장의 판이다 (10-29 검수)', () => {
+  it('모든 화면은 컬럼 판(data-frame) 안에 그려지고, 판의 폭은 주 컬럼 폭이다', () => {
+    at('/help')
+    const frame = document.querySelector('[data-frame]') as HTMLElement
+    expect(frame).toBeTruthy()
+    expect(frame.getAttribute('data-frame')).toBe('open')
+  })
+  it('입장 화면에서는 판도 청록이다', () => {
+    at(`/${TOKEN}`)
+    expect(document.querySelector('[data-frame]')?.getAttribute('data-frame')).toBe('closed')
   })
 })

@@ -123,7 +123,7 @@ describe('닫힌 서랍 테마 (입장 화면)', () => {
 describe('토큰 공개 모양 (상담 어드민이 그대로 가져다 쓴다)', () => {
   it('공개 키가 고정돼 있다: 이름을 바꾸면 이 시험이 먼저 알린다', () => {
     expect(Object.keys(tokens).sort()).toEqual(
-      ['amber', 'brand', 'brandVector', 'focus', 'layout', 'logo', 'radius', 'surface', 'teal', 'text', 'tone'].sort(),
+      ['amber', 'brand', 'brandVector', 'desk', 'focus', 'layout', 'logo', 'radius', 'surface', 'teal', 'text', 'tone'].sort(),
     )
   })
   it('brand 는 예전처럼 900·700·500·300·100 색 단계다 (어드민 호환. 값은 청록 계열)', () => {
@@ -133,5 +133,20 @@ describe('토큰 공개 모양 (상담 어드민이 그대로 가져다 쓴다)'
   it('로고·워드마크 벡터는 brandVector 에 있다', () => {
     expect(tokens.brandVector.handlePath).toMatch(/^M/)
     expect(tokens.brandVector.wordmarkPath).toMatch(/^M/)
+  })
+})
+
+describe('바깥 바탕(책상) 색', () => {
+  const css = theme.components?.MuiCssBaseline?.styleOverrides as Record<string, Record<string, Record<string, string>>>
+  it('휴대폰 폭에서는 바깥도 판과 같은 색(당겨 내려도 같은 색)', () => {
+    expect(css['html[data-surface="open"]']).toMatchObject({ backgroundColor: tokens.surface.page })
+    expect(css['html[data-surface="closed"]']).toMatchObject({ backgroundColor: tokens.teal[700] })
+  })
+  it('넓은 화면에서는 바깥을 한 단계 짙게 깔아 컬럼 판과 구분한다', () => {
+    const wide = css['@media (min-width: 520px)']
+    expect(wide['html[data-surface="open"]']).toMatchObject({ backgroundColor: tokens.desk.open })
+    expect(wide['html[data-surface="closed"]']).toMatchObject({ backgroundColor: tokens.desk.closed })
+    expect(tokens.desk.open).not.toBe(tokens.surface.page)
+    expect(tokens.desk.closed).not.toBe(tokens.teal[700])
   })
 })

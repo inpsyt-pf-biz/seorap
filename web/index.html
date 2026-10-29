@@ -15,7 +15,7 @@
       (function () {
         var p = location.pathname
         var closed = p === '/pin' || (/^\/[^/]+$/.test(p) && ['/', '/box', '/help', '/pin'].indexOf(p) < 0)
-        document.documentElement.style.backgroundColor = closed ? '#1E5552' : '#F6F2EA'
+        document.documentElement.setAttribute('data-surface', closed ? 'closed' : 'open')
       })()
     </script>
     <!-- Pretendard 가변 서브셋을 비동기로 불러온다 (렌더 차단 금지, Booth 02_DESIGN_TOKENS) -->
@@ -27,6 +27,13 @@
     />
     <style>
       input, select, textarea { color-scheme: light; }
+      /* 첫 화면 전 바탕색. 테마(seorap.ts MuiCssBaseline)와 같은 값을 둔다 */
+      html[data-surface='open'] { background-color: #F6F2EA; }
+      html[data-surface='closed'] { background-color: #1E5552; }
+      @media (min-width: 520px) {
+        html[data-surface='open'] { background-color: #E3DACA; }
+        html[data-surface='closed'] { background-color: #123836; }
+      }
       /* 제목 글꼴 리디바탕 (01-plan §0 10-29). 공개 저장소라 라이선스 확인 전에는 파일을 두지 않고 눈누 배포본을 쓴다.
          swap: 글꼴이 늦어도 제목이 본문 글꼴로 먼저 보인다 */
       @font-face {
