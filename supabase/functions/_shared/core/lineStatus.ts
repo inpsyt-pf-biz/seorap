@@ -1,9 +1,10 @@
 import { t } from './copy.ko.ts'
 import { formatKstMonthDay } from './time.ts'
 
-export type LineAction = 'launch' | 'continue' | 'result' | 'forward' | 'resend' | 'reforward' | 'contact' | 'counsel_form' | 'result_help'
+export type LineAction = 'launch' | 'continue' | 'result' | 'forward' | 'resend' | 'reforward' | 'contact' | 'result_help'
 export type LineTone = 'neutral' | 'info' | 'success' | 'warning' | 'muted'
-export type LineStatus = { label: string; tone: LineTone; actions: LineAction[]; note?: string }
+// disabled: 보이지만 누를 수 없는 버튼 (상담 신청서를 내기 전의 실시하기·전달하기). 누를 수 있는 버튼은 actions 뿐이다
+export type LineStatus = { label: string; tone: LineTone; actions: LineAction[]; disabled?: LineAction[]; note?: string }
 export type LineInput = {
   issueStatus: 'pending' | 'issued' | 'failed' | 'voided' | 'replaced'
   cancelStatus: 'none' | 'checking' | 'cancelled' | 'rejected'
@@ -27,7 +28,8 @@ function core(i: LineInput): LineStatus {
   if (i.issueStatus === 'voided' || i.platformDeletedAt || i.examStatus === 'deleted') {
     return { label: t('line.unusable'), tone: 'muted', actions: ['contact'] }
   }
-  if (i.lockReasons.includes('counsel_pending')) return { label: t('line.counselLocked'), tone: 'info', actions: ['counsel_form'] }
+  // 상담 신청서를 내기 전: 신청서로 가는 길은 서랍 맨 위 상담 카드 하나, 검사 줄은 꺼진 버튼만 (10-29 건우님)
+  if (i.lockReasons.includes('counsel_pending')) return { label: t('line.counselLocked'), tone: 'info', actions: [], disabled: ['launch', 'forward'] }
   if (i.lockReasons.length > 0) return { label: t('line.checking'), tone: 'warning', actions: ['contact'] }
   if (i.examStatusEnabled && i.examStatus === 'completed') return { label: t('line.completed'), tone: 'success', actions: ['result_help'] }
   if (i.examStatusEnabled && i.examStatus === 'in_progress') return { label: t('line.inProgress'), tone: 'info', actions: ['continue'] }

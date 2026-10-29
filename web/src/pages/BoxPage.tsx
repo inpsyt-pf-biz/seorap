@@ -113,8 +113,6 @@ export default function BoxPage() {
     } else if (a === 'forward') setSheetLine(line)
     else if (a === 'resend') setPending({ kind: 'resend', line })
     else if (a === 'reforward') setPending({ kind: 'reforward', line })
-    // 잠긴 줄의 [신청서 쓰기]는 그 주문의 상담 신청서로 (B2)
-    else if (a === 'counsel_form') navigate(`/box/counsel/${group.orderId}`)
   }
 
   const logout = () => guard(async () => { await api('logout', {}); navigate('/', { replace: true, state: { loggedOut: true } }) })
