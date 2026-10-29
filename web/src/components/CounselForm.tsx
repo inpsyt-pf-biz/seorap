@@ -1,6 +1,6 @@
 import { Box, Button, Checkbox, Divider, FormControlLabel, FormHelperText, Radio, RadioGroup, Stack, TextField, ToggleButton, Typography } from '@mui/material'
 import {
-  type AnswerProblem, type Answers, type AvailabilityAnswer, type FormDefinition, type FormField, DEFAULT_AVAILABILITY, LIMITS,
+  type AnswerProblem, type Answers, type AvailabilityAnswer, type AvailabilityLabel, type FormDefinition, type FormField, DEFAULT_AVAILABILITY, LIMITS,
 } from '@core/counselForm.ts'
 import { type CopyKey, t } from '@core/copy.ko.ts'
 import { tokens } from '../theme/seorap'
@@ -34,9 +34,10 @@ function Availability({ f, value, onChange, disabled }: { f: FormField; value: A
   const a: AvailabilityAnswer = value ?? { cells: [] }
   const toggle = (cell: string) => onChange({ ...a, cells: a.cells.includes(cell) ? a.cells.filter((c) => c !== cell) : [...a.cells, cell] })
   const pick = (key: 'method' | 'contactTime', v: string) => onChange({ ...a, [key]: a[key] === v ? undefined : v })
+  const text = (k: AvailabilityLabel) => cfg.labels?.[k] || t(`form.avail.${k}`)
   return (
     <Stack spacing={2}>
-      <Typography variant="body2" color="text.secondary">{t('form.avail.pick')}</Typography>
+      <Typography variant="body2" color="text.secondary">{text('pick')}</Typography>
       <Box sx={{ display: 'grid', gridTemplateColumns: `56px repeat(${cfg.slots.length}, 1fr)`, gap: 1, alignItems: 'center' }}>
         <span />
         {cfg.slots.map((s) => (
@@ -62,15 +63,15 @@ function Availability({ f, value, onChange, disabled }: { f: FormField; value: A
       </Box>
       {cfg.askStartDate && (
         <TextField
-          type="date" label={t('form.avail.start')} value={a.startDate ?? ''} disabled={disabled}
+          type="date" label={text('start')} value={a.startDate ?? ''} disabled={disabled}
           onChange={(e) => onChange({ ...a, startDate: e.target.value || undefined })}
           slotProps={{ inputLabel: { shrink: true } }}
         />
       )}
-      {([['method', 'form.avail.method', cfg.methods], ['contactTime', 'form.avail.contact', cfg.contactTimes]] as const).map(([key, label, opts]) =>
+      {([['method', 'method', cfg.methods], ['contactTime', 'contact', cfg.contactTimes]] as const).map(([key, label, opts]) =>
         opts.length > 0 && (
           <Stack key={key} spacing={1}>
-            <Typography variant="body2">{t(label)}</Typography>
+            <Typography variant="body2">{text(label)}</Typography>
             {/* 손가락으로 누르기 쉽게 줄을 채우는 큰 버튼 (10-29 휴대폰 검수: 칩은 작다). 3개까지는 한 줄, 그보다 많으면 두 칸씩 */}
             <Box sx={{ display: 'grid', gridTemplateColumns: `repeat(${opts.length <= 3 ? opts.length : 2}, 1fr)`, gap: 1 }}>
               {opts.map((o) => (
