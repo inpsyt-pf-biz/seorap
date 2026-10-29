@@ -113,6 +113,8 @@ export default function BoxPage() {
     } else if (a === 'forward') setSheetLine(line)
     else if (a === 'resend') setPending({ kind: 'resend', line })
     else if (a === 'reforward') setPending({ kind: 'reforward', line })
+    // 잠긴 줄의 [신청서 쓰기]는 그 주문의 상담 신청서로 (B2)
+    else if (a === 'counsel_form') navigate(`/box/counsel/${group.orderId}`)
   }
 
   const logout = () => guard(async () => { await api('logout', {}); navigate('/', { replace: true, state: { loggedOut: true } }) })
@@ -130,6 +132,20 @@ export default function BoxPage() {
         {box.noticeBanner && <Alert severity="info">{box.noticeBanner}</Alert>}
         <Typography variant="h5">{t('box.title', { name: box.ownerName })}</Typography>
         <Typography variant="body2" color="text.secondary">{t('box.summary', { n: box.notStartedCount })}</Typography>
+        {/* 상담 카드 (B2): 신청서를 내기 전에는 검사가 잠겨 있으므로 맨 위에 둔다 */}
+        {box.counsel.map((c) => (
+          <Box key={c.orderId} sx={{ p: 2, borderRadius: 3, bgcolor: tokens.surface[0], border: `1px solid ${c.submitted ? tokens.surface[200] : tokens.brand[300]}` }}>
+            <Stack spacing={1}>
+              <Typography variant="subtitle1" sx={{ fontWeight: 700 }}>{t(c.submitted ? 'counsel.card.doneTitle' : 'counsel.card.title')}</Typography>
+              <Typography variant="body2" color="text.secondary">
+                {c.submitted ? t('counsel.card.doneBody') : t('counsel.card.body', { product: c.productName })}
+              </Typography>
+              {!c.submitted && (
+                <Button variant="contained" onClick={() => navigate(`/box/counsel/${c.orderId}`)}>{t('counsel.card.button')}</Button>
+              )}
+            </Stack>
+          </Box>
+        ))}
         <Tabs value={0} onChange={(_, v) => v === 1 && navigate('/box/history')}>
           <Tab label={t('box.tab.mine')} />
           <Tab label={t('box.tab.history')} />

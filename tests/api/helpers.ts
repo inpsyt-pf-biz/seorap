@@ -58,7 +58,8 @@ export async function latestOtp(last4digits: string): Promise<string> {
 
 // 테스트용 설정. OTP 재요청 간격(60초)·횟수 한도에 테스트가 걸리지 않게 하고,
 // 서랍 기간(기본 12개월)을 길게 잡아 시드의 지난 구매(S3, 2026-09-30)가 날짜가 지나도 서랍에서 빠지지 않게 한다.
-const TEST_SETTINGS = { otp_resend_seconds: 0, otp_per_phone_hour: 100, otp_per_phone_day: 100, box_window_months: 120 }
+// 상담 원장은 가짜(counsel_mode = mock)로 바꿔, 상담 어드민 스택 없이도 시험이 돈다. 검수 전에는 db:reset 으로 되돌린다.
+const TEST_SETTINGS = { otp_resend_seconds: 0, otp_per_phone_hour: 100, otp_per_phone_day: 100, box_window_months: 120, counsel_mode: 'mock' }
 
 // db:reset 직후 첫 파일만 함수의 설정 캐시(30초)가 비워질 때까지 기다린다.
 export async function fastOtp() {

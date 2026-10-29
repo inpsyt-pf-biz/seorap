@@ -1,4 +1,5 @@
 import { box } from './handlers/box.ts'
+import { counselForm, counselSubmit } from './handlers/counsel.ts'
 import { devOutbox } from './handlers/dev.ts'
 import { entry } from './handlers/entry.ts'
 import { forwardCancel, forwardCreate, forwardDirect, forwardResend } from './handlers/forward.ts'
@@ -31,6 +32,8 @@ export const routes: Record<string, Handler> = {
   'POST forward/launch': forwardLaunch,
   'POST forward/code': forwardCode,
   'GET help': help,
+  'POST counsel/form': counselForm,
+  'POST counsel/submit': counselSubmit,
   'GET dev/outbox': devOutbox,
 }
 

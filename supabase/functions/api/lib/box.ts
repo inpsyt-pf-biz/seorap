@@ -2,6 +2,7 @@ import type { BoxGroup, BoxLine, BoxResponse, HistoryItem, HistoryResponse, Hist
 import { type LineInput, lineStatus } from '../../_shared/core/lineStatus.ts'
 import { formatPhone, maskPhone } from '../../_shared/core/phone.ts'
 import { decrypt } from '../../_shared/crypto.ts'
+import { counselItems } from './counsel.ts'
 import { db, must } from './db.ts'
 import { type VoucherRow, VOUCHER_COLS } from './ownership.ts'
 import type { Settings } from './settings.ts'
@@ -126,6 +127,9 @@ export async function buildBox(recipientId: string, s: Settings): Promise<BoxRes
     notStartedCount: groups.flatMap((g) => g.lines).filter((l) => l.status.actions.includes('launch')).length,
     noticeBanner: s.notice_banner,
     pinSet: rec.pin_hash !== null,
+    counsel: (await counselItems(orders.map((o) => o.id))).map((c) => ({
+      orderId: c.orderId, productName: c.productName, submitted: c.submittedAt !== null, submittedAt: c.submittedAt,
+    })),
     groups,
   }
 }

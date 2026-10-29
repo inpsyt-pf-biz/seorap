@@ -46,6 +46,8 @@ async function boxLink(recipientId: string, scenario: string) {
 async function order(o: {
   recipientId: string; orderNo: string; paidAt: string; productName: string; optionName: string; amount: number;
   tests: TestUnit[]; units: Unit[]; counsel?: boolean; ordererName?: string; recipientName: string
+  // 스토어 관리코드. 상담 어드민의 상품 연결이 이 값으로 신청서 템플릿을 고른다 (B2)
+  manageCode?: string
 }) {
   const ord = must(await db.from('orders').insert({
     source: 'naver_api', external_order_id: o.orderNo, recipient_id: o.recipientId, paid_at: o.paidAt, ordered_at: o.paidAt,
@@ -61,7 +63,9 @@ async function order(o: {
   const expected = o.tests.reduce((a, b) => a + b.count, 0)
   const anyFailed = o.units.some((u) => u.issue === 'failed')
   const item = must(await db.from('order_items').insert({
-    order_id: ord.id, naver_product_order_id: `${o.orderNo}-1`, naver_product_id: `NP-${o.orderNo}`, option_code: 'OPT-1',
+    // 상품주문번호는 실제처럼 숫자만 (상담 원장이 숫자만 받는다)
+    order_id: ord.id, naver_product_order_id: `${o.orderNo}01`, naver_product_id: `NP-${o.orderNo}`, option_code: 'OPT-1',
+    manage_code: o.manageCode ?? null,
     product_name: o.productName, option_name: o.optionName, quantity: 1, payment_amount: o.amount, mapping_id: mapping.id,
     process_status: anyFailed ? 'issue_failed' : 'dispatched', dispatch_status: anyFailed ? 'none' : 'done',
   }).select('id').single(), 'order item')
@@ -136,7 +140,7 @@ await boxLink(r2, 'S2')
 await order({
   recipientId: r2, recipientName: '김철수', orderNo: '2026102200002', paidAt: '2026-10-22T02:00:00Z',
   productName: 'GOLDEN 커플 상담 패키지', optionName: '커플 상담 1회 + GOLDEN 2매', amount: 150000,
-  tests: [GOLDEN2], units: [{}, {}], counsel: true,
+  tests: [GOLDEN2], units: [{}, {}], counsel: true, manageCode: 'STS-CPL-S',
 })
 
 // S4 선물 주문 (구매자 ≠ 수취인)
@@ -205,6 +209,15 @@ await boxLink(r10, 'SR')
 await order({
   recipientId: r10, recipientName: '윤봉길', orderNo: '2026102200015', paidAt: '2026-10-22T09:00:00Z',
   productName: 'GOLDEN 성격유형검사', optionName: '12매', amount: 300000, tests: [{ ...GOLDEN1, count: 12 }], units: Array.from({ length: 12 }, () => ({})),
+})
+
+// SC 상담 원장 전달 실패 시험용 (가짜 원장이 MOCK-FAIL 넘기기를 거부한다)
+const r11 = await recipient('안중근', '01030303030', '2026-10-22T10:00:00Z', '2026-10-22T10:00:00Z')
+await boxLink(r11, 'SC')
+await order({
+  recipientId: r11, recipientName: '안중근', orderNo: '2026102200016', paidAt: '2026-10-22T10:00:00Z',
+  productName: 'GOLDEN 커플 상담 패키지', optionName: '커플 상담 1회 + GOLDEN 1매', amount: 120000,
+  tests: [GOLDEN1], units: [{}], counsel: true, manageCode: 'MOCK-FAIL',
 })
 
 console.log('seed done')
