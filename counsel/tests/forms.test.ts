@@ -172,12 +172,14 @@ Deno.test({ name: '신청서 템플릿', sanitizeResources: false, sanitizeOps: 
     assertEquals([r.purchase_id, r.created], [pid, true])
   })
 
-  await t.step('서랍 제출: 없는 판·연결되지 않은 상품은 INVALID_INPUT', async () => {
+  await t.step('서랍 제출: 없는 판·연결되지 않은 상품·꺼진 연결은 INVALID_INPUT', async () => {
     const { id } = await newPublished()
     const code = `TF-${tag()}`
     assert((await rpcErr(service.rpc('rpc_seorap_submit_application', { p: submission(id16(), code, id, 1) }))).includes('COUNSEL:INVALID_INPUT'))
     await link(code, id)
     assert((await rpcErr(service.rpc('rpc_seorap_submit_application', { p: submission(id16(), code, id, 9) }))).includes('COUNSEL:INVALID_INPUT'))
+    await link(code, id, false)
+    assert((await rpcErr(service.rpc('rpc_seorap_submit_application', { p: submission(id16(), code, id, 1) }))).includes('COUNSEL:INVALID_INPUT'))
   })
 } })
 
