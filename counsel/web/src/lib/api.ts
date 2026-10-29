@@ -3,7 +3,9 @@ import { CENTER_COLUMNS, type Center, type CenterInput } from '@counsel-core/cen
 import { CounselError, toCounselError } from '@counsel-core/errors.ts'
 import { NAVER_ORDER_COLUMNS, type NaverOrderInfo, type NaverOrdererMasked, type NaverSettlement } from '@counsel-core/naverOrder.ts'
 import { PURCHASE_TEST_COLUMNS, type PurchaseTest } from '@counsel-core/exams.ts'
+import type { FormLink, FormTemplateDetail, FormTemplateRow } from '@counsel-core/forms.ts'
 import { INBOX_COLUMNS, type InboxItem } from '@counsel-core/inbox.ts'
+import type { FormDefinition } from '@seorap-core/counselForm.ts'
 import { PURCHASE_LIST_COLUMNS, type PurchaseInput, type PurchaseRow, type PurchaseType, type SessionStatus } from '@counsel-core/purchases.ts'
 import { SESSION_EVENT_COLUMNS, type SessionAction, type SessionEvent } from '@counsel-core/sessions.ts'
 import type { MyContext } from '../shell/session'
@@ -41,8 +43,10 @@ export type PurchaseDetail = {
     paid_at: string | null; purchase_memo: string | null; admin_memo: string | null; version: number; created_at: string
   }
   application: Record<string, string | boolean | null> | null
-  sensitive: { medication_diagnosis: string | null; result_file_url: string | null } | null
+  sensitive: { medication_diagnosis: string | null; result_file_url: string | null; extra: AnswerItem[] } | null
   marketing: { referral_source: string | null } | null
+  // 서랍에서 낸 신청서의 템플릿·판과 원장 칸에 연결되지 않은 답 (서랍 B2)
+  answers: { template_id: string; template_name: string; template_version: number; extra: AnswerItem[] } | null
   naver: NaverOrderInfo | null
   orderer: NaverOrdererMasked | null
   // 관리자가 아니면 DB가 0행을 돌려준다
@@ -68,14 +72,15 @@ export type SessionDetail = {
 }
 
 export type PurchaseNote = { id: number; body: string; author: string | null; created_at: string }
+export type AnswerItem = { id: string; label: string; value: string }
 
 // 구매 건 상세 페이지용. 민감정보·마케팅·주문자·정산은 표를 나눠 두고 따로 읽는다(볼 수 있는 사람이 다르다).
 export async function getPurchaseDetail(purchaseId: string): Promise<PurchaseDetail> {
-  const [purchase, application, sensitive, marketing, naver, orderer, settlement, sessions, notes, tests] = await Promise.all([
+  const [purchase, application, sensitive, marketing, naver, orderer, settlement, sessions, notes, tests, answerRow] = await Promise.all([
     run<PurchaseDetail['purchase']>(supabase.from('purchases')
       .select('purchase_type, source, product_name, test_option, counsel_option, paid_at, purchase_memo, admin_memo, version, created_at').eq('id', purchaseId).single()),
     run<PurchaseDetail['application']>(supabase.from('applications').select('*').eq('purchase_id', purchaseId).maybeSingle()),
-    run<PurchaseDetail['sensitive']>(supabase.from('application_sensitive').select('medication_diagnosis, result_file_url').eq('purchase_id', purchaseId).maybeSingle()),
+    run<PurchaseDetail['sensitive']>(supabase.from('application_sensitive').select('medication_diagnosis, result_file_url, extra').eq('purchase_id', purchaseId).maybeSingle()),
     run<PurchaseDetail['marketing']>(supabase.from('application_marketing').select('referral_source').eq('purchase_id', purchaseId).maybeSingle()),
     run<PurchaseDetail['naver']>(supabase.from('naver_product_orders').select(NAVER_ORDER_COLUMNS).eq('purchase_id', purchaseId).maybeSingle()),
     run<PurchaseDetail['orderer']>(supabase.from('naver_orderers').select('name_masked, tel_masked').eq('purchase_id', purchaseId).maybeSingle()),
@@ -85,7 +90,13 @@ export async function getPurchaseDetail(purchaseId: string): Promise<PurchaseDet
       .select('id, seq, status, center_id, scheduled_at, method, assigned_at, version').eq('purchase_id', purchaseId).order('seq')),
     run<PurchaseNote[]>(supabase.from('purchase_notes').select('id, body, author, created_at').eq('purchase_id', purchaseId).order('created_at', { ascending: false })),
     run<PurchaseTest[]>(supabase.from('purchase_tests').select(PURCHASE_TEST_COLUMNS).eq('purchase_id', purchaseId).order('unit_no').order('created_at')),
+    run<{ template_id: string; template_version: number; extra: AnswerItem[]; form_templates: { name: string } } | null>(
+      supabase.from('application_answers').select('template_id, template_version, extra, form_templates(name)').eq('purchase_id', purchaseId).maybeSingle(),
+    ),
   ])
+  const answers = answerRow
+    ? { template_id: answerRow.template_id, template_name: answerRow.form_templates.name, template_version: answerRow.template_version, extra: answerRow.extra }
+    : null
   const events = sessions.length === 0 ? [] : await run<SessionEvent[]>(supabase.from('session_events')
     .select(SESSION_EVENT_COLUMNS).in('session_id', sessions.map((x) => x.id)).order('at', { ascending: false }).order('id', { ascending: false }))
   const people = [...new Set([...events.map((e) => e.actor), ...notes.map((n) => n.author)].filter((x): x is string => !!x))]
@@ -93,7 +104,42 @@ export async function getPurchaseDetail(purchaseId: string): Promise<PurchaseDet
     supabase.from('profiles').select('user_id, display_name').in('user_id', people),
   )
   const names = Object.fromEntries(profiles.map((x) => [x.user_id, x.display_name]))
-  return { purchase, application, sensitive, marketing, naver, orderer, settlement, sessions, events, notes, tests, names }
+  return { purchase, application, sensitive, marketing, answers, naver, orderer, settlement, sessions, events, notes, tests, names }
+}
+
+// 신청서 템플릿 (서랍 B2). 쓰기는 DB 함수로만, 판은 고칠 수 없다
+export async function listFormTemplates(): Promise<FormTemplateRow[]> {
+  const [templates, links] = await Promise.all([
+    run<Omit<FormTemplateRow, 'link_count'>[]>(supabase.from('form_templates').select('id, name, published_version, version, updated_at').order('name')),
+    run<{ template_id: string }[]>(supabase.from('form_product_links').select('template_id')),
+  ])
+  return templates.map((x) => ({ ...x, link_count: links.filter((l) => l.template_id === x.id).length }))
+}
+
+export function getFormTemplate(id: string): Promise<FormTemplateDetail> {
+  return run<FormTemplateDetail>(supabase.from('form_templates').select('id, name, draft, published_version, version').eq('id', id).single())
+}
+
+export function createFormTemplate(name: string, draft: FormDefinition): Promise<string> {
+  return run<string>(supabase.rpc('rpc_create_form_template', { p_name: name, p_draft: draft }))
+}
+
+export function saveFormDraft(id: string, version: number, name: string | null, draft: FormDefinition): Promise<number> {
+  return run<number>(supabase.rpc('rpc_save_form_draft', { p_id: id, p_version: version, p_name: name, p_draft: draft }))
+}
+
+export function publishFormTemplate(id: string, version: number): Promise<number> {
+  return run<number>(supabase.rpc('rpc_publish_form_template', { p_id: id, p_version: version }))
+}
+
+export function listFormLinks(): Promise<FormLink[]> {
+  return run<FormLink[]>(supabase.from('form_product_links').select('manage_code, template_id, purchase_type, flow, enabled, label').order('manage_code'))
+}
+
+export async function setFormLink(l: Omit<FormLink, 'flow'>): Promise<void> {
+  await run(supabase.rpc('rpc_set_form_link', {
+    p_manage_code: l.manage_code, p_template_id: l.template_id, p_purchase_type: l.purchase_type, p_enabled: l.enabled, p_label: l.label,
+  }))
 }
 
 export function updateSession(

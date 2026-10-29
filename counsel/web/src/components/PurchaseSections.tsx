@@ -16,6 +16,16 @@ export function Row({ label, value }: { label: CopyKey; value: ReactNode }) {
   )
 }
 
+// 템플릿 문항의 질문을 이름표로 쓰는 줄 (신청서 추가 답변). 이름표가 문구 사전 키가 아니라 질문 그대로다
+function AnswerRow({ label, value }: { label: string; value: string }) {
+  return (
+    <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: '170px 1fr' }, gap: { xs: 0.25, sm: 2 }, py: 0.75 }}>
+      <Typography variant="body2" color="text.secondary">{label}</Typography>
+      <Typography variant="body2" sx={{ whiteSpace: 'pre-line', wordBreak: 'break-all' }}>{value || t('center.empty')}</Typography>
+    </Box>
+  )
+}
+
 export function Section({ title, note, children }: { title: CopyKey; note?: CopyKey; children: ReactNode }) {
   return (
     <Box>
@@ -57,9 +67,17 @@ export function ApplicationTab({ d }: { d: PurchaseDetail }) {
             {APP_FIELDS.map(([label, key]) => <Row key={key} label={label} value={a[key] as string | null} />)}
             <Row label="application.field.consent" value={yesNo(a.consent_third_party)} />
             <Row label="application.field.refund" value={yesNo(a.refund_policy_checked)} />
+            {d.answers && (
+              <Row label="application.template" value={t('application.templateValue', { name: d.answers.template_name, n: d.answers.template_version })} />
+            )}
           </>
         )}
       </Section>
+      {d.answers && d.answers.extra.length > 0 && (
+        <Section title="application.answers" note="application.answersNote">
+          {d.answers.extra.map((x) => <AnswerRow key={x.id} label={x.label} value={x.value} />)}
+        </Section>
+      )}
       {a && (
         <>
           <Divider />
@@ -67,6 +85,7 @@ export function ApplicationTab({ d }: { d: PurchaseDetail }) {
             <Alert severity="warning" sx={{ mb: 1 }}>{t('application.sensitiveNote')}</Alert>
             <Row label="application.field.medication" value={d.sensitive?.medication_diagnosis} />
             <Row label="application.field.resultFile" value={d.sensitive?.result_file_url} />
+            {(d.sensitive?.extra ?? []).map((x) => <AnswerRow key={x.id} label={x.label} value={x.value} />)}
           </Box>
           <Box>
             <Typography variant="caption" color="text.secondary">{t('application.marketingNote')}</Typography>

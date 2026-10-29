@@ -8,6 +8,9 @@ import AdminShell from './pages/admin/counsel/AdminShell'
 import CenterDetailPage from './pages/admin/counsel/CenterDetailPage'
 import CenterFormPage from './pages/admin/counsel/CenterFormPage'
 import CentersListPage from './pages/admin/counsel/CentersListPage'
+import FormEditPage from './pages/admin/counsel/FormEditPage'
+import FormLinksPage from './pages/admin/counsel/FormLinksPage'
+import FormsListPage from './pages/admin/counsel/FormsListPage'
 import InboxPage from './pages/admin/counsel/InboxPage'
 import PurchaseDetailPage from './pages/admin/counsel/PurchaseDetailPage'
 import PurchaseFormPage from './pages/admin/counsel/PurchaseFormPage'
@@ -58,6 +61,10 @@ export default function App() {
         <Route path="purchases/new" element={<RequireCap cap="purchase.manage"><PurchaseFormPage /></RequireCap>} />
         <Route path="purchases/inbox" element={<InboxPage />} />
         <Route path="purchases/:id" element={<PurchaseDetailPage />} />
+        {/* 신청서 템플릿(서랍 B2): 담당자도 보기는 되고, 편집·게시·연결은 화면과 DB가 관리자만 허용한다 */}
+        <Route path="forms" element={<FormsListPage />} />
+        <Route path="forms/links" element={<FormLinksPage />} />
+        <Route path="forms/:id" element={<FormEditPage />} />
       </Route>
       <Route path="*" element={<Home />} />
     </Routes>

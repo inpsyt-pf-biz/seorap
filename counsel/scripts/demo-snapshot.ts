@@ -35,6 +35,8 @@ const TABLES: [string, string][] = [
   ['purchases', '*'], ['applications', '*'], ['application_sensitive', '*'], ['application_marketing', '*'],
   ['naver_product_orders', '*'], ['naver_orderers', 'purchase_id, name_masked, tel_masked, created_at, updated_at'], ['naver_settlements', '*'],
   ['sessions', '*'], ['session_events', '*'], ['purchase_notes', '*'], ['purchase_tests', '*'], ['application_inbox', '*'],
+  // 신청서 템플릿(서랍 B2). 체험판은 읽기만 한다(편집·게시 함수는 rpc.ts 에 없다)
+  ['form_templates', '*'], ['form_template_versions', '*'], ['form_product_links', '*'], ['application_answers', '*'],
 ]
 
 const tables: Record<string, Record<string, unknown>[]> = {}

@@ -34,6 +34,7 @@ function fixture(): Tables {
     applications: [{ purchase_id: 'p1', client_name: '가나다', guardian_name: null, test_name: 'K-CBCL', submitted_at: '2026-10-01T01:00:00+00:00' }],
     application_sensitive: [],
     application_marketing: [],
+    application_answers: [],
     naver_product_orders: [
       { purchase_id: 'p1', naver_product_order_id: '111', external_order_id: '900', needs_review: false, version: 1 },
       { purchase_id: 'p2', naver_product_order_id: '222', external_order_id: '901', needs_review: true, review_reason: '확인', version: 1 },

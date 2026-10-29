@@ -8,6 +8,7 @@ import { adminLayout, tokens } from '../../../theme/admin'
 const NAV: { to: string; label: CopyKey }[] = [
   { to: '/admin/counsel/purchases', label: 'nav.purchases' },
   { to: '/admin/counsel/centers', label: 'nav.centers' },
+  { to: '/admin/counsel/forms', label: 'nav.forms' },
 ]
 
 // 인싸이트 쪽 바깥 틀. 나중에 서랍 어드민으로 옮길 때는 이 틀 대신 서랍 어드민 틀 안에 페이지들을 넣는다.

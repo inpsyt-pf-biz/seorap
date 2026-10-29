@@ -13,6 +13,8 @@ export default defineConfig({
       // 서랍 화면의 테마·공용 부품을 복사하지 않고 원본에서 가져온다
       '@seorap-web': here('../../web/src'),
       '@seorap-core': here('../../supabase/functions/_shared/core'),
+      // 서랍 화면 부품(예: CounselForm)이 서랍 안에서 쓰는 이름 그대로 공용 규칙을 찾게 한다
+      '@core': here('../../supabase/functions/_shared/core'),
     },
     // 서랍 원본 파일이 부르는 라이브러리도 이 앱에 설치된 것 하나만 쓴다 (React·MUI 두 벌 방지)
     dedupe: ['react', 'react-dom', '@mui/material', '@emotion/react', '@emotion/styled'],

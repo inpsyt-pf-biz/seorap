@@ -12,6 +12,7 @@
       "@counsel-core/*": ["../core/*"],
       "@seorap-web/*": ["../../web/src/*"],
       "@seorap-core/*": ["../../supabase/functions/_shared/core/*"],
+      "@core/*": ["../../supabase/functions/_shared/core/*"],
       "@mui/*": ["./node_modules/@mui/*"],
       "@emotion/*": ["./node_modules/@emotion/*"],
       "react": ["./node_modules/@types/react"],
