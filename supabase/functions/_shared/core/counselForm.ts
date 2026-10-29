@@ -18,7 +18,10 @@ export type AvailabilityConfig = {
   askStartDate: boolean
   methods: string[]
   contactTimes: string[]
+  // 신청서에 보이는 안내·질문 문구. 비우면 서랍 기본 문구(form.avail.*)
+  labels?: Partial<Record<AvailabilityLabel, string>>
 }
+export type AvailabilityLabel = 'pick' | 'start' | 'method' | 'contact'
 export const DEFAULT_AVAILABILITY: AvailabilityConfig = {
   days: [{ id: 'weekday', label: '평일' }, { id: 'sat', label: '토요일' }, { id: 'sun', label: '일요일' }],
   slots: [

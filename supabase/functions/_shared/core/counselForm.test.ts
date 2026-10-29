@@ -110,3 +110,18 @@ Deno.test('splitAnswers: 민감정보인데 기존 칸이 없으면 민감 추�
   assertEquals(s.extra, [])
   assertEquals(s.sensitiveExtra, [{ id: 'dx', label: '진단명', value: 'ADHD' }])
 })
+
+Deno.test('가능 시간대: 관리자가 바꾼 상담 방식·연락 시간·질문 문구', () => {
+  const def: FormDefinition = {
+    intro: '',
+    fields: [{
+      id: 'when', type: 'availability', label: '상담 가능한 시간대', required: true,
+      availability: { ...DEFAULT_AVAILABILITY, methods: ['방문', '전화'], contactTimes: [], labels: { method: '희망하는 상담 형태' } },
+    }],
+  }
+  assertEquals(checkDefinition(def), [])
+  assertEquals(checkAnswers(def, { when: { cells: ['weekday|morning'], method: '전화' } }), {})
+  assertEquals(checkAnswers(def, { when: { cells: ['weekday|morning'], method: '화상' } }), { when: 'option' })
+  // 연락 시간 선택지를 비우면 묻지 않는다: 값이 오면 없는 선택지
+  assertEquals(checkAnswers(def, { when: { cells: ['weekday|morning'], contactTime: '평일 오전' } }), { when: 'option' })
+})
