@@ -33,6 +33,21 @@ describe('theme', () => {
     expect(tokens.radius).toEqual({ control: '10px', card: '12px', sheet: '16px', pill: '999px' })
   })
 
+  it('제목(h4~h6)은 리디바탕 한 굵기, 본문·버튼은 Pretendard 그대로다', () => {
+    for (const v of ['h4', 'h5', 'h6'] as const) {
+      expect(String(theme.typography[v].fontFamily)).toMatch(/^"RIDIBatang"/)
+      expect(theme.typography[v].fontWeight).toBe(400)
+    }
+    expect(String(theme.typography.body1.fontFamily ?? theme.typography.fontFamily)).toMatch(/Pretendard/)
+    expect(String(theme.typography.button.fontFamily ?? theme.typography.fontFamily)).toMatch(/Pretendard/)
+  })
+
+  it('리디바탕은 font-display: swap 으로 불러와 글꼴이 늦어도 글자가 먼저 보인다, 파비콘은 C1 로고', async () => {
+    const html = (await import('../../index.html?raw')).default as string
+    expect(html).toMatch(/@font-face\s*{[^}]*font-family:\s*'RIDIBatang'[^}]*font-display:\s*swap/)
+    expect(html).toContain('href="/brand/seorap-logo.svg"')
+  })
+
   it('키보드 포커스 링이 모든 버튼·탭·칩에 걸린다 (ButtonBase)', () => {
     const root = theme.components?.MuiButtonBase?.styleOverrides?.root as Record<string, Record<string, string>> | undefined
     expect(root?.['&.Mui-focusVisible']).toMatchObject({ outline: '2px solid var(--seorap-focus)', outlineOffset: '2px' })

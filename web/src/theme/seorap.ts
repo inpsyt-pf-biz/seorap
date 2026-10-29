@@ -50,6 +50,13 @@ export const tokens = {
     src: '/brand/seorap-logo.png',
     alt: '인싸이트 서랍',
   },
+  // 브랜드 벡터 (로고 C1 손잡이, 리디바탕 "서랍" 윤곽선). 원본: Works-archive assets/brand/seorap-logo-c1-*.svg · seorap-wordmark-ridibatang.svg
+  // 워드마크는 글꼴 없이도 같은 모양으로 보이고, 색은 글자색(currentColor)을 따른다
+  brand: {
+    handlePath: 'M35 75C47.5 86.25 112.5 86.25 125 75',
+    wordmarkViewBox: '31 -782 1824 960',
+    wordmarkPath: 'M696 176C714 179 744 178 755 175C763 173 765 167 766 158C770 124 777 53 777 11V-742C777 -750 773 -754 762 -758C733 -769 665 -782 634 -782C630 -782 626 -781 623 -776C619 -770 613 -752 610 -740C638 -734 667 -722 679 -713C691 -704 696 -700 696 -685V-456H600C561 -456 497 -463 487 -463C473 -463 468 -461 468 -449C468 -437 474 -409 480 -390H696ZM68 -124C76 -118 84 -119 91 -125C145 -168 232 -280 300 -388C374 -301 444 -220 515 -130C531 -142 554 -163 566 -177C572 -184 573 -191 566 -198C489 -276 416 -354 335 -444C375 -513 402 -574 402 -606C402 -619 399 -626 391 -632C362 -653 289 -675 267 -675C264 -675 262 -674 259 -671C253 -664 245 -652 239 -641C274 -627 304 -609 304 -587C304 -491 121 -243 31 -158C44 -143 60 -130 68 -124Z M1069 -244C1196 -244 1428 -279 1596 -319V-244C1614 -241 1644 -242 1655 -245C1663 -247 1665 -253 1666 -262C1670 -296 1677 -367 1677 -409V-472H1843C1849 -491 1855 -519 1855 -531C1855 -543 1850 -545 1836 -545C1826 -545 1762 -535 1723 -535H1677V-742C1677 -750 1673 -754 1662 -758C1633 -769 1565 -782 1534 -782C1530 -782 1526 -781 1523 -776C1519 -770 1513 -754 1510 -742C1538 -736 1567 -724 1579 -715C1591 -706 1596 -702 1596 -687V-379C1451 -343 1218 -311 1094 -311V-435H1400C1408 -435 1413 -441 1413 -452V-657C1413 -677 1404 -684 1388 -684C1363 -684 1298 -680 1273 -680H1108C1069 -680 1025 -679 987 -686C982 -679 972 -660 972 -655C972 -651 975 -648 977 -646C993 -631 1017 -613 1042 -602C1068 -611 1088 -616 1115 -616H1332V-499H1083C1057 -499 1009 -506 985 -506C972 -506 965 -472 964 -463C989 -457 1013 -448 1013 -419V-305C1013 -265 1027 -244 1069 -244ZM1221 156H1637C1652 156 1667 150 1667 125V-179C1667 -189 1664 -194 1655 -198C1631 -208 1583 -216 1552 -217C1548 -217 1545 -216 1542 -211C1538 -205 1534 -189 1533 -179C1564 -175 1587 -160 1587 -133V-81H1257V-154C1257 -164 1254 -169 1245 -173C1221 -183 1173 -191 1142 -192C1138 -192 1135 -191 1132 -186C1128 -180 1124 -164 1123 -154C1154 -150 1177 -135 1177 -108V102C1177 140 1194 156 1221 156ZM1257 90V-15H1587V90Z',
+  },
 } as const
 
 // WCAG 상대 휘도 대비. 시험에서 토큰 조합을 검사할 때 쓴다
@@ -64,6 +71,11 @@ export function contrast(fg: string, bg: string): number {
   return (a + 0.05) / (b + 0.05)
 }
 
+const BODY_FONT =
+  '"Pretendard Variable", Pretendard, -apple-system, BlinkMacSystemFont, "Apple SD Gothic Neo", "Malgun Gothic", "Noto Sans KR", sans-serif'
+// 리디바탕은 index.html 의 @font-face(font-display: swap)로 불러온다. 늦으면 본문 글꼴로 먼저 보인다
+const HEADING_FONT = `"RIDIBatang", ${BODY_FONT}`
+
 export const theme = createTheme({
   palette: {
     primary: { main: tokens.teal[700], dark: tokens.teal[900], light: tokens.teal[500], contrastText: '#FFFFFF' },
@@ -72,12 +84,12 @@ export const theme = createTheme({
     divider: tokens.surface[200],
   },
   typography: {
-    fontFamily:
-      '"Pretendard Variable", Pretendard, -apple-system, BlinkMacSystemFont, "Apple SD Gothic Neo", "Malgun Gothic", "Noto Sans KR", sans-serif',
-    // 본문 16 · 보조 14 · 캡션 12 (12 미만 금지)
-    h4: { fontSize: '1.5rem', fontWeight: 700, lineHeight: 1.35 },
-    h5: { fontSize: '1.25rem', fontWeight: 700, lineHeight: 1.4 },
-    h6: { fontSize: '1.125rem', fontWeight: 600, lineHeight: 1.4 },
+    fontFamily: BODY_FONT,
+    // 본문 16 · 보조 14 · 캡션 12 (12 미만 금지).
+    // 제목만 리디바탕(굵기 Regular 하나뿐이라 위계는 크기로). 버튼·숫자·코드는 본문 글꼴
+    h4: { fontFamily: HEADING_FONT, fontSize: '1.625rem', fontWeight: 400, lineHeight: 1.35 },
+    h5: { fontFamily: HEADING_FONT, fontSize: '1.375rem', fontWeight: 400, lineHeight: 1.4 },
+    h6: { fontFamily: HEADING_FONT, fontSize: '1.1875rem', fontWeight: 400, lineHeight: 1.4 },
     body1: { fontSize: '1rem', fontWeight: 400, lineHeight: 1.5 },
     body2: { fontSize: '0.875rem', fontWeight: 400, lineHeight: 1.5 },
     caption: { fontSize: '0.75rem', fontWeight: 400, lineHeight: 1.5 },
