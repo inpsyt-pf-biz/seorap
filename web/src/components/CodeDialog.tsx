@@ -14,9 +14,13 @@ export default function CodeDialog({ code, onClose, onCopied }: { code: string |
       await navigator.clipboard.writeText(code)
       onCopied()
     } catch {
-      setFailed(true)
+      // 클립보드 API 가 없거나 막힌 인앱 브라우저: 코드를 선택해 예전 방식(execCommand)으로 한 번 더 복사해 본다
       const sel = window.getSelection()
       if (sel && codeRef.current) sel.selectAllChildren(codeRef.current)
+      let ok = false
+      try { ok = typeof document.execCommand === 'function' && document.execCommand('copy') } catch { ok = false }
+      if (ok) onCopied()
+      else setFailed(true)
     }
   }
   const close = () => { setFailed(false); onClose() }

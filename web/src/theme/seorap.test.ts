@@ -119,3 +119,19 @@ describe('닫힌 서랍 테마 (입장 화면)', () => {
     expect(root?.color).toBe(tokens.text.primary)
   })
 })
+
+describe('토큰 공개 모양 (상담 어드민이 그대로 가져다 쓴다)', () => {
+  it('공개 키가 고정돼 있다: 이름을 바꾸면 이 시험이 먼저 알린다', () => {
+    expect(Object.keys(tokens).sort()).toEqual(
+      ['amber', 'brand', 'brandVector', 'focus', 'layout', 'logo', 'radius', 'surface', 'teal', 'text', 'tone'].sort(),
+    )
+  })
+  it('brand 는 예전처럼 900·700·500·300·100 색 단계다 (어드민 호환. 값은 청록 계열)', () => {
+    for (const k of [900, 700, 500, 300, 100] as const) expect(tokens.brand[k]).toMatch(/^#[0-9A-F]{6}$/)
+    expect(tokens.brand[700]).toBe(tokens.teal[700])
+  })
+  it('로고·워드마크 벡터는 brandVector 에 있다', () => {
+    expect(tokens.brandVector.handlePath).toMatch(/^M/)
+    expect(tokens.brandVector.wordmarkPath).toMatch(/^M/)
+  })
+})

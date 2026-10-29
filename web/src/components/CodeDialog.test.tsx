@@ -49,3 +49,18 @@ describe('CodeDialog (코드 보기 창)', () => {
     expect(screen.queryByText(t('code.title'))).toBeNull()
   })
 })
+
+describe('CodeDialog: 클립보드 API 가 없는 인앱 브라우저', () => {
+  it('navigator.clipboard 가 없으면 선택 후 execCommand(copy) 로 복사하고, 되면 알림을 부른다', async () => {
+    const user = userEvent.setup()
+    Object.defineProperty(navigator, 'clipboard', { value: undefined, configurable: true })
+    const exec = vi.fn(() => true)
+    Object.defineProperty(document, 'execCommand', { value: exec, configurable: true })
+    const onCopied = vi.fn()
+    render(<CodeDialog code="TEST-0001-0002" onClose={() => {}} onCopied={onCopied} />)
+    await user.click(screen.getByRole('button', { name: t('code.copy') }))
+    expect(exec).toHaveBeenCalledWith('copy')
+    expect(onCopied).toHaveBeenCalledTimes(1)
+    expect(screen.queryByText(t('code.copyFailed'))).toBeNull()
+  })
+})

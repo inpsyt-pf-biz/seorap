@@ -7,7 +7,7 @@ function LogoMark({ size, onTeal }: { size: number; onTeal: boolean }) {
   return (
     <svg width={size} height={size} viewBox="0 0 160 160" aria-hidden="true" focusable="false">
       <rect data-part="logo-body" width="160" height="160" rx="35" fill={onTeal ? tokens.teal[500] : tokens.teal[700]} />
-      <path data-part="logo-handle" d={tokens.brand.handlePath} fill="none" stroke={tokens.amber[500]} strokeWidth="12.5" strokeLinecap="round" />
+      <path data-part="logo-handle" d={tokens.brandVector.handlePath} fill="none" stroke={tokens.amber[500]} strokeWidth="12.5" strokeLinecap="round" />
     </svg>
   )
 }
@@ -22,8 +22,8 @@ export default function Wordmark({ size = 'sm', onTeal = false }: { size?: 'sm' 
       <LogoMark size={logo} onTeal={onTeal} />
       <Stack spacing={0.5} sx={{ color: ink }}>
         <Typography variant="caption" sx={{ color: onTeal ? ink : 'text.secondary', lineHeight: 1 }}>{t('brand.parent')}</Typography>
-        <Box component="svg" viewBox={tokens.brand.wordmarkViewBox} aria-hidden="true" focusable="false" sx={{ height: word, width: word * 1.9, display: 'block' }}>
-          <path d={tokens.brand.wordmarkPath} fill="currentColor" />
+        <Box component="svg" viewBox={tokens.brandVector.wordmarkViewBox} aria-hidden="true" focusable="false" sx={{ height: word, width: word * 1.9, display: 'block' }}>
+          <path d={tokens.brandVector.wordmarkPath} fill="currentColor" />
         </Box>
       </Stack>
     </Stack>

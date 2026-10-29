@@ -1,5 +1,5 @@
 import { Alert, Box, Chip, Stack, Tab, Tabs, Typography } from '@mui/material'
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
 import type { HistoryItem, HistoryResponse } from '@core/apiTypes.ts'
 import { type CopyKey, t } from '@core/copy.ko.ts'
@@ -34,9 +34,21 @@ export default function HistoryPage() {
     })
   }, [])
 
+  // 서랍 화면과 같은 규칙: 성공했거나 이미 세션이 끝났을 때만 "로그아웃했어요"로 간다.
+  // 실패를 성공처럼 보이면 함께 쓰는 휴대폰에서 서랍이 열린 채 남는다
+  const busyRef = useRef(false)
+  const [logoutError, setLogoutError] = useState(false)
   const logout = async () => {
-    try { await api('logout', {}) } catch { /* 로그아웃 실패여도 첫 화면으로 보낸다 */ }
-    navigate('/', { replace: true, state: { loggedOut: true } })
+    if (busyRef.current) return
+    busyRef.current = true
+    setLogoutError(false)
+    try {
+      await api('logout', {})
+      navigate('/', { replace: true, state: { loggedOut: true } })
+    } catch (e) {
+      if (isSessionEnd(e)) navigate('/', { replace: true, state: { loggedOut: true } })
+      else { setLogoutError(true); busyRef.current = false }
+    }
   }
 
   if (expired) return <StatePage kind="sessionExpired" />
@@ -48,7 +60,7 @@ export default function HistoryPage() {
           <Tab label={t('box.tab.mine')} />
           <Tab label={t('box.tab.history')} />
         </Tabs>
-        {failed && <Alert severity="warning">{t('error.generic')}</Alert>}
+        {(failed || logoutError) && <Alert severity="warning">{t('error.generic')}</Alert>}
         {items && items.length === 0 && <Typography variant="body1" color="text.secondary">{t('history.empty')}</Typography>}
         {items && items.length > 0 && (
           <Stack component="ul" spacing={1} sx={{ listStyle: 'none', m: 0, p: 0 }}>
@@ -63,12 +75,10 @@ export default function HistoryPage() {
                       <Typography variant="body1" sx={{ fontWeight: 600, minWidth: 0 }}>{h.title}</Typography>
                       {h.chip && <Chip size="small" label={h.chip} sx={{ flexShrink: 0, bgcolor: tone.bg, color: tone.fg }} />}
                     </Stack>
-                    {i.action !== 'direct_share' && (
-                      <Stack direction="row" spacing={1.5} useFlexGap sx={{ flexWrap: 'wrap' }}>
-                        <Typography variant="body2">{t('history.unit', { test: i.testName, n: i.unitNo })}</Typography>
-                        {marks.map((m) => <Typography key={m} variant="body2" color="text.secondary">{m}</Typography>)}
-                      </Stack>
-                    )}
+                    <Stack direction="row" spacing={1.5} useFlexGap sx={{ flexWrap: 'wrap' }}>
+                      <Typography variant="body2">{t('history.unit', { test: i.testName, n: i.unitNo })}</Typography>
+                      {marks.map((m) => <Typography key={m} variant="body2" color="text.secondary">{m}</Typography>)}
+                    </Stack>
                     <Typography variant="body2" color="text.secondary">{formatKstDateTime(i.at)}</Typography>
                   </Stack>
                 </Box>

@@ -121,3 +121,26 @@ describe('HistoryPage', () => {
     expect(await screen.findByText('서랍 화면')).toBeTruthy()
   })
 })
+
+describe('HistoryPage 리뷰 반영', () => {
+  it('링크 직접 공유 줄에도 어떤 검사를 공유했는지 보인다', async () => {
+    open({ items: [{ ...base, id: 'd', action: 'direct_share', toName: null, toPhone: null, result: null }] satisfies HistoryItem[] })
+    expect(await screen.findByText('링크 직접 공유')).toBeTruthy()
+    expect(screen.getByText('STS 성인 기질검사 1번째')).toBeTruthy()
+  })
+  it('로그아웃이 실패하면 "로그아웃했어요"로 가지 않고 이 화면에서 오류를 알린다', async () => {
+    vi.stubGlobal('fetch', vi.fn(async (url: string) => (String(url).endsWith('/history') ? json(200, { items: [] }) : json(502, { error: { code: 'UPSTREAM_FAILED' } }))))
+    render(
+      <MemoryRouter initialEntries={['/box/history']}>
+        <Routes>
+          <Route path="/box/history" element={<HistoryPage />} />
+          <Route path="/" element={<div>첫 화면</div>} />
+        </Routes>
+      </MemoryRouter>,
+    )
+    await screen.findByText(EMPTY)
+    await userEvent.click(screen.getByRole('button', { name: '로그아웃' }))
+    expect(await screen.findByText(GENERIC)).toBeTruthy()
+    expect(screen.queryByText('첫 화면')).toBeNull()
+  })
+})
