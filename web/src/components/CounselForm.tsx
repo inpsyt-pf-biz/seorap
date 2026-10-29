@@ -16,11 +16,19 @@ type Props = {
   disabled?: boolean
 }
 
+// 제목이 이미 "(필수)"·"(선택)"으로 끝나면 표시를 다시 붙이지 않는다 (템플릿 문구가 스스로 밝힌 경우)
+const SELF_TAGGED = /[(（]\s*(필수|선택)\s*[)）]\s*$/
+
 function Title({ f }: { f: FormField }) {
   return (
-    <Stack direction="row" spacing={1} sx={{ alignItems: 'baseline' }}>
-      <Typography variant="subtitle1" sx={{ fontWeight: 700 }}>{f.label}</Typography>
-      <Typography variant="caption" color={f.required ? 'primary' : 'text.secondary'}>{t(f.required ? 'form.required' : 'form.optional')}</Typography>
+    <Stack direction="row" spacing={1} sx={{ alignItems: 'baseline', justifyContent: 'space-between' }}>
+      <Typography variant="subtitle1" sx={{ fontWeight: 700, minWidth: 0 }}>{f.label}</Typography>
+      {!SELF_TAGGED.test(f.label) && (
+        // 긴 제목 옆에서 "선/택"으로 깨지지 않게 줄바꿈·줄어듦을 막는다
+        <Typography variant="caption" color={f.required ? 'primary' : 'text.secondary'} style={{ whiteSpace: 'nowrap', flexShrink: 0 }}>
+          {t(f.required ? 'form.required' : 'form.optional')}
+        </Typography>
+      )}
     </Stack>
   )
 }

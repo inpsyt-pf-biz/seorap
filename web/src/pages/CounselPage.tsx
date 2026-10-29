@@ -113,9 +113,8 @@ export default function CounselPage() {
               <Typography variant="h5">{t('counsel.title')}</Typography>
               <Typography variant="body2" color="text.secondary">{form.productName}</Typography>
             </Stack>
-            <Box sx={{ p: 2, borderRadius: tokens.radius.card, bgcolor: tokens.surface[0] }}>
-              <CounselForm definition={form.definition} value={answers} onChange={setAnswers} errors={errors} disabled={busy} />
-            </Box>
+            {/* 흰 판으로 감싸지 않는다. 동의문·안내 상자가 한 겹이 되게 (UX 진단 F4: 카드 안의 카드) */}
+            <CounselForm definition={form.definition} value={answers} onChange={setAnswers} errors={errors} disabled={busy} />
             {message && <Alert severity="warning">{message}</Alert>}
             <Button variant="contained" size="large" disabled={busy} onClick={submit}>{t('counsel.submit')}</Button>
           </>
