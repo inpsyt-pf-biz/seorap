@@ -16,7 +16,8 @@ function cookie(value: string, maxAgeSec: number | null): string {
   return `${COOKIE}=${value}; Path=/; HttpOnly; SameSite=Lax${age}${secure}`
 }
 
-// via 'pin' 이면 last_otp_at 을 비운다. PIN 바꾸기·상담 제출처럼 "방금 OTP" 가 필요한 일은 다시 OTP 를 거친다
+// via 'pin' 이면 last_otp_at 을 비운다. 비밀번호(PIN) 바꾸기처럼 "방금 OTP" 가 필요한 일은 다시 OTP 를 거친다.
+// 상담 신청서는 OTP 든 비밀번호든 "방금 인증"(세션 생성 시각 authAt)이면 된다 (handlers/counsel.ts requireFresh)
 export async function createSession(recipientId: string, linkId: string, req: Request, via: 'otp' | 'pin' = 'otp'): Promise<string> {
   const s = await getSettings()
   const mobile = isMobile(req)
