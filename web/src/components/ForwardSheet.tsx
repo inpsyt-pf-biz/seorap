@@ -123,6 +123,7 @@ export default function ForwardSheet({ line, onClose, onDone, onExpired }: {
                 <AccordionDetails>
                   <Stack spacing={1}>
                     <Typography variant="body2" color="text.secondary">{t('forward.direct.warn')}</Typography>
+                    <Alert severity="info">{t('forward.caution')}</Alert>
                     <Button variant="outlined" disabled={busy} onClick={direct}>{t('forward.direct')}</Button>
                   </Stack>
                 </AccordionDetails>
@@ -134,6 +135,8 @@ export default function ForwardSheet({ line, onClose, onDone, onExpired }: {
               <Typography variant="body1">{t('forward.confirm')}</Typography>
               <Typography variant="h5">{name.trim()}</Typography>
               <Typography variant="h5">{phone}</Typography>
+              {/* 공유한 링크가 퍼지는 것은 막지 않는다. 대신 보내기 전에 알린다 (01-plan §0 10-28) */}
+              <Alert severity="info">{t('forward.caution')}</Alert>
               <Stack direction="row" spacing={1}>
                 <Button fullWidth variant="outlined" onClick={() => { setError(null); setStep('input') }}>{t('forward.edit')}</Button>
                 <Button fullWidth variant="contained" disabled={busy} onClick={() => send(false)}>{t('forward.send')}</Button>

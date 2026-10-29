@@ -198,4 +198,13 @@ const s9 = await order({
 })
 await forward(s9.voucherIds[0], { name: '장보고', phone: '01044445555' })
 
+// SR 받는 분 화면 시험용 (검사 12매, 모두 전달 전). 테스트가 한 매씩 새로 전달해 받는 분 링크를 연다
+// (S10 은 토큰이 0 으로 채워져 S1 과 같아지므로 쓰지 않는다)
+const r10 = await recipient('윤봉길', '01020202020', '2026-10-22T09:00:00Z', '2026-10-22T09:00:00Z')
+await boxLink(r10, 'SR')
+await order({
+  recipientId: r10, recipientName: '윤봉길', orderNo: '2026102200015', paidAt: '2026-10-22T09:00:00Z',
+  productName: 'GOLDEN 성격유형검사', optionName: '12매', amount: 300000, tests: [{ ...GOLDEN1, count: 12 }], units: Array.from({ length: 12 }, () => ({})),
+})
+
 console.log('seed done')

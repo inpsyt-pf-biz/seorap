@@ -13,6 +13,8 @@ export async function entry(req: Request): Promise<Response> {
     nameMasked: recipient.name_masked ?? '',
     phoneMasked: maskPhone(await decrypt('A', recipient.phone_enc)),
     noticeBanner: s.notice_banner,
+    hasPin: recipient.pin_hash !== null,
+    pinLocked: recipient.pin_locked_at !== null,
   }
   return json(200, body)
 }

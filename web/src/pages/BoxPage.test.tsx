@@ -26,7 +26,7 @@ const forwarded: BoxLine = {
   status: { label: '전달함 · 홍길동', tone: 'info', actions: ['resend', 'reforward'] },
 }
 const boxOf = (lines: BoxLine[]): BoxResponse => ({
-  ownerName: '김서랍', notStartedCount: lines.length, noticeBanner: null,
+  ownerName: '김서랍', notStartedCount: lines.length, noticeBanner: null, pinSet: true,
   groups: [{ orderId: 'o1', purchasedAt: '2026-10-01T00:00:00.000Z', productName: 'STS', lineCount: lines.length, done: false, lines }],
 })
 
@@ -249,7 +249,7 @@ describe('BoxPage 로그아웃', () => {
 // 펼침 기억은 화면을 다시 열어도 이어지므로, 시험마다 다른 주문 ID 를 쓴다.
 describe('BoxPage 묶음 펼침', () => {
   const groupOf = (orderId: string, done: boolean, lines: BoxLine[]): BoxResponse => ({
-    ownerName: '김서랍', notStartedCount: 0, noticeBanner: null,
+    ownerName: '김서랍', notStartedCount: 0, noticeBanner: null, pinSet: true,
     groups: [{ orderId, purchasedAt: '2026-10-01T00:00:00.000Z', productName: 'STS', lineCount: lines.length, done, lines }],
   })
   const sent: BoxLine = { ...forwarded, voucherId: 'v1', status: { ...forwarded.status, actions: ['resend', 'reforward'] } }

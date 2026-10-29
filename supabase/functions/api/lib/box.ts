@@ -97,7 +97,8 @@ async function myVouchers(recipientId: string, s: Settings) {
 }
 
 export async function buildBox(recipientId: string, s: Settings): Promise<BoxResponse> {
-  const rec = must(await db().from('recipients').select('name_enc').eq('id', recipientId).single(), 'recipient read') as { name_enc: string | null }
+  const rec = must(await db().from('recipients').select('name_enc, pin_hash').eq('id', recipientId).single(), 'recipient read') as
+    { name_enc: string | null; pin_hash: string | null }
   const { orders, items, vouchers } = await myVouchers(recipientId, s)
   const inputs = await lineInputs(vouchers, s)
   const unitsOf = new Map<string, number>()
@@ -124,6 +125,7 @@ export async function buildBox(recipientId: string, s: Settings): Promise<BoxRes
     ownerName: rec.name_enc ? await decrypt('A', rec.name_enc) : '',
     notStartedCount: groups.flatMap((g) => g.lines).filter((l) => l.status.actions.includes('launch')).length,
     noticeBanner: s.notice_banner,
+    pinSet: rec.pin_hash !== null,
     groups,
   }
 }

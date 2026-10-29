@@ -5,6 +5,8 @@ import { forwardCancel, forwardCreate, forwardDirect, forwardResend } from './ha
 import { history } from './handlers/history.ts'
 import { logout } from './handlers/logout.ts'
 import { otpRequest, otpVerify } from './handlers/otp.ts'
+import { pinSet, pinVerify } from './handlers/pin.ts'
+import { forwardCode, forwardLaunch, forwardPage, help } from './handlers/receiver.ts'
 import { voucherCode, voucherLaunch } from './handlers/voucher.ts'
 import { ApiError, json } from './lib/http.ts'
 
@@ -13,6 +15,8 @@ export const routes: Record<string, Handler> = {
   'POST entry': entry,
   'POST otp/request': otpRequest,
   'POST otp/verify': otpVerify,
+  'POST pin/set': pinSet,
+  'POST pin/verify': pinVerify,
   'POST logout': logout,
   'GET box': box,
   'GET history': history,
@@ -22,6 +26,11 @@ export const routes: Record<string, Handler> = {
   'POST forward/resend': forwardResend,
   'POST forward/cancel': forwardCancel,
   'POST forward/direct': forwardDirect,
+  // 받는 분 1매 (세션 없이 링크 토큰으로)
+  'POST forward/page': forwardPage,
+  'POST forward/launch': forwardLaunch,
+  'POST forward/code': forwardCode,
+  'GET help': help,
   'GET dev/outbox': devOutbox,
 }
 

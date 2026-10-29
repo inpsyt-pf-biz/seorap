@@ -63,6 +63,16 @@ describe('ForwardSheet', () => {
     expect(screen.getByText('010-1234-5678')).toBeTruthy()
   })
 
+  // 10-28: 보내기 전에 "잘못 보내 검사가 진행되면 환불·재발급 불가"를 알린다 (확인 화면과 링크 복사 모두)
+  it('확인 화면과 링크 복사 안에 보내기 전 경고가 보인다', async () => {
+    const CAUTION = '링크를 받은 분은 누구나 검사를 시작할 수 있어요. 잘못 보내거나 공유해 검사가 진행되면 환불·재발급이 안 돼요'
+    render(<ForwardSheet line={line} onClose={noop} onDone={noop} onExpired={noop} />)
+    await userEvent.click(screen.getByText('더보기'))
+    expect(screen.getByText(CAUTION)).toBeTruthy()
+    await fillAndConfirm()
+    expect(screen.getByText(CAUTION)).toBeTruthy()
+  })
+
   // 아이폰 연락처 등에서 복사하면 '+82 10-…' 꼴이 흔하다 (Review Focus 4). 입력 칸이 번호를 망가뜨리면 안 된다.
   it('+82 10-1234-5678 을 붙여넣어도 확인 화면까지 간다', async () => {
     render(<ForwardSheet line={line} onClose={noop} onDone={noop} onExpired={noop} />)

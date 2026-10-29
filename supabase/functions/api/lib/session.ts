@@ -15,7 +15,8 @@ function cookie(value: string, maxAgeSec: number | null): string {
   return `${COOKIE}=${value}; Path=/; HttpOnly; SameSite=Lax${age}${secure}`
 }
 
-export async function createSession(recipientId: string, linkId: string, req: Request): Promise<string> {
+// via 'pin' 이면 last_otp_at 을 비운다. PIN 바꾸기·상담 제출처럼 "방금 OTP" 가 필요한 일은 다시 OTP 를 거친다
+export async function createSession(recipientId: string, linkId: string, req: Request, via: 'otp' | 'pin' = 'otp'): Promise<string> {
   const s = await getSettings()
   const mobile = isMobile(req)
   const now = Date.now()
@@ -30,7 +31,7 @@ export async function createSession(recipientId: string, linkId: string, req: Re
     device_class: mobile ? 'mobile' : 'desktop',
     idle_expires_at: new Date(now + idleMin * 60_000).toISOString(),
     absolute_expires_at: new Date(now + absMs).toISOString(),
-    last_otp_at: new Date(now).toISOString(),
+    last_otp_at: via === 'otp' ? new Date(now).toISOString() : null,
   }), 'session insert')
   return cookie(id, mobile ? s.session_mobile_max_hours * 3600 : null)
 }

@@ -6,6 +6,7 @@ import { db, must } from '../lib/db.ts'
 import { logEvent } from '../lib/events.ts'
 import { ApiError, json, readJson } from '../lib/http.ts'
 import { loadOwnedVoucher } from '../lib/ownership.ts'
+import { platformTestUrl } from '../lib/platform.ts'
 import { requireSession } from '../lib/session.ts'
 import { getSettings } from '../lib/settings.ts'
 
@@ -30,9 +31,7 @@ export async function voucherLaunch(req: Request): Promise<Response> {
   const { sess, v, code } = await launchable(req)
   requireMarked(must(await db().rpc('voucher_mark_exposed', { p_voucher_id: v.id, p_launch: true }), 'mark launch'))
   await logEvent('voucher_launch', { recipientId: sess.recipientId, voucherId: v.id, orderId: v.order_id })
-  // 비어 있어도 기본 주소로, 끝의 / 는 떼고 붙인다
-  const base = (Deno.env.get('SEORAP_PLATFORM_TEST_URL') || 'https://inpsyt.co.kr/inpsyt/testing').replace(/\/$/, '')
-  const body: LaunchResponse = { url: `${base}/${encodeURIComponent(code)}` }
+  const body: LaunchResponse = { url: platformTestUrl(code) }
   return json(200, body)
 }
 

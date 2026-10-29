@@ -68,7 +68,30 @@ export async function decrypt(key: 'A' | 'B', payload: string): Promise<string> 
   return dec.decode(pt)
 }
 
-const ALPHABET = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789'
+// PIN 은 6자리라 경우의 수가 적다. 서버 비밀값(HMAC 키)을 먼저 섞어 DB 만 새어도 맞혀 볼 수 없게 하고,
+// 사람마다 다른 salt 로 PBKDF2 를 한 번 더 건다. 저장 형식 v1.salt.hash
+const PIN_ITERATIONS = 100_000
+async function pinBits(pin: string, salt: Uint8Array): Promise<Uint8Array> {
+  const base = await crypto.subtle.importKey('raw', enc.encode(await hmac(`pin:${pin}`)), 'PBKDF2', false, ['deriveBits'])
+  return new Uint8Array(await crypto.subtle.deriveBits({ name: 'PBKDF2', hash: 'SHA-256', salt, iterations: PIN_ITERATIONS }, base, 256))
+}
+
+export async function hashPin(pin: string): Promise<string> {
+  const salt = crypto.getRandomValues(new Uint8Array(16))
+  return `v1.${b64(salt)}.${b64(await pinBits(pin, salt))}`
+}
+
+export async function verifyPin(pin: string, stored: string): Promise<boolean> {
+  const parts = stored.split('.')
+  if (parts.length !== 3 || parts[0] !== 'v1' || !parts[1] || !parts[2]) return false
+  const want = unb64(parts[2])
+  const got = await pinBits(pin, unb64(parts[1]))
+  let diff = want.length ^ got.length
+  for (let i = 0; i < Math.min(want.length, got.length); i++) diff |= want[i] ^ got[i]
+  return diff === 0
+}
+
+const ALPHABET ='ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789'
 export function randomToken(len = 32): string {
   let out = ''
   while (out.length < len) {
