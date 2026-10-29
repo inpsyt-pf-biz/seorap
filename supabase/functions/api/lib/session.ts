@@ -5,7 +5,8 @@ import { ApiError, getCookie, isMobile } from './http.ts'
 import { getSettings } from './settings.ts'
 
 export const COOKIE = 'seorap_sid'
-export type Session = { idHash: string; recipientId: string; accessLinkId: string; lastOtpAt: string | null }
+// authAt: 이 세션을 만든 인증(OTP 또는 비밀번호) 시각. 상담 신청서처럼 "방금 인증"이 필요한 일에 쓴다
+export type Session = { idHash: string; recipientId: string; accessLinkId: string; lastOtpAt: string | null; authAt: string }
 
 // maxAgeSec 가 null 이면 세션 쿠키(창을 닫으면 소멸, PC용)
 // Secure 는 로컬(SEORAP_ENV=local)에서 SEORAP_COOKIE_SECURE=false 일 때만 뺀다. 다른 환경에서는 설정이 있어도 붙인다.
@@ -47,12 +48,12 @@ export async function requireSession(req: Request): Promise<Session> {
   // 조회 오류는 502(must)로 올리고, "행 없음·폐기·만료"만 SESSION_EXPIRED 로 처리한다
   const row = must(
     await db().from('customer_sessions')
-      .select('id_hash, recipient_id, access_link_id, device_class, idle_expires_at, absolute_expires_at, last_otp_at, revoked_at')
+      .select('id_hash, recipient_id, access_link_id, device_class, idle_expires_at, absolute_expires_at, last_otp_at, revoked_at, created_at')
       .eq('id_hash', idHash).maybeSingle(),
     'session read',
   ) as {
     id_hash: string; recipient_id: string; access_link_id: string; device_class: 'mobile' | 'desktop'
-    idle_expires_at: string; absolute_expires_at: string; last_otp_at: string | null; revoked_at: string | null
+    idle_expires_at: string; absolute_expires_at: string; last_otp_at: string | null; revoked_at: string | null; created_at: string
   } | null
   const now = Date.now()
   if (!row || row.revoked_at || Date.parse(row.idle_expires_at) < now || Date.parse(row.absolute_expires_at) < now) {
@@ -67,5 +68,5 @@ export async function requireSession(req: Request): Promise<Session> {
     }).eq('id_hash', idHash),
     'session touch',
   )
-  return { idHash, recipientId: row.recipient_id, accessLinkId: row.access_link_id, lastOtpAt: row.last_otp_at }
+  return { idHash, recipientId: row.recipient_id, accessLinkId: row.access_link_id, lastOtpAt: row.last_otp_at, authAt: row.created_at }
 }

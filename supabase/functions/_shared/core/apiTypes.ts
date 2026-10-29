@@ -1,3 +1,4 @@
+import type { FormDefinition } from './counselForm.ts'
 import type { LineStatus } from './lineStatus.ts'
 
 export type ErrorCode =
@@ -23,8 +24,14 @@ export type BoxLine = {
   forwardTo: { name: string; phone: string } | null
 }
 export type BoxGroup = { orderId: string; purchasedAt: string; productName: string; lineCount: number; done: boolean; lines: BoxLine[] }
+// 상담이 든 주문마다 하나 (B2). submitted 면 "제출 완료" 카드
+export type CounselCard = { orderId: string; productName: string; submitted: boolean; submittedAt: string | null }
 // pinSet 이 false 면 화면이 PIN 설정으로 보낸다 (OTP 로 들어와 PIN 을 아직 정하지 않은 경우)
-export type BoxResponse = { ownerName: string; notStartedCount: number; noticeBanner: string | null; pinSet: boolean; groups: BoxGroup[] }
+export type BoxResponse = {
+  ownerName: string; notStartedCount: number; noticeBanner: string | null; pinSet: boolean; counsel: CounselCard[]; groups: BoxGroup[]
+}
+export type CounselFormResponse = { orderId: string; productName: string; templateId: string; version: number; definition: FormDefinition }
+export type CounselSubmitResponse = { submitted: true }
 
 export type HistoryResult = 'delivered_alimtalk' | 'delivered_sms' | 'sending' | 'failed'
 export type HistoryItem = {
