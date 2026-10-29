@@ -19,7 +19,7 @@ Deno.test('상담: 원장 전달이 실패하면 잠금을 풀지 않고 제출 
   const r = await c.call('counsel/submit', { orderId, templateId: form.templateId, version: form.version, answers: OK, clientRequestId: rid() })
   assertEquals([r.status, r.body.error?.code], [502, 'UPSTREAM_FAILED'])
   const lines = (await box(c)).groups.flatMap((g: any) => g.lines)
-  assert(lines.every((l: any) => l.status.actions.includes('counsel_form')))
+  assert(lines.every((l: any) => l.status.disabled?.includes('launch')))
   const { count } = await adminDb().from('counsel_submissions').select('order_id', { count: 'exact', head: true }).eq('order_id', orderId)
   assertEquals(count, 0)
 })
@@ -28,7 +28,7 @@ Deno.test('상담: 서랍에 상담 카드, 신청서는 상품에 연결된 템
   const c = await login('S2', '6666')
   const b = await box(c)
   assertEquals(b.counsel.length, 1)
-  assertEquals([b.counsel[0].productName, b.counsel[0].submitted], ['GOLDEN 커플 상담 패키지', false])
+  assertEquals([b.counsel[0].productName, b.counsel[0].submitted], ['STS 커플상담 패키지', false])
   const r = await c.call('counsel/form', { orderId: b.counsel[0].orderId })
   assertEquals(r.status, 200, JSON.stringify(r.body))
   assertEquals([r.body.version, r.body.definition.intro], [1, '가짜 신청서'])
@@ -73,7 +73,7 @@ Deno.test('상담: 제출하면 잠금이 풀리고 카드가 제출 완료, 다
   const orderId = await orderIdOf(c)
   const form = (await c.call('counsel/form', { orderId })).body
   const before = (await box(c)).groups.flatMap((g: any) => g.lines)
-  assert(before.every((l: any) => l.status.actions.includes('counsel_form')))
+  assert(before.every((l: any) => l.status.disabled?.includes('launch')))
   const body = { orderId, templateId: form.templateId, version: form.version, answers: OK, clientRequestId: rid() }
   const r = await c.call('counsel/submit', body)
   assertEquals(r.status, 200, JSON.stringify(r.body))

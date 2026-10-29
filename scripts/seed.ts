@@ -134,13 +134,13 @@ await order({
   units: [{ launched: '2026-10-01T02:00:00Z' }, { launched: '2026-10-02T02:00:00Z' }],
 })
 
-// S2 검사 + 상담
+// S2 검사 + 상담 (STS 커플상담 패키지: 커플 둘이 STS 성인 기질검사 1매씩 + 커플상담 1회)
 const r2 = await recipient('김철수', '01055556666', '2026-10-22T02:00:00Z', '2026-10-22T02:00:00Z')
 await boxLink(r2, 'S2')
 await order({
   recipientId: r2, recipientName: '김철수', orderNo: '2026102200002', paidAt: '2026-10-22T02:00:00Z',
-  productName: 'GOLDEN 커플 상담 패키지', optionName: '커플 상담 1회 + GOLDEN 2매', amount: 150000,
-  tests: [GOLDEN2], units: [{}, {}], counsel: true, manageCode: 'STS-CPL-S',
+  productName: 'STS 커플상담 패키지', optionName: '커플상담 1회 + STS 성인 기질검사 2매', amount: 150000,
+  tests: [STS_ADULT2], units: [{}, {}], counsel: true, manageCode: 'STS-CPL-S',
 })
 
 // S4 선물 주문 (구매자 ≠ 수취인)

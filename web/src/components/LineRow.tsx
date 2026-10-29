@@ -33,6 +33,16 @@ export default function LineRow({ line, onAction }: { line: BoxLine; onAction: (
             ))}
           </Stack>
         )}
+        {/* 아직 쓸 수 없는 버튼 (상담 신청서 제출 전 실시하기·전달하기). 같은 자리·모양으로 꺼진 채 보여 무엇이 열릴지 알린다 */}
+        {line.status.actions.length === 0 && (line.status.disabled ?? []).length > 0 && (
+          <Stack direction="row" spacing={1}>
+            {line.status.disabled!.map((a, i) => (
+              <Button key={a} fullWidth disabled variant={i === line.status.disabled!.length - 1 ? 'contained' : 'outlined'}>
+                {t(`action.${a}` as CopyKey)}
+              </Button>
+            ))}
+          </Stack>
+        )}
         {canCode && (
           <Button variant="text" size="small" sx={{ alignSelf: 'flex-start' }} onClick={() => onAction('code', line)}>{t('action.code')}</Button>
         )}

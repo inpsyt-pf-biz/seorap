@@ -119,7 +119,7 @@ export async function buildBox(recipientId: string, s: Settings): Promise<BoxRes
     // 줄이 없거나, 준비 중(발급 대기·실패)인 줄이 있거나, 아직 할 일(실시·전달·상담 신청·문의)이 남은 줄이 있으면 끝난 묶음이 아니다
     const done = lines.length > 0
       && !mine.some((v) => ['pending', 'failed'].includes(inputs.get(v.id)!.input.issueStatus))
-      && !lines.some((l) => l.status.actions.some((a) => a === 'launch' || a === 'forward' || a === 'counsel_form' || a === 'contact'))
+      && !lines.some((l) => (l.status.disabled ?? []).length > 0 || l.status.actions.some((a) => a === 'launch' || a === 'forward' || a === 'contact'))
     return { orderId: o.id, purchasedAt: o.paid_at, productName, lineCount: lines.length, done, lines }
   })
   return {

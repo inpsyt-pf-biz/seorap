@@ -35,7 +35,7 @@ Deno.test('서랍: S3 두 번 구매가 구매일 최신순, 다 쓴 묶음은 d
 
 Deno.test('서랍: S2 상담 주문은 잠김, S5 취소 줄, S7 준비 중', async () => {
   const s2 = (await (await login('S2', '6666')).call('box')).body.groups[0].lines
-  assertEquals(s2[0].status.actions, ['counsel_form'])
+  assertEquals([s2[0].status.actions, s2[0].status.disabled], [[], ['launch', 'forward']])
   const s5 = (await (await login('S5', '8888')).call('box')).body.groups[0].lines.map((l: any) => l.status.label)
   assertEquals(s5.includes('취소됨'), true)
   assertEquals(s5.includes('취소 확인 중'), true)
@@ -68,7 +68,7 @@ Deno.test('서랍: 준비 중·상담 대기 묶음은 done이 아니다 (S7, S2
   assertEquals(s7.lines[0].status.label, '준비 중')
   assertEquals(s7.done, false)
   const s2 = (await (await login('S2', '6666')).call('box')).body.groups[0]
-  assertEquals(s2.lines[0].status.actions, ['counsel_form'])
+  assertEquals([s2.lines[0].status.actions, s2.lines[0].status.disabled], [[], ['launch', 'forward']])
   assertEquals(s2.done, false)
   assertEquals((await (await login('S5', '8888')).call('box')).body.groups[0].done, false)
 })

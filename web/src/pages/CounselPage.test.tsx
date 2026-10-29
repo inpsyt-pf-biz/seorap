@@ -104,18 +104,22 @@ describe('서랍 상담 카드', () => {
       orderId: ORDER, purchasedAt: '2026-10-22T00:00:00Z', productName: 'GOLDEN 커플 상담 패키지', lineCount: 1, done: false,
       lines: [{
         voucherId: 'v1', testItemId: 'T', testName: 'GOLDEN 성격유형검사', unitNo: 1, unitsOfTest: 1, firstLaunchedAt: null, forwardTo: null,
-        status: { label: '신청서 제출 후 열려요', tone: 'info', actions: submitted ? ['launch', 'forward'] : ['counsel_form'] },
+        status: submitted
+          ? { label: '실시 전', tone: 'neutral', actions: ['launch', 'forward'] }
+          : { label: t('line.counselLocked'), tone: 'info', actions: [], disabled: ['launch', 'forward'] },
       }],
     }],
   })
 
-  it('내기 전: 카드의 [신청서 쓰기]와 잠긴 줄의 [신청서 쓰기]가 신청서로 간다', async () => {
+  it('제출 전: 신청서로 가는 길은 카드의 [상담 신청서 작성] 하나, 검사 줄의 실시하기·전달하기는 꺼져 있다', async () => {
     stubApi({ box: () => json(200, boxWith(false)), 'counsel/form': () => json(200, FORM()) })
     open('/box')
     expect(await screen.findByText(t('counsel.card.title'))).toBeTruthy()
+    expect((screen.getByRole('button', { name: t('action.launch') }) as HTMLButtonElement).disabled).toBe(true)
+    expect((screen.getByRole('button', { name: t('action.forward') }) as HTMLButtonElement).disabled).toBe(true)
     const buttons = screen.getAllByRole('button', { name: t('counsel.card.button') })
-    expect(buttons.length).toBe(2)
-    await userEvent.click(buttons[1])
+    expect(buttons.length).toBe(1)
+    await userEvent.click(buttons[0])
     expect(await screen.findByRole('button', { name: t('counsel.submit') })).toBeTruthy()
   })
 
