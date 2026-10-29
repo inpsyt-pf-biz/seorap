@@ -132,7 +132,7 @@ export default function BoxPage() {
         <Typography variant="body2" color="text.secondary">{t('box.summary', { n: box.notStartedCount })}</Typography>
         {/* 상담 카드 (B2): 신청서를 내기 전에는 검사가 잠겨 있으므로 맨 위에 둔다 */}
         {box.counsel.map((c) => (
-          <Box key={c.orderId} sx={{ p: 2, borderRadius: 3, bgcolor: tokens.surface[0], border: `1px solid ${c.submitted ? tokens.surface[200] : tokens.brand[300]}` }}>
+          <Box key={c.orderId} sx={{ p: 2, borderRadius: tokens.radius.card, bgcolor: tokens.surface[0], border: `1px solid ${c.submitted ? tokens.surface[200] : tokens.teal[500]}` }}>
             <Stack spacing={1}>
               <Typography variant="subtitle1" sx={{ fontWeight: 700 }}>{t(c.submitted ? 'counsel.card.doneTitle' : 'counsel.card.title')}</Typography>
               <Typography variant="body2" color="text.secondary">

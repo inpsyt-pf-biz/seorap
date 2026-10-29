@@ -42,7 +42,7 @@ export default function HistoryPage() {
         {failed && <Alert severity="warning">{t('error.generic')}</Alert>}
         {items && items.length === 0 && <Typography variant="body1" color="text.secondary">{t('history.empty')}</Typography>}
         {items?.map((i) => (
-          <Box key={i.id} sx={{ border: 1, borderColor: 'divider', borderRadius: 2, p: 1.5, bgcolor: 'background.paper' }}>
+          <Box key={i.id} sx={{ border: 1, borderColor: 'divider', borderRadius: tokens.radius.card, p: 1.5, bgcolor: 'background.paper' }}>
             <Typography variant="body1">{lineText(i)}</Typography>
             <Typography variant="body2" color="text.secondary">
               {[`${i.testName} ${i.unitNo}`, i.action === 'resend' ? t('history.resendMark') : null, i.openedAt ? t('history.opened') : null].filter(Boolean).join(' · ')}

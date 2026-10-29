@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { theme, tokens } from './seorap'
+import { contrast, theme, tokens } from './seorap'
 
 describe('theme', () => {
   it('한글은 단어 중간에서 끊지 않고, 긴 주소·토큰은 넘치지 않게 끊는다', () => {
@@ -7,10 +7,17 @@ describe('theme', () => {
     expect(overrides?.body).toMatchObject({ wordBreak: 'keep-all', overflowWrap: 'anywhere' })
   })
 
-  it('쪽 배경은 브랜드 남색의 옅은 색이고, 카드(종이)는 흰색이다', () => {
-    expect(tokens.surface.page).toBe('#EEF0F7')
+  it('색 ①: 주 색은 깊은 청록, 쪽 배경은 종이색, 카드는 흰색이다 (01-plan §0 10-29)', () => {
+    expect(theme.palette.primary.main).toBe('#1E5552')
+    expect(tokens.surface.page).toBe('#F6F2EA')
     expect(theme.palette.background.default).toBe(tokens.surface.page)
     expect(theme.palette.background.paper).toBe('#FFFFFF')
+  })
+
+  it('남색·로고 파랑은 토큰에 남아 있지 않다', () => {
+    const all = JSON.stringify(tokens).toUpperCase()
+    expect(all).not.toContain('#2B398F')
+    expect(all).not.toContain('#0088FF')
   })
 
   it('글자 입력 칸은 쪽 배경 위에서도 흰색이다', () => {
@@ -21,11 +28,49 @@ describe('theme', () => {
   it('주 컬럼 폭의 기준값은 하나다', () => {
     expect(tokens.layout.maxWidth).toBe(480)
   })
+
+  it('모서리 반경은 px 문자열 토큰이다 (sx 숫자는 테마 배수로 커지므로 쓰지 않는다)', () => {
+    expect(tokens.radius).toEqual({ control: '10px', card: '12px', sheet: '16px', pill: '999px' })
+  })
+
+  it('키보드 포커스 링이 모든 버튼·탭·칩에 걸린다 (ButtonBase)', () => {
+    const root = theme.components?.MuiButtonBase?.styleOverrides?.root as Record<string, Record<string, string>> | undefined
+    expect(root?.['&.Mui-focusVisible']).toMatchObject({ outline: '2px solid var(--seorap-focus)', outlineOffset: '2px' })
+  })
+})
+
+describe('명도 대비 (글자 4.5:1 이상)', () => {
+  it('대비 계산이 알려진 값과 맞다', () => {
+    expect(contrast('#000000', '#FFFFFF')).toBeCloseTo(21, 0)
+    expect(contrast('#FFFFFF', '#FFFFFF')).toBeCloseTo(1, 5)
+  })
+
+  const pairs: [string, string, string][] = [
+    ['본문 / 종이', tokens.text.primary, tokens.surface.page],
+    ['본문 / 흰 카드', tokens.text.primary, tokens.surface[0]],
+    ['보조 글자 / 종이', tokens.text.secondary, tokens.surface.page],
+    ['보조 글자 / 흰 카드', tokens.text.secondary, tokens.surface[0]],
+    ['청록 글자 / 종이', tokens.teal[700], tokens.surface.page],
+    ['청록 글자 / 흰 카드', tokens.teal[700], tokens.surface[0]],
+    ['흰 글자 / 청록 버튼', '#FFFFFF', tokens.teal[700]],
+    ['종이 글자 / 청록(닫힌 서랍)', tokens.surface.page, tokens.teal[700]],
+    ['청록 글자 / 옅은 청록 버튼', tokens.teal[700], tokens.teal[100]],
+    ...Object.entries(tokens.tone).map(([k, v]) => [`칩 ${k}`, v.fg, v.bg === 'transparent' ? tokens.surface[0] : v.bg] as [string, string, string]),
+  ]
+  it.each(pairs)('%s', (_name, fg, bg) => {
+    expect(contrast(fg, bg)).toBeGreaterThanOrEqual(4.5)
+  })
+
+  it('포커스 링은 종이·흰 카드 위에서 3:1 이상, 닫힌 서랍(청록) 위의 호박 링도 3:1 이상', () => {
+    expect(contrast(tokens.focus.light, tokens.surface.page)).toBeGreaterThanOrEqual(3)
+    expect(contrast(tokens.focus.light, tokens.surface[0])).toBeGreaterThanOrEqual(3)
+    expect(contrast(tokens.focus.onTeal, tokens.teal[700])).toBeGreaterThanOrEqual(3)
+  })
 })
 
 // 컬럼 폭과 색은 이 테마 파일에서만 정한다. 화면 코드에 480 이나 색 값을 직접 쓰면 이 시험이 막는다.
 // (개발 전용 발신함 화면은 720 폭을 따로 쓴다)
-describe('화면 코드는 컬럼 폭·색을 직접 쓰지 않는다', () => {
+describe('화면 코드는 컬럼 폭·색·반경 숫자를 직접 쓰지 않는다', () => {
   const sources = import.meta.glob('../**/*.{ts,tsx}', { query: '?raw', import: 'default', eager: true }) as Record<string, string>
   // 경로는 이 파일 기준이라 테마 파일 자신은 './seorap.ts' 로 잡힌다
   const screens = Object.entries(sources).filter(([path]) => !/\.test\.tsx?$/.test(path) && path !== './seorap.ts')
@@ -38,5 +83,8 @@ describe('화면 코드는 컬럼 폭·색을 직접 쓰지 않는다', () => {
   })
   it('색 값(#hex)을 직접 쓰지 않는다', () => {
     expect(screens.filter(([, src]) => /#[0-9A-Fa-f]{3,8}\b/.test(src)).map(([path]) => path)).toEqual([])
+  })
+  it('borderRadius 에 숫자를 쓰지 않는다 (테마 12px 의 배수가 되어 24·36px 로 커진다)', () => {
+    expect(screens.filter(([, src]) => /borderRadius:\s*\d/.test(src)).map(([path]) => path)).toEqual([])
   })
 })

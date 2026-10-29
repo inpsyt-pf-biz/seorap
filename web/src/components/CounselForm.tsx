@@ -53,7 +53,7 @@ function Availability({ f, value, onChange, disabled }: { f: FormField; value: A
             return (
               <ToggleButton
                 key={cell} value={cell} selected={on} disabled={disabled} onChange={() => toggle(cell)}
-                aria-label={`${d.label} ${s.label} 상담 가능`} sx={{ minHeight: 44, borderRadius: 2 }}
+                aria-label={`${d.label} ${s.label} 상담 가능`} sx={{ minHeight: 44, borderRadius: tokens.radius.control }}
               >
                 {on ? '✓' : ''}
               </ToggleButton>
@@ -110,7 +110,7 @@ export default function CounselForm({ definition, value, onChange, errors = {}, 
         }
         if (f.type === 'notice') {
           return (
-            <Box key={f.id} sx={{ p: 2, borderRadius: 2, bgcolor: tokens.surface[50], border: `1px solid ${tokens.surface[200]}` }}>
+            <Box key={f.id} sx={{ p: 2, borderRadius: tokens.radius.card, bgcolor: tokens.surface[50], border: `1px solid ${tokens.surface[200]}` }}>
               <Typography variant="subtitle2" sx={{ fontWeight: 700, mb: 0.5 }}>{f.label}</Typography>
               <Help text={f.help} />
             </Box>
@@ -122,7 +122,7 @@ export default function CounselForm({ definition, value, onChange, errors = {}, 
             {f.type === 'consent' ? (
               <>
                 {f.help && (
-                  <Box sx={{ p: 2, maxHeight: 200, overflowY: 'auto', borderRadius: 2, bgcolor: tokens.surface[50], border: `1px solid ${tokens.surface[200]}` }}>
+                  <Box sx={{ p: 2, maxHeight: 200, overflowY: 'auto', borderRadius: tokens.radius.control, bgcolor: tokens.surface[50], border: `1px solid ${tokens.surface[200]}` }}>
                     <Help text={f.help} />
                   </Box>
                 )}

@@ -113,7 +113,7 @@ export default function CounselPage() {
               <Typography variant="h5">{t('counsel.title')}</Typography>
               <Typography variant="body2" color="text.secondary">{form.productName}</Typography>
             </Stack>
-            <Box sx={{ p: 2, borderRadius: 3, bgcolor: tokens.surface[0] }}>
+            <Box sx={{ p: 2, borderRadius: tokens.radius.card, bgcolor: tokens.surface[0] }}>
               <CounselForm definition={form.definition} value={answers} onChange={setAnswers} errors={errors} disabled={busy} />
             </Box>
             {message && <Alert severity="warning">{message}</Alert>}

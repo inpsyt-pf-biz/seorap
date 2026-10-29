@@ -2,6 +2,7 @@ import { Box, Button, Chip, Stack, Typography } from '@mui/material'
 import type { BoxLine } from '@core/apiTypes.ts'
 import { type CopyKey, t } from '@core/copy.ko.ts'
 import type { LineAction, LineTone } from '@core/lineStatus.ts'
+import { tokens } from '../theme/seorap'
 
 const CHIP: Record<LineTone, 'default' | 'info' | 'success' | 'warning'> = {
   neutral: 'default', info: 'info', success: 'success', warning: 'warning', muted: 'default',
@@ -11,7 +12,7 @@ export default function LineRow({ line, onAction }: { line: BoxLine; onAction: (
   // 코드를 직접 볼 수 있는 줄: 실시하기·이어서 하기·결과 보기가 있는 줄 (모두 플랫폼 검사 주소를 여는 동작)
   const canCode = line.status.actions.some((a) => a === 'launch' || a === 'continue' || a === 'result')
   return (
-    <Box sx={{ border: 1, borderColor: 'divider', borderRadius: 2, p: 1.5, bgcolor: 'background.paper' }}>
+    <Box sx={{ border: 1, borderColor: 'divider', borderRadius: tokens.radius.card, p: 1.5, bgcolor: 'background.paper' }}>
       <Stack spacing={1}>
         <Stack direction="row" spacing={1} sx={{ justifyContent: 'space-between', alignItems: 'flex-start' }}>
           <Box sx={{ minWidth: 0 }}>

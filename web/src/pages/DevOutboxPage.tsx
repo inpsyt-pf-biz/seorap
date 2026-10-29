@@ -3,6 +3,7 @@ import { useCallback, useEffect, useState } from 'react'
 import type { DevOutboxItem } from '@core/apiTypes.ts'
 import { formatKstDateTime } from '@core/time.ts'
 import { api, ApiError } from '../lib/api'
+import { tokens } from '../theme/seorap'
 
 // 로컬·미리보기 전용. 운영 빌드에서는 App.tsx가 이 경로를 만들지 않는다.
 // 미리보기 함수는 키 머리글이 있어야 연다. 키는 Vercel Preview 환경값으로만 넣는다(이 번들은 Vercel 보호 뒤에 있다).
@@ -25,7 +26,7 @@ export default function DevOutboxPage() {
         </Stack>
         {error && <Typography variant="body2" color="error">{`error: ${error}`}</Typography>}
         {items.map((i) => (
-          <Box key={i.id} sx={{ border: 1, borderColor: 'divider', borderRadius: 1, p: 1 }}>
+          <Box key={i.id} sx={{ border: 1, borderColor: 'divider', borderRadius: tokens.radius.control, p: 1 }}>
             <Typography variant="caption" color="text.secondary">{`${formatKstDateTime(i.createdAt)} · ${i.kind} · ****${i.toLast4}`}</Typography>
             <Typography variant="body2" sx={{ wordBreak: 'break-all' }}>{i.body}</Typography>
           </Box>

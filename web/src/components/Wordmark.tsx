@@ -9,7 +9,7 @@ export default function Wordmark({ size = 'sm' }: { size?: 'sm' | 'lg' }) {
       <Box component="img" src={tokens.logo.src} alt={tokens.logo.alt} sx={{ width: img, height: img }} />
       <Stack>
         <Typography variant="caption" color="text.secondary">{t('brand.parent')}</Typography>
-        <Typography variant={size === 'lg' ? 'h4' : 'h6'} sx={{ color: tokens.seorapAccent, lineHeight: 1.1 }}>{t('brand.name')}</Typography>
+        <Typography variant={size === 'lg' ? 'h4' : 'h6'} sx={{ color: tokens.teal[700], lineHeight: 1.1 }}>{t('brand.name')}</Typography>
       </Stack>
     </Stack>
   )
