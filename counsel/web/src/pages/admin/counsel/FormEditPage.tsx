@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { type ReactNode, useEffect, useMemo, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import {
   Alert, Box, Button, Chip, Dialog, DialogActions, DialogContent, FormControlLabel, IconButton, MenuItem, Paper, Snackbar, Stack, Switch,
@@ -14,14 +14,57 @@ import { t as seorapT } from '@seorap-core/copy.ko.ts'
 import { t, type CopyKey } from '@counsel-core/copy.ko.ts'
 import { toCounselError, type CounselError } from '@counsel-core/errors.ts'
 import {
-  FIELD_TYPES, STANDARD_FIELDS, fieldTypeLabel, formErrorText, moveField, newField, nextRowId, standardFieldLabel, tidyDefinition,
+  FIELD_TYPES, STANDARD_FIELDS, fieldTypeLabel, formErrorText, moveField, newField, nextRowId, parseSlot, slotText, standardFieldLabel,
+  tidyDefinition,
   type FormTemplateDetail,
 } from '@counsel-core/forms.ts'
+import ChipListEditor from '../../../components/ChipListEditor'
 import { ErrorBox, Loading } from '../../../components/PageState'
 import { duplicateFormTemplate, getFormTemplate, publishFormTemplate, saveFormDraft } from '../../../lib/api'
 import { hasCap, useSession } from '../../../shell/session'
 
 const CONSENT_KINDS = ['third_party', 'sensitive', 'other'] as const
+
+function ChipSection({ label, help, children }: { label: string; help?: string; children: ReactNode }) {
+  return (
+    <Stack spacing={0.75}>
+      <Typography variant="body2">{label}</Typography>
+      {children}
+      {help && <Typography variant="caption" color="text.secondary">{help}</Typography>}
+    </Stack>
+  )
+}
+
+// 글자 목록(선택지·상담 방식·연락 시간)을 배지로 편집. 예전 초안의 빈 줄은 배지로 보이지 않게 먼저 뺀다
+function StringChips({ label, help, items, readOnly, onChange }: {
+  label: string; help?: string; items: string[]; readOnly: boolean; onChange: (next: string[]) => void
+}) {
+  const list = items.filter((x) => x.trim())
+  return (
+    <ChipSection label={label} help={help}>
+      <ChipListEditor items={list} readOnly={readOnly} placeholder={t('forms.edit.chipPlaceholder')}
+        onAdd={(v) => onChange([...list, v])}
+        onEdit={(i, v) => onChange(list.map((x, j) => (j === i ? v : x)))}
+        onRemove={(i) => onChange(list.filter((_, j) => j !== i))} />
+    </ChipSection>
+  )
+}
+
+// 요일 줄·시간대 칸처럼 id 가 있는 줄을 배지로 편집. 고쳐도 id 는 그대로, 새 줄은 겹치지 않는 id. 최소 1개
+function RowChips<R extends { id: string }>({ label, help, rows, prefix, toText, fromText, readOnly, onChange }: {
+  label: string; help?: string; rows: R[]; prefix: string; readOnly: boolean
+  toText: (r: R) => string; fromText: (v: string) => Omit<R, 'id'>; onChange: (next: R[]) => void
+}) {
+  const live = rows.filter((r) => toText(r).trim())
+  return (
+    <ChipSection label={label} help={help}>
+      <ChipListEditor items={live.map(toText)} min={1} readOnly={readOnly} placeholder={t('forms.edit.chipPlaceholder')}
+        onAdd={(v) => onChange([...live, { ...fromText(v), id: nextRowId(prefix, rows) } as R])}
+        onEdit={(i, v) => onChange(live.map((r, j) => (j === i ? { ...r, ...fromText(v) } : r)))}
+        onRemove={(i) => onChange(live.filter((_, j) => j !== i))} />
+    </ChipSection>
+  )
+}
 
 // 가능 시간대 문항의 요일·시간대·상담 방식·연락 시간과 그 질문 문구. 문구를 비우면 서랍 기본 문구가 보인다
 function AvailabilityEditor({ a, readOnly, onChange }: {
@@ -33,53 +76,23 @@ function AvailabilityEditor({ a, readOnly, onChange }: {
       helperText={t('forms.edit.avail.defaultHint')} disabled={readOnly} slotProps={{ inputLabel: { shrink: true } }}
       onChange={(e) => set({ labels: { ...a.labels, [k]: e.target.value } })} />
   )
-  const listField = (key: 'methods' | 'contactTimes') => (
-    <TextField size="small" label={t(`forms.edit.avail.${key}` as CopyKey)} value={a[key].join('\n')} disabled={readOnly} multiline minRows={2}
-      onChange={(e) => set({ [key]: e.target.value.split('\n') })} />
-  )
-  const removeButton = (disabled: boolean, onClick: () => void) => !readOnly && (
-    <Button size="small" color="error" disabled={disabled} onClick={onClick}>{t('forms.edit.avail.removeRow')}</Button>
-  )
   return (
-    <Stack spacing={1.5} sx={{ p: 1.5, bgcolor: 'action.hover', borderRadius: 1 }}>
+    <Stack spacing={2} sx={{ p: 1.5, bgcolor: 'action.hover', borderRadius: 1 }}>
       <Typography variant="subtitle2">{t('forms.edit.avail.title')}</Typography>
       {labelField('pick')}
-      <Typography variant="body2">{t('forms.edit.avail.days')}</Typography>
-      {a.days.map((d, i) => (
-        <Stack key={d.id} direction="row" spacing={1} sx={{ alignItems: 'center' }}>
-          <TextField size="small" label={t('forms.edit.avail.day')} value={d.label} disabled={readOnly} sx={{ flexGrow: 1 }}
-            onChange={(e) => set({ days: a.days.map((x, j) => (j === i ? { ...x, label: e.target.value } : x)) })} />
-          {removeButton(a.days.length <= 1, () => set({ days: a.days.filter((_, j) => j !== i) }))}
-        </Stack>
-      ))}
-      {!readOnly && (
-        <Button size="small" sx={{ alignSelf: 'flex-start' }} onClick={() => set({ days: [...a.days, { id: nextRowId('d', a.days), label: '' }] })}>
-          {t('forms.edit.avail.addDay')}
-        </Button>
-      )}
-      <Typography variant="body2">{t('forms.edit.avail.slots')}</Typography>
-      {a.slots.map((s, i) => (
-        <Stack key={s.id} direction="row" spacing={1} sx={{ alignItems: 'center' }}>
-          <TextField size="small" label={t('forms.edit.avail.slotLabel')} value={s.label} disabled={readOnly} sx={{ flexGrow: 1 }}
-            onChange={(e) => set({ slots: a.slots.map((x, j) => (j === i ? { ...x, label: e.target.value } : x)) })} />
-          <TextField size="small" label={t('forms.edit.avail.slotHours')} value={s.hours} disabled={readOnly} sx={{ flexGrow: 1 }}
-            onChange={(e) => set({ slots: a.slots.map((x, j) => (j === i ? { ...x, hours: e.target.value } : x)) })} />
-          {removeButton(a.slots.length <= 1, () => set({ slots: a.slots.filter((_, j) => j !== i) }))}
-        </Stack>
-      ))}
-      {!readOnly && (
-        <Button size="small" sx={{ alignSelf: 'flex-start' }}
-          onClick={() => set({ slots: [...a.slots, { id: nextRowId('s', a.slots), label: '', hours: '' }] })}>
-          {t('forms.edit.avail.addSlot')}
-        </Button>
-      )}
+      <RowChips label={t('forms.edit.avail.days')} rows={a.days} prefix="d" readOnly={readOnly}
+        toText={(d) => d.label} fromText={(v) => ({ label: v })} onChange={(days) => set({ days })} />
+      <RowChips label={t('forms.edit.avail.slots')} help={t('forms.edit.avail.slotsHelp')} rows={a.slots} prefix="s" readOnly={readOnly}
+        toText={slotText} fromText={parseSlot} onChange={(slots) => set({ slots })} />
       <FormControlLabel label={t('forms.edit.avail.askStart')} disabled={readOnly}
         control={<Switch checked={a.askStartDate} onChange={(e) => set({ askStartDate: e.target.checked })} />} />
       {a.askStartDate && labelField('start')}
       {labelField('method')}
-      {listField('methods')}
+      <StringChips label={t('forms.edit.avail.methods')} help={t('forms.edit.avail.emptyHelp')} items={a.methods} readOnly={readOnly}
+        onChange={(methods) => set({ methods })} />
       {labelField('contact')}
-      {listField('contactTimes')}
+      <StringChips label={t('forms.edit.avail.contactTimes')} help={t('forms.edit.avail.emptyHelp')} items={a.contactTimes} readOnly={readOnly}
+        onChange={(contactTimes) => set({ contactTimes })} />
     </Stack>
   )
 }
@@ -109,8 +122,7 @@ function FieldCard({ f, index, count, readOnly, onChange, onMove, onRemove }: {
         <TextField size="small" label={t('forms.edit.help')} value={f.help ?? ''} disabled={readOnly} multiline minRows={1}
           onChange={(e) => set({ help: e.target.value })} />
         {(f.type === 'single' || f.type === 'multi') && (
-          <TextField size="small" label={t('forms.edit.options')} value={(f.options ?? []).join('\n')} disabled={readOnly} multiline minRows={2}
-            onChange={(e) => set({ options: e.target.value.split('\n') })} />
+          <StringChips label={t('forms.edit.options')} items={f.options ?? []} readOnly={readOnly} onChange={(options) => set({ options })} />
         )}
         {f.type === 'consent' && (
           <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.5}>

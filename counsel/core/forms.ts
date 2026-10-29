@@ -39,7 +39,7 @@ export function nextFieldId(fields: FormField[]): string {
 
 export function newField(type: FieldType, fields: FormField[]): FormField {
   const base: FormField = { id: nextFieldId(fields), type, label: '' }
-  if (type === 'single' || type === 'multi') return { ...base, options: ['', ''] }
+  if (type === 'single' || type === 'multi') return { ...base, options: [] }
   if (type === 'availability') return { ...base, required: true, availability: structuredClone(DEFAULT_AVAILABILITY) }
   if (type === 'consent') return { ...base, required: true, consentKind: 'third_party' }
   return base
@@ -58,6 +58,13 @@ export function nextRowId(prefix: string, rows: { id: string }[]): string {
   const used = new Set(rows.map((r) => r.id))
   for (let n = 1; ; n++) if (!used.has(`${prefix}${n}`)) return `${prefix}${n}`
 }
+
+// 시간대 배지는 "오전 9~12시"처럼 이름과 시간을 한 칸에 쓴다. 첫 낱말이 이름, 나머지가 시간
+export function parseSlot(text: string): { label: string; hours: string } {
+  const [label = '', ...rest] = text.trim().split(/\s+/)
+  return { label, hours: rest.join(' ') }
+}
+export const slotText = (s: { label: string; hours: string }) => [s.label, s.hours].filter(Boolean).join(' ')
 
 const tidyList = (xs: string[]) => xs.map((x) => x.trim()).filter(Boolean)
 

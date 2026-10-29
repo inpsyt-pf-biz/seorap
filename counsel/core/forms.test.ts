@@ -1,6 +1,6 @@
 import { assertEquals } from '@std/assert'
 import { checkDefinition } from '../../supabase/functions/_shared/core/counselForm.ts'
-import { MANAGE_CODE_RE, moveField, newField, nextFieldId, nextRowId, tidyDefinition } from './forms.ts'
+import { MANAGE_CODE_RE, moveField, newField, nextFieldId, nextRowId, parseSlot, slotText, tidyDefinition } from './forms.ts'
 
 Deno.test('nextFieldId: 지운 자리를 다시 쓰지 않고 겹치지 않는 id', () => {
   assertEquals(nextFieldId([]), 'f1')
@@ -9,7 +9,7 @@ Deno.test('nextFieldId: 지운 자리를 다시 쓰지 않고 겹치지 않는 i
 })
 
 Deno.test('newField: 유형마다 필요한 기본값', () => {
-  assertEquals(newField('single', []).options, ['', ''])
+  assertEquals(newField('single', []).options, [])
   assertEquals(newField('availability', []).availability?.days.length, 3)
   assertEquals(newField('consent', []).consentKind, 'third_party')
   assertEquals(newField('short', []).required, undefined)
@@ -61,6 +61,14 @@ Deno.test('tidyDefinition: 가능 시간대 문구를 모두 비우면 labels �
 Deno.test('nextRowId: 요일·시간대 줄에 겹치지 않는 id', () => {
   assertEquals(nextRowId('d', [{ id: 'weekday' }, { id: 'sat' }]), 'd1')
   assertEquals(nextRowId('d', [{ id: 'weekday' }, { id: 'd1' }]), 'd2')
+})
+
+Deno.test('parseSlot·slotText: 시간대 배지는 "이름 시간" 한 칸으로 쓰고 읽는다', () => {
+  assertEquals(parseSlot(' 오전  9~12시 '), { label: '오전', hours: '9~12시' })
+  assertEquals(parseSlot('점심'), { label: '점심', hours: '' })
+  assertEquals(parseSlot('저녁 18시 이후'), { label: '저녁', hours: '18시 이후' })
+  assertEquals(slotText({ label: '오전', hours: '9~12시' }), '오전 9~12시')
+  assertEquals(slotText({ label: '점심', hours: '' }), '점심')
 })
 
 Deno.test('MANAGE_CODE_RE: 영문·숫자·-·_ 20자', () => {
