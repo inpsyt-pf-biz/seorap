@@ -3,13 +3,13 @@ import { createRoot } from 'react-dom/client'
 import { BrowserRouter } from 'react-router-dom'
 import { Alert, Box, CssBaseline, ThemeProvider } from '@mui/material'
 import { t } from '@counsel-core/copy.ko.ts'
-import { isLocalStackUrl } from './shell/localGuard'
+import { isAllowedStackUrl } from './shell/localGuard'
 import { adminTheme } from './theme/admin'
 
 const root = createRoot(document.getElementById('root')!)
 
-// 로컬 상담 툴 스택 주소가 아니면 DB 연결을 만들기 전에 멈추고 안내만 띄운다
-if (!isLocalStackUrl(import.meta.env.VITE_SUPABASE_URL)) {
+// 로컬 상담 툴 스택(또는 미리보기 빌드의 미리보기 프로젝트) 주소가 아니면 DB 연결을 만들기 전에 멈추고 안내만 띄운다
+if (!isAllowedStackUrl(import.meta.env.VITE_SUPABASE_URL, import.meta.env.VITE_COUNSEL_ENV)) {
   root.render(
     <ThemeProvider theme={adminTheme}>
       <CssBaseline />
