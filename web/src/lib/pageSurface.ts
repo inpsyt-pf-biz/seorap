@@ -10,6 +10,7 @@ export function isClosedPath(pathname: string): boolean {
 }
 
 export type Surface = 'closed' | 'open'
+const SHELL_PATHS = new Set(['/box', '/box/history'])
 
 // 경로에 맞춰 html 에 data-surface 를 달고(바탕색은 테마의 CSS 가 칠한다), 휴대폰 상단 막대(theme-color)도 맞춘다.
 // 화면 안쪽 판만 칠하면 불러오는 동안·화면 전환 순간·당겨 내릴 때 다른 색이 비친다 (10-29 건우님 검수)
@@ -18,7 +19,9 @@ export function usePageSurface(): Surface {
   const surface: Surface = isClosedPath(pathname) ? 'closed' : 'open'
   useLayoutEffect(() => {
     document.documentElement.setAttribute('data-surface', surface)
-    document.querySelector('meta[name="theme-color"]')?.setAttribute('content', surface === 'closed' ? tokens.teal[700] : tokens.surface.page)
-  }, [surface])
+    // 서랍·전달 이력은 위에 청록 머리 판(BoxHeader)이 있으므로 상단 막대도 청록으로 이어 준다
+    const tealTop = surface === 'closed' || SHELL_PATHS.has(pathname)
+    document.querySelector('meta[name="theme-color"]')?.setAttribute('content', tealTop ? tokens.teal[700] : tokens.surface.page)
+  }, [surface, pathname])
   return surface
 }

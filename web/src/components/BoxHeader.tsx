@@ -1,17 +1,39 @@
-import { Button, Stack, Typography } from '@mui/material'
+import { Box, Button, Stack, Tab, Tabs, Typography } from '@mui/material'
 import { t } from '@core/copy.ko.ts'
+import { tokens } from '../theme/seorap'
 import Wordmark from './Wordmark'
 
-// 서랍 안 화면(내 검사·전달 이력)의 공용 머리글. 탭을 오가도 틀이 바뀌지 않게 한다 (UX 진단: 전달 이력에서 머리글이 사라짐)
-// ownerName 이 없으면(전달 이력을 새로 열었을 때) 제목만 생략한다
-export default function BoxHeader({ ownerName, onLogout }: { ownerName?: string | null; onLogout: () => void }) {
+// 서랍 안 화면(내 검사·전달 이력)의 머리 판. 닫힌 서랍의 앞판(청록)이 위에 남고 그 아래로 서랍이 열린다.
+// 누구의 서랍인지·몇 매 남았는지·어느 탭인지를 한 덩어리로 묶는다 (10-29 검수: 요소가 시각적으로 묶이지 않음,
+// impeccable layout: 근접으로 묶고, 작업 화면은 색을 칠한 틀로). 탭 표시는 로고 손잡이와 같은 호박빛
+export default function BoxHeader({ ownerName, summary, tab, onTab, onLogout }: {
+  ownerName?: string | null; summary?: string | null; tab: 0 | 1; onTab: (v: 0 | 1) => void; onLogout: () => void
+}) {
   return (
-    <>
+    <Box
+      data-region="shell"
+      sx={{ bgcolor: tokens.teal[700], color: tokens.surface.page, px: 2, pt: 3, '--seorap-focus': tokens.focus.onTeal }}
+    >
       <Stack direction="row" sx={{ justifyContent: 'space-between', alignItems: 'center' }}>
-        <Wordmark />
-        <Button variant="text" onClick={onLogout}>{t('box.logout')}</Button>
+        <Wordmark onTeal />
+        <Button variant="text" onClick={onLogout} sx={{ color: tokens.surface.page }}>{t('box.logout')}</Button>
       </Stack>
-      {ownerName && <Typography variant="h5">{t('box.title', { name: ownerName })}</Typography>}
-    </>
+      <Stack spacing={0.5} sx={{ mt: 3, mb: 2 }}>
+        {ownerName && <Typography variant="h5">{t('box.title', { name: ownerName })}</Typography>}
+        {summary && <Typography variant="body2" sx={{ color: tokens.teal[100] }}>{summary}</Typography>}
+      </Stack>
+      <Tabs
+        value={tab}
+        onChange={(_, v) => onTab(v)}
+        slotProps={{ indicator: { style: { backgroundColor: tokens.amber[500], height: 3 } } }}
+        sx={{
+          '& .MuiTab-root': { color: tokens.teal[100], px: 0, mr: 3, minWidth: 0 },
+          '& .MuiTab-root.Mui-selected': { color: tokens.surface.page },
+        }}
+      >
+        <Tab label={t('box.tab.mine')} />
+        <Tab label={t('box.tab.history')} />
+      </Tabs>
+    </Box>
   )
 }

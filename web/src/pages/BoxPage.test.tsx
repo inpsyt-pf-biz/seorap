@@ -435,3 +435,18 @@ describe('BoxPage 배치 (R1 restyle)', () => {
     expect(screen.queryByText('실시 전 0매')).toBeNull()
   })
 })
+
+describe('BoxPage 묶음 (10-29 검수: 시각적 청킹)', () => {
+  it('머리 판과 내용 영역이 나뉘고, 주문마다 제목과 줄이 한 덩어리(order)로 묶인다', async () => {
+    stubApi([launchable, { ...launchable, voucherId: 'v3', unitNo: 2, unitsOfTest: 2 }], {})
+    open()
+    await screen.findByText('STS')
+    const shell = document.querySelector('[data-region="shell"]')!
+    const content = document.querySelector('[data-region="content"]')!
+    expect(shell.contains(content)).toBe(false)
+    const orders = content.querySelectorAll('[data-region="order"]')
+    expect(orders.length).toBe(1)
+    expect(within(orders[0] as HTMLElement).getByText('STS')).toBeTruthy()
+    expect(within(orders[0] as HTMLElement).getAllByRole('button', { name: '실시하기' }).length).toBe(2)
+  })
+})

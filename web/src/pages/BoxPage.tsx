@@ -1,4 +1,4 @@
-import { Accordion, AccordionDetails, AccordionSummary, Alert, Box, Button, Stack, Tab, Tabs, Typography } from '@mui/material'
+import { Accordion, AccordionDetails, AccordionSummary, Alert, Box, Button, Stack, Typography } from '@mui/material'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import type { BoxGroup, BoxLine, BoxResponse, ForwardResponse, LaunchResponse } from '@core/apiTypes.ts'
@@ -120,12 +120,18 @@ export default function BoxPage() {
   if (!box) return error ? <StatePage kind="error" /> : null
 
   return (
-    <Box component="main" sx={{ maxWidth: tokens.layout.maxWidth, mx: 'auto', px: 2, py: 3 }}>
-      <Stack spacing={2}>
-        <BoxHeader ownerName={box.ownerName} onLogout={logout} />
+    <Box component="main" sx={{ maxWidth: tokens.layout.maxWidth, mx: 'auto' }}>
+      {/* 0매면 말할 것이 없다 (잠긴 줄·준비 중 줄만 있는 서랍에서 "실시 전 0매"가 오해를 부른다) */}
+      <BoxHeader
+        ownerName={box.ownerName}
+        summary={box.notStartedCount > 0 ? t('box.summary', { n: box.notStartedCount }) : null}
+        tab={0}
+        onTab={(v) => v === 1 && navigate('/box/history', { state: { ownerName: box.ownerName } })}
+        onLogout={logout}
+      />
+      {/* 내용(종이). 묶음끼리는 넓게(32px), 묶음 안 제목과 줄은 붙여서(8~12px) 리듬으로 덩어리를 보인다 */}
+      <Stack data-region="content" spacing={4} sx={{ px: 2, pt: 3, pb: 5 }}>
         {box.noticeBanner && <Alert severity="info">{box.noticeBanner}</Alert>}
-        {/* 0매면 말할 것이 없다 (잠긴 줄·준비 중 줄만 있는 서랍에서 "실시 전 0매"가 오해를 부른다) */}
-        {box.notStartedCount > 0 && <Typography variant="body2" color="text.secondary">{t('box.summary', { n: box.notStartedCount })}</Typography>}
         {/* 상담 카드 (B2): 신청서를 내기 전에는 검사가 잠겨 있으므로 맨 위에 둔다 */}
         {box.counsel.map((c) => (
           <Box key={c.orderId} sx={{ p: 2, borderRadius: tokens.radius.card, bgcolor: tokens.surface[0], border: `1px solid ${c.submitted ? tokens.surface[200] : tokens.teal[500]}` }}>
@@ -140,33 +146,31 @@ export default function BoxPage() {
             </Stack>
           </Box>
         ))}
-        <Tabs value={0} onChange={(_, v) => v === 1 && navigate('/box/history', { state: { ownerName: box.ownerName } })}>
-          <Tab label={t('box.tab.mine')} />
-          <Tab label={t('box.tab.history')} />
-        </Tabs>
         {error && <Alert severity="warning">{error}</Alert>}
         {box.groups.length === 0 && <Typography variant="body1" color="text.secondary">{t('box.empty')}</Typography>}
         {box.groups.map((g) => (
-          // 묶음은 판으로 감싸지 않고 구분선과 제목으로만 나눈다. 줄 카드가 한 겹이 되게 (UX 진단 F4: 카드 안의 카드)
-          <Accordion
-            key={g.orderId} expanded={expanded[g.orderId] ?? !g.done} onChange={(_, open) => toggle(g.orderId, open)}
-            disableGutters elevation={0} square
-            sx={{ bgcolor: 'transparent', borderTop: 1, borderColor: 'divider', '&::before': { display: 'none' } }}
-          >
-            <AccordionSummary expandIcon={<ExpandChevron />} sx={{ px: 0 }}>
-              <Box>
-                <Typography variant="body1" sx={{ fontWeight: 600 }}>{g.productName}</Typography>
-                <Typography variant="body2" color="text.secondary">
-                  {t('box.group', { date: formatKstDate(g.purchasedAt) })}
-                </Typography>
-              </Box>
-            </AccordionSummary>
-            <AccordionDetails sx={{ px: 0, pt: 0 }}>
-              <Stack spacing={1}>
-                {g.lines.map((l) => <LineRow key={l.voucherId} line={l} onAction={(a, line) => onAction(a, line, g)} />)}
-              </Stack>
-            </AccordionDetails>
-          </Accordion>
+          // 주문 하나 = 제목 + 줄들. 판으로 감싸지 않고 간격(근접)으로 묶는다 (UX 진단 F4: 카드 안의 카드)
+          <Box key={g.orderId} data-region="order">
+            <Accordion
+              expanded={expanded[g.orderId] ?? !g.done} onChange={(_, open) => toggle(g.orderId, open)}
+              disableGutters elevation={0} square
+              sx={{ bgcolor: 'transparent', '&::before': { display: 'none' } }}
+            >
+              <AccordionSummary expandIcon={<ExpandChevron />} sx={{ px: 0, minHeight: 0, '& .MuiAccordionSummary-content': { my: 0.5 } }}>
+                <Box>
+                  <Typography variant="h6">{g.productName}</Typography>
+                  <Typography variant="body2" color="text.secondary">
+                    {t('box.group', { date: formatKstDate(g.purchasedAt) })}
+                  </Typography>
+                </Box>
+              </AccordionSummary>
+              <AccordionDetails sx={{ px: 0, pt: 1.5, pb: 0 }}>
+                <Stack spacing={1.5}>
+                  {g.lines.map((l) => <LineRow key={l.voucherId} line={l} onAction={(a, line) => onAction(a, line, g)} />)}
+                </Stack>
+              </AccordionDetails>
+            </Accordion>
+          </Box>
         ))}
       </Stack>
 

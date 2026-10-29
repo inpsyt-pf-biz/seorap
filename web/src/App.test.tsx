@@ -39,8 +39,15 @@ describe('페이지 바탕색 (닫힌 서랍은 청록, 서랍 안은 종이)', 
     at('/pin')
     expect(document.querySelector('meta[name="theme-color"]')?.getAttribute('content')).toBe('#1E5552')
     cleanup()
-    at('/box')
+    at('/help')
     expect(document.querySelector('meta[name="theme-color"]')?.getAttribute('content')).toBe('#F6F2EA')
+  })
+  it('청록 머리 판이 있는 서랍·전달 이력 화면은 상단 막대도 청록이다 (머리 판과 이어지게)', () => {
+    at('/box')
+    expect(document.querySelector('meta[name="theme-color"]')?.getAttribute('content')).toBe('#1E5552')
+    cleanup()
+    at('/box/history')
+    expect(document.querySelector('meta[name="theme-color"]')?.getAttribute('content')).toBe('#1E5552')
   })
 })
 

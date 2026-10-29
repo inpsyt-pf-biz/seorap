@@ -1,4 +1,4 @@
-import { Alert, Box, Chip, Stack, Tab, Tabs, Typography } from '@mui/material'
+import { Alert, Box, Chip, Stack, Typography } from '@mui/material'
 import { useEffect, useRef, useState } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
 import type { HistoryItem, HistoryResponse } from '@core/apiTypes.ts'
@@ -53,13 +53,9 @@ export default function HistoryPage() {
 
   if (expired) return <StatePage kind="sessionExpired" />
   return (
-    <Box component="main" sx={{ maxWidth: tokens.layout.maxWidth, mx: 'auto', px: 2, py: 3 }}>
-      <Stack spacing={2}>
-        <BoxHeader ownerName={ownerName} onLogout={logout} />
-        <Tabs value={1} onChange={(_, v) => v === 0 && navigate('/box')}>
-          <Tab label={t('box.tab.mine')} />
-          <Tab label={t('box.tab.history')} />
-        </Tabs>
+    <Box component="main" sx={{ maxWidth: tokens.layout.maxWidth, mx: 'auto' }}>
+      <BoxHeader ownerName={ownerName} tab={1} onTab={(v) => v === 0 && navigate('/box')} onLogout={logout} />
+      <Stack data-region="content" spacing={2} sx={{ px: 2, pt: 3, pb: 5 }}>
         {(failed || logoutError) && <Alert severity="warning">{t('error.generic')}</Alert>}
         {items && items.length === 0 && <Typography variant="body1" color="text.secondary">{t('history.empty')}</Typography>}
         {items && items.length > 0 && (
