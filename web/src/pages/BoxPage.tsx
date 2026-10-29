@@ -9,7 +9,8 @@ import ConfirmDialog from '../components/ConfirmDialog'
 import ForwardSheet from '../components/ForwardSheet'
 import LineRow from '../components/LineRow'
 import Toast from '../components/Toast'
-import Wordmark from '../components/Wordmark'
+import BoxHeader from '../components/BoxHeader'
+import CodeDialog from '../components/CodeDialog'
 import { api, ApiError, isSessionEnd } from '../lib/api'
 import { failText } from '../lib/failText'
 import { tokens } from '../theme/seorap'
@@ -123,12 +124,8 @@ export default function BoxPage() {
   return (
     <Box component="main" sx={{ maxWidth: tokens.layout.maxWidth, mx: 'auto', px: 2, py: 3 }}>
       <Stack spacing={2}>
-        <Stack direction="row" sx={{ justifyContent: 'space-between', alignItems: 'center' }}>
-          <Wordmark />
-          <Button variant="text" onClick={logout}>{t('box.logout')}</Button>
-        </Stack>
+        <BoxHeader ownerName={box.ownerName} onLogout={logout} />
         {box.noticeBanner && <Alert severity="info">{box.noticeBanner}</Alert>}
-        <Typography variant="h5">{t('box.title', { name: box.ownerName })}</Typography>
         {/* 0매면 말할 것이 없다 (잠긴 줄·준비 중 줄만 있는 서랍에서 "실시 전 0매"가 오해를 부른다) */}
         {box.notStartedCount > 0 && <Typography variant="body2" color="text.secondary">{t('box.summary', { n: box.notStartedCount })}</Typography>}
         {/* 상담 카드 (B2): 신청서를 내기 전에는 검사가 잠겨 있으므로 맨 위에 둔다 */}
@@ -145,7 +142,7 @@ export default function BoxPage() {
             </Stack>
           </Box>
         ))}
-        <Tabs value={0} onChange={(_, v) => v === 1 && navigate('/box/history')}>
+        <Tabs value={0} onChange={(_, v) => v === 1 && navigate('/box/history', { state: { ownerName: box.ownerName } })}>
           <Tab label={t('box.tab.mine')} />
           <Tab label={t('box.tab.history')} />
         </Tabs>
@@ -186,13 +183,10 @@ export default function BoxPage() {
         onCancel={() => { if (pending?.kind === 'choose') void launch(pending.line.voucherId); setPending(null) }}
         onDismiss={() => setPending(null)}
       />
-      <ConfirmDialog
-        open={pending?.kind === 'code'}
-        title={t('code.title')}
-        message={pending?.kind === 'code' ? `${pending.code}\n${t('code.pcNote')}` : ''}
-        confirmLabel={t('common.close')}
-        onConfirm={() => setPending(null)}
-        onCancel={() => setPending(null)}
+      <CodeDialog
+        code={pending?.kind === 'code' ? pending.code : null}
+        onClose={() => setPending(null)}
+        onCopied={() => { setPending(null); showToast(t('code.copied')) }}
       />
       <ConfirmDialog
         open={pending?.kind === 'resend'}

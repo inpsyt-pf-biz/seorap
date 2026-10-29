@@ -3,8 +3,9 @@ import { useEffect, useRef, useState } from 'react'
 import { useParams } from 'react-router-dom'
 import type { CodeResponse, ForwardPageResponse, LaunchResponse } from '@core/apiTypes.ts'
 import { type CopyKey, t } from '@core/copy.ko.ts'
-import ConfirmDialog from '../components/ConfirmDialog'
+import CodeDialog from '../components/CodeDialog'
 import Wordmark from '../components/Wordmark'
+import Toast from '../components/Toast'
 import { api, ApiError } from '../lib/api'
 import { tokens } from '../theme/seorap'
 import StatePage from './StatePage'
@@ -29,6 +30,7 @@ export default function ReceiverPage() {
   const [page, setPage] = useState<ForwardPageResponse | null>(null)
   const [blocked, setBlocked] = useState<{ kind: 'linkInvalid' | 'linkRevoked' | 'error'; message?: string } | null>(null)
   const [code, setCode] = useState<string | null>(null)
+  const [copied, setCopied] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
   const busyRef = useRef(false)
@@ -88,14 +90,8 @@ export default function ReceiverPage() {
           <Typography variant="caption" color="text.secondary">{t('receiver.scam')}</Typography>
         </Stack>
       </Stack>
-      <ConfirmDialog
-        open={code !== null}
-        title={t('code.title')}
-        message={code ? `${code}\n${t('code.pcNote')}` : ''}
-        confirmLabel={t('common.close')}
-        onConfirm={() => setCode(null)}
-        onCancel={() => setCode(null)}
-      />
+      <CodeDialog code={code} onClose={() => setCode(null)} onCopied={() => { setCode(null); setCopied(true) }} />
+      <Toast message={t('code.copied')} open={copied} onClose={() => setCopied(false)} />
     </Box>
   )
 }
