@@ -107,6 +107,19 @@ Deno.test({ name: '신청서 템플릿', sanitizeResources: false, sanitizeOps: 
     assertEquals(data?.length, 1)
   })
 
+  await t.step('복제: 저장된 초안만 새 템플릿으로, 판·상품 연결은 따라가지 않는다. 같은 이름은 DUPLICATE_NAME, 담당자는 FORBIDDEN', async () => {
+    const { id } = await newPublished()
+    await link(`TF-${tag()}`, id)
+    const name = `[시험F] ${tag()} 복사본`
+    const copy = await rpcOk<string>(admin.rpc('rpc_duplicate_form_template', { p_id: id, p_name: name }))
+    const [c] = await sql`select draft, published_version from counsel.form_templates where id = ${copy}`
+    assertEquals([c.draft, c.published_version], [DEF, null])
+    const links = await sql`select count(*)::int as n from counsel.form_product_links where template_id = ${copy}`
+    assertEquals(links[0].n, 0)
+    assert((await rpcErr(admin.rpc('rpc_duplicate_form_template', { p_id: id, p_name: name }))).includes('COUNSEL:DUPLICATE_NAME'))
+    assert((await rpcErr(manager.rpc('rpc_duplicate_form_template', { p_id: id, p_name: `[시험F] ${tag()}` }))).includes('COUNSEL:FORBIDDEN'))
+  })
+
   await t.step('관리코드 형식이 틀리면 INVALID_INPUT', async () => {
     const { id } = await newPublished()
     assert((await rpcErr(admin.rpc('rpc_set_form_link', { p_manage_code: '한글코드', p_template_id: id, p_purchase_type: 'sponsored', p_enabled: true, p_label: null }))).includes('COUNSEL:INVALID_INPUT'))

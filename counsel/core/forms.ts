@@ -3,7 +3,8 @@
 import {
   DEFAULT_AVAILABILITY, STANDARD_FIELDS, type FieldType, type FormDefinition, type FormField, type StandardField,
 } from '../../supabase/functions/_shared/core/counselForm.ts'
-import type { CopyKey } from './copy.ko.ts'
+import { t, type CopyKey } from './copy.ko.ts'
+import { errorText, type CounselError } from './errors.ts'
 import type { PurchaseType } from './purchases.ts'
 
 export type FormTemplateRow = {
@@ -20,6 +21,11 @@ export const standardFieldLabel = (s: StandardField) => `forms.std.${s}` as Copy
 export { STANDARD_FIELDS }
 
 export const MANAGE_CODE_RE = /^[A-Za-z0-9_-]{1,20}$/
+
+// 템플릿 화면의 오류 문장. 이름이 겹치면 센터 문장("같은 이름의 센터") 대신 템플릿 문장으로
+export function formErrorText(e: CounselError): string {
+  return e.code === 'DUPLICATE_NAME' ? t('forms.duplicateName') : errorText(e)
+}
 
 export function emptyDefinition(): FormDefinition {
   return { intro: '', fields: [] }

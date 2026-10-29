@@ -6,8 +6,8 @@ import {
 } from '@mui/material'
 import { formatKstDateTime } from '@seorap-core/time.ts'
 import { t } from '@counsel-core/copy.ko.ts'
-import { errorText, toCounselError, type CounselError } from '@counsel-core/errors.ts'
-import { emptyDefinition, type FormTemplateRow } from '@counsel-core/forms.ts'
+import { toCounselError, type CounselError } from '@counsel-core/errors.ts'
+import { emptyDefinition, formErrorText, type FormTemplateRow } from '@counsel-core/forms.ts'
 import { ErrorBox, Loading } from '../../../components/PageState'
 import { createFormTemplate, listFormTemplates } from '../../../lib/api'
 import { hasCap, useSession } from '../../../shell/session'
@@ -39,7 +39,7 @@ export default function FormsListPage() {
         <Button variant="outlined" onClick={() => navigate('/admin/counsel/forms/links')}>{t('forms.links')}</Button>
         {canManage && <Button variant="contained" onClick={() => setCreating(true)}>{t('forms.create')}</Button>}
       </Stack>
-      {error && <ErrorBox message={errorText(error)} />}
+      {error && <ErrorBox message={formErrorText(error)} />}
       {!rows && !error && <Loading />}
       {rows && (
         <TableContainer component={Paper} variant="outlined">

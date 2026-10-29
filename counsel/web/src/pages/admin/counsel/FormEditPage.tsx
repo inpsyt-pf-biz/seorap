@@ -8,12 +8,12 @@ import CounselForm from '@seorap-web/components/CounselForm'
 import { tokens as seorapTokens } from '@seorap-web/theme/seorap'
 import { type Answers, type FieldType, type FormDefinition, type FormField, checkDefinition, takesAnswer } from '@seorap-core/counselForm.ts'
 import { t, type CopyKey } from '@counsel-core/copy.ko.ts'
-import { errorText, toCounselError, type CounselError } from '@counsel-core/errors.ts'
+import { toCounselError, type CounselError } from '@counsel-core/errors.ts'
 import {
-  FIELD_TYPES, STANDARD_FIELDS, fieldTypeLabel, moveField, newField, standardFieldLabel, tidyDefinition, type FormTemplateDetail,
+  FIELD_TYPES, STANDARD_FIELDS, fieldTypeLabel, formErrorText, moveField, newField, standardFieldLabel, tidyDefinition, type FormTemplateDetail,
 } from '@counsel-core/forms.ts'
 import { ErrorBox, Loading } from '../../../components/PageState'
-import { getFormTemplate, publishFormTemplate, saveFormDraft } from '../../../lib/api'
+import { duplicateFormTemplate, getFormTemplate, publishFormTemplate, saveFormDraft } from '../../../lib/api'
 import { hasCap, useSession } from '../../../shell/session'
 
 const CONSENT_KINDS = ['third_party', 'sensitive', 'other'] as const
@@ -94,6 +94,9 @@ export default function FormEditPage() {
   const [error, setError] = useState<CounselError | null>(null)
   const [busy, setBusy] = useState(false)
   const [confirm, setConfirm] = useState(false)
+  // 복제 창에 넣을 새 이름 (null 이면 창이 닫혀 있다)
+  const [copyName, setCopyName] = useState<string | null>(null)
+  const [copyError, setCopyError] = useState<string | null>(null)
   const [toast, setToast] = useState<string | null>(null)
   const [addType, setAddType] = useState<FieldType>('short')
   const [preview, setPreview] = useState<Answers>({})
@@ -108,7 +111,7 @@ export default function FormEditPage() {
     return [...new Set(list)]
   }, [draft])
 
-  if (error && !tpl) return <ErrorBox message={errorText(error)} />
+  if (error && !tpl) return <ErrorBox message={formErrorText(error)} />
   if (!tpl || !draft) return <Loading />
 
   const change = (next: FormDefinition) => { setDraft(next); setDirty(true) }
@@ -124,6 +127,18 @@ export default function FormEditPage() {
     try { await fn() } catch (e) { setError(toCounselError(e)) } finally { setBusy(false) }
   }
   const onSave = () => run(async () => { await save(draft); setToast(t('forms.edit.saved')) })
+  const onDuplicate = async () => {
+    if (!copyName?.trim()) return
+    setBusy(true); setCopyError(null)
+    try {
+      const newId = await duplicateFormTemplate(id, copyName.trim())
+      setCopyName(null)
+      navigate(`/admin/counsel/forms/${newId}`)
+    } catch (e) {
+      const ce = toCounselError(e)
+      setCopyError(formErrorText(ce))
+    } finally { setBusy(false) }
+  }
   const onPublish = () => run(async () => {
     setConfirm(false)
     // 게시는 저장된 초안을 굳히므로, 정리한 초안을 먼저 저장한다
@@ -144,13 +159,14 @@ export default function FormEditPage() {
         <Box sx={{ flexGrow: 1 }} />
         {!readOnly && (
           <>
+            <Button variant="text" disabled={busy} onClick={() => { setCopyError(null); setCopyName(t('forms.copyName', { name: tpl.name })) }}>{t('forms.duplicate')}</Button>
             <Button variant="outlined" disabled={busy || !dirty} onClick={onSave}>{t('forms.edit.save')}</Button>
             <Button variant="contained" disabled={busy || problems.length > 0} onClick={() => setConfirm(true)}>{t('forms.edit.publish')}</Button>
           </>
         )}
       </Stack>
       {readOnly && <Alert severity="info">{t('forms.edit.readOnly')}</Alert>}
-      {error && <ErrorBox message={errorText(error)} />}
+      {error && <ErrorBox message={formErrorText(error)} />}
       {problems.length > 0 && !readOnly && (
         <Alert severity="warning">
           <Typography variant="body2" sx={{ fontWeight: 700 }}>{t('forms.edit.problems')}</Typography>
@@ -197,6 +213,21 @@ export default function FormEditPage() {
         <DialogActions>
           <Button onClick={() => setConfirm(false)}>{t('form.cancel')}</Button>
           <Button variant="contained" disabled={busy} onClick={onPublish}>{t('forms.edit.publish')}</Button>
+        </DialogActions>
+      </Dialog>
+      <Dialog open={copyName !== null} onClose={() => setCopyName(null)} fullWidth maxWidth="xs">
+        <DialogContent>
+          <Stack spacing={2}>
+            <Typography variant="h6">{t('forms.duplicateTitle')}</Typography>
+            <Typography variant="body2" color="text.secondary">{t('forms.duplicateHelp')}</Typography>
+            {dirty && <Alert severity="warning">{t('forms.duplicateUnsaved')}</Alert>}
+            <TextField autoFocus fullWidth label={t('forms.createName')} value={copyName ?? ''} onChange={(e) => setCopyName(e.target.value)}
+              error={!!copyError} helperText={copyError ?? undefined} slotProps={{ htmlInput: { maxLength: 100 } }} />
+          </Stack>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setCopyName(null)}>{t('form.cancel')}</Button>
+          <Button variant="contained" disabled={busy || !copyName?.trim()} onClick={onDuplicate}>{t('forms.duplicate')}</Button>
         </DialogActions>
       </Dialog>
       <Snackbar open={!!toast} autoHideDuration={3000} onClose={() => setToast(null)} message={toast} />

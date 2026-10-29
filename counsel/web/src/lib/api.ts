@@ -124,6 +124,10 @@ export function createFormTemplate(name: string, draft: FormDefinition): Promise
   return run<string>(supabase.rpc('rpc_create_form_template', { p_name: name, p_draft: draft }))
 }
 
+export function duplicateFormTemplate(id: string, name: string): Promise<string> {
+  return run<string>(supabase.rpc('rpc_duplicate_form_template', { p_id: id, p_name: name }))
+}
+
 export function saveFormDraft(id: string, version: number, name: string | null, draft: FormDefinition): Promise<number> {
   return run<number>(supabase.rpc('rpc_save_form_draft', { p_id: id, p_version: version, p_name: name, p_draft: draft }))
 }
