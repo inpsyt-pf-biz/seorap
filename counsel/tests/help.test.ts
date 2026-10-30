@@ -19,6 +19,8 @@ const admin = await as('admin')
 const manager = await as('manager')
 const sql = postgres(status.dbUrl, { max: 1, onnotice: () => {} })
 const [{ contact_md: originalContact }] = await sql`select contact_md from counsel.help_settings`
+// 순서 시험이 시험 질문 옆의 실제 질문과 자리를 맞바꿀 수 있다. 시작할 때의 실제 질문 순서를 기억했다가 되돌린다
+const realOrder = await sql`select id from counsel.help_items where question not like '[시험H]%' order by position`
 async function cleanup() {
   await sql`delete from counsel.help_items where question like '[시험H]%'`
   await sql`update counsel.help_settings set contact_md = ${originalContact}`
@@ -93,4 +95,14 @@ Deno.test('지우기: 없는 질문은 NOT_FOUND', async () => {
   assertEquals(await err(admin.rpc('rpc_delete_help_item', { p_id: id })), 'COUNSEL:NOT_FOUND')
 })
 
-Deno.test({ name: '정리', fn: async () => { await cleanup(); await sql.end() }, sanitizeResources: false, sanitizeOps: false })
+Deno.test({
+  name: '정리: 실제 질문의 순서는 시험 전과 같다',
+  fn: async () => {
+    await cleanup()
+    const after = await sql`select id from counsel.help_items where question not like '[시험H]%' order by position`
+    assertEquals(after.map((r) => r.id), realOrder.map((r) => r.id))
+    await sql.end()
+  },
+  sanitizeResources: false,
+  sanitizeOps: false,
+})
