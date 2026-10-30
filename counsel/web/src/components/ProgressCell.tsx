@@ -1,5 +1,5 @@
-import { Fragment, type ReactNode } from 'react'
-import { Box, Stack, Typography } from '@mui/material'
+import type { ReactNode } from 'react'
+import { Box, Typography } from '@mui/material'
 import CheckCircleIcon from '@mui/icons-material/CheckCircle'
 import CheckCircleOutlineIcon from '@mui/icons-material/CheckCircleOutlineOutlined'
 import ErrorOutlineIcon from '@mui/icons-material/ErrorOutlineOutlined'
@@ -10,8 +10,26 @@ import { STAGES, mainSession, purchaseStage, sessionProgress, type PurchaseRow }
 import { tokens } from '../theme/admin'
 
 // 구매 건 목록의 '진행' 칸: 배정 센터·신청서·상담 현황 세 칸을 하나로 (10-30 건우님).
-// 위 줄은 네 단계(신청서 미작성 → 예약 중 → 예약 완료 → 상담 완료)를 체크 아이콘으로: 지난 단계 청록 채움, 지금 단계 청록 테두리,
-// 남은 단계 회색. 상담 불가는 멈춘 자리에 호박빛 느낌표, 취소는 적갈 x. 아래 줄은 지금 단계와 센터, 그 아래 신청서 날짜.
+// 위 줄은 마친 일 세 가지(신청서 작성 → 예약 완료 → 상담 완료)를 체크 아이콘으로: 마친 것 청록 채움, 지금 기다리는 것 청록 테두리,
+// 아직 먼 것 회색. 상담 불가는 멈춘 자리에 호박빛 느낌표, 취소는 적갈 x. 아래 줄은 지금 단계와 센터, 그 아래 신청서 날짜.
+// 머리 칸의 ProgressLegend 가 같은 격자로 세 이름을 아이콘 바로 위에 놓는다.
+// 세 칸의 격자. 머리 칸 이름과 행의 아이콘이 같은 자리에 오도록 둘이 같이 쓴다
+const MILESTONES = ['application', 'booking', 'session'] as const
+const COL = 52
+const grid = { position: 'relative', display: 'grid', gridTemplateColumns: `repeat(${MILESTONES.length}, ${COL}px)`, alignItems: 'center' } as const
+
+export function ProgressLegend() {
+  return (
+    <Box sx={grid}>
+      {MILESTONES.map((m) => (
+        <Typography key={m} variant="body2" sx={{ textAlign: 'center', fontSize: 13, fontWeight: 600, color: 'text.secondary' }}>
+          {t(`progressCell.milestone.${m}` as CopyKey)}
+        </Typography>
+      ))}
+    </Box>
+  )
+}
+
 type Props = { row: Pick<PurchaseRow, 'applications' | 'sessions' | 'created_at'>; centerName: (id: string) => string | undefined }
 
 export default function ProgressCell({ row, centerName }: Props) {
@@ -20,7 +38,6 @@ export default function ProgressCell({ row, centerName }: Props) {
   if (!info || !s) return <Typography variant="body2" color="text.secondary">{t('purchases.stage.testOnly')}</Typography>
 
   const at = STAGES.indexOf(info.stage)
-  const done = info.stage === 'completed' && !info.exit
   const center = s.center_id ? centerName(s.center_id) ?? t('center.empty') : null
   const a = row.applications
   const progress = sessionProgress(row)
@@ -36,28 +53,29 @@ export default function ProgressCell({ row, centerName }: Props) {
   else if (info.stage === 'completed') { line = progress.total > 1 ? `${stageText} · ${t('purchases.progress', { done: progress.completed, total: progress.total })}` : stageText; sub = center }
   else sub = null
 
+  // 마친 일의 수: 신청서 미작성 0, 예약 중 1(신청서 작성), 예약 완료 2, 상담 완료 3. 지금 기다리는 일은 그다음 칸
+  const doneCount = at
+  const cur = Math.min(doneCount, MILESTONES.length - 1)
   const icon = (i: number) => {
     const size = { fontSize: 18, flexShrink: 0 }
-    if (info.exit && i === at) {
+    if (info.exit && i === cur) {
       return info.exit === 'unable'
         ? <ErrorOutlineIcon key={i} sx={{ ...size, color: tokens.tone.warm.fg }} />
         : <HighlightOffIcon key={i} sx={{ ...size, color: tokens.tone.caution.fg }} />
     }
-    if (i < at || (done && i === at)) return <CheckCircleIcon key={i} sx={{ ...size, color: tokens.teal[700] }} />
-    if (i === at && !info.exit) return <CheckCircleOutlineIcon key={i} sx={{ ...size, color: tokens.teal[500] }} />
+    if (i < doneCount) return <CheckCircleIcon key={i} sx={{ ...size, color: tokens.teal[700] }} />
+    if (i === cur) return <CheckCircleOutlineIcon key={i} sx={{ ...size, color: tokens.teal[500] }} />
     return <CheckCircleOutlineIcon key={i} sx={{ ...size, color: tokens.text.disabled }} />
   }
 
   return (
     <Box aria-label={t('progressCell.label', { stage: info.exit ? t(`progressCell.${info.exit}` as CopyKey) : stageText })}>
-      <Stack direction="row" aria-hidden sx={{ alignItems: 'center', mb: 0.5 }}>
-        {STAGES.map((_, i) => (
-          <Fragment key={i}>
-            {i > 0 && <Box sx={{ width: 10, height: 2, flexShrink: 0, bgcolor: i <= at && !(info.exit && i === at) ? tokens.teal[500] : tokens.surface[200] }} />}
-            {icon(i)}
-          </Fragment>
+      <Box aria-hidden sx={{ ...grid, mb: 0.5, height: 20 }}>
+        {MILESTONES.slice(1).map((_, k) => (
+          <Box key={`l${k}`} sx={{ position: 'absolute', top: 9, height: 2, left: COL / 2 + COL * k + 11, width: COL - 22, bgcolor: doneCount > k ? tokens.teal[500] : tokens.surface[200] }} />
         ))}
-      </Stack>
+        {MILESTONES.map((_, i) => <Box key={i} sx={{ display: 'flex', justifyContent: 'center' }}>{icon(i)}</Box>)}
+      </Box>
       <Typography variant="body2" noWrap>{line}</Typography>
       {sub && <Typography variant="caption" color="text.secondary" noWrap component="div">{sub}</Typography>}
     </Box>

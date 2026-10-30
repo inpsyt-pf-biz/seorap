@@ -12,7 +12,7 @@ import { errorText, toCounselError, type CounselError } from '@counsel-core/erro
 import { examLines } from '@counsel-core/exams.ts'
 import { PRODUCT_ORDER_STATUSES, naverCodeLabel, orderStatusText, orderTone } from '@counsel-core/naverOrder.ts'
 import {
-  CENTER_NONE, EMPTY_PURCHASE_FILTER, ORDER_CLAIM, ORDER_NONE, ORDER_REVIEW, PURCHASE_TYPES, STAGES, STAGE_TODO, TYPE_UNCLASSIFIED,
+  CENTER_NONE, EMPTY_PURCHASE_FILTER, ORDER_CLAIM, ORDER_NONE, ORDER_REVIEW, PURCHASE_TYPES, STAGE_TODO, TYPE_UNCLASSIFIED,
   PERIODS, assignableSessionIds, byTodo, periodRange, purchaseTodo, clientLabel, contactLabel, countByStage, filterPurchases, purchaseTypeLabel, testNames,
   type PurchaseFilter, type PurchaseRow,
 } from '@counsel-core/purchases.ts'
@@ -21,7 +21,7 @@ import DateRangeField from '../../../components/DateRangeField'
 import ExamStatusIcon from '../../../components/ExamStatusIcon'
 import ImportDialog from '../../../components/ImportDialog'
 import { ErrorBox, Loading } from '../../../components/PageState'
-import ProgressCell from '../../../components/ProgressCell'
+import ProgressCell, { ProgressLegend } from '../../../components/ProgressCell'
 import StageStrip from '../../../components/StageStrip'
 import { countInbox, listCenters, listPurchases } from '../../../lib/api'
 import { usePageCommands } from '../../../shell/commands'
@@ -190,12 +190,8 @@ export default function PurchasesListPage() {
                   {COLUMNS.map((c) => (
                     <TableCell key={c.label} sx={{ width: c.width, py: 1.5, px: 1.5 }}>
                       <Typography variant="caption" sx={{ fontWeight: 600 }}>{t(c.label)}</Typography>
-                      {/* 진행 칸의 아이콘 네 개가 무엇인지 머리 칸에 적어 둔다 */}
-                      {c.label === 'purchases.col.progress' && (
-                        <Typography variant="caption" color="text.secondary" component="div" sx={{ fontWeight: 400, whiteSpace: 'normal' }}>
-                          {STAGES.map((x) => t(`purchases.stage.${x}` as CopyKey)).join(' → ')}
-                        </Typography>
-                      )}
+                      {/* 진행 칸의 아이콘 세 개(신청서·예약·상담)가 무엇인지 아이콘 바로 위에 적어 둔다 */}
+                      {c.label === 'purchases.col.progress' && <ProgressLegend />}
                     </TableCell>
                   ))}
                 </TableRow>
