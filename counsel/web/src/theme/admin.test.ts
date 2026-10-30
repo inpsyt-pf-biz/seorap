@@ -37,6 +37,30 @@ describe('센터 아이콘', () => {
   })
 })
 
+// 10-30 건우님 검수(여러 번): "메뉴마다 바탕과 요소 사이 구분이 없다". 서랍 고객 화면의 옅은 종이 바탕을 그대로 쓰면
+// 흰 판·입력 칸이 바탕에 묻힌다. 어드민은 바탕을 한 단계 짙게 깔고, 판·입력 칸은 흰색에 바탕보다 진한 테두리를 둔다
+describe('어드민 바탕과 판·입력 칸의 구분', () => {
+  const bg = adminTheme.palette.background.default
+  it('본문 바탕은 흰 판(카드·표)과 눈에 띄게 다르다 (대비 1.2 이상)', () => {
+    expect(adminTheme.palette.background.paper).toBe(tokens.surface[0])
+    expect(contrast(bg, tokens.surface[0])).toBeGreaterThanOrEqual(1.2)
+  })
+  it('입력 칸은 흰색이라 바탕 위에서 떠 보인다', () => {
+    const root = adminTheme.components?.MuiOutlinedInput?.styleOverrides?.root as { backgroundColor?: string }
+    expect(root.backgroundColor).toBe(tokens.surface[0])
+  })
+  it('판 테두리는 바탕보다 진하다', () => {
+    const root = adminTheme.components?.MuiPaper?.styleOverrides?.root as { border?: string }
+    const color = /#[0-9A-F]{6}/i.exec(root.border ?? '')?.[0] ?? ''
+    expect(contrast(color, bg)).toBeGreaterThanOrEqual(1.25)
+  })
+  it('창 바탕(html)도 본문과 같은 색이라 넓은 화면·당겨 내릴 때 다른 색이 비치지 않는다', () => {
+    const css = adminTheme.components?.MuiCssBaseline?.styleOverrides as Record<string, Record<string, unknown>>
+    expect(css.html).toMatchObject({ backgroundColor: bg })
+    expect((css['@media (min-width: 520px)'] as Record<string, Record<string, unknown>>).html).toMatchObject({ backgroundColor: bg })
+  })
+})
+
 // 서랍과 같은 규칙: 화면 코드에 색 값이나 서랍 주 컬럼 폭(480)을 직접 쓰지 않는다. 테마 파일만 예외.
 describe('화면 코드는 색·폭을 직접 쓰지 않는다', () => {
   const sources = import.meta.glob('../**/*.{ts,tsx}', { query: '?raw', import: 'default', eager: true }) as Record<string, string>
