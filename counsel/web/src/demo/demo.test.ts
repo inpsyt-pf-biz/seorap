@@ -89,7 +89,7 @@ describe('읽기: 실제 api.ts 가 같은 모양으로 받는다', () => {
     const p1 = rows.find((r) => r.id === 'p1')!
     expect(p1.applications?.client_name).toBe('가나다')
     expect(p1.naver_orderers).toBeNull()
-    expect(p1.purchase_tests).toEqual([{ exam_status: 'completed' }, { exam_status: 'unused' }])
+    expect(p1.purchase_tests).toEqual([{ test_name: 'A', unit_no: 1, exam_status: 'completed' }, { test_name: 'B', unit_no: 2, exam_status: 'unused' }])
     expect(rows.find((r) => r.id === 'p3')!.sessions.map((s) => s.seq)).toEqual([1, 2])
   })
 

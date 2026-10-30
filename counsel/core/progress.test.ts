@@ -1,5 +1,5 @@
 import { assertEquals } from '@std/assert'
-import { EXAM_STATUSES, examSummary, examSummaryText } from './exams.ts'
+import { EXAM_STATUSES, examLines, examSummary, examSummaryText } from './exams.ts'
 import { computeProgress, type ProgressInput } from './progress.ts'
 
 const sql = Deno.readTextFileSync(new URL('../supabase/migrations/20261021000001_purchase_tests.sql', import.meta.url))
@@ -45,7 +45,7 @@ Deno.test('상담은 끝났는데 검사를 안 했으면 검사 실시가 누�
     tests: tests('unused'),
   })
   assertEquals(p.steps.map((x) => x.state), ['done', 'done', 'done', 'done', 'missing', 'done', 'pending'])
-  assertEquals(p.steps[4].note, '미실시')
+  assertEquals(p.steps[4].note, '미응시')
   assertEquals([p.next.key, p.next.vars.steps], ['progress.next.missing', '검사 실시'])
 })
 
@@ -71,10 +71,10 @@ Deno.test('모두 끝남(보고서는 준비 중이라 세지 않음), 취소·�
 
 Deno.test('목록의 검사 실시 요약', () => {
   assertEquals(examSummaryText(examSummary([])), '서랍 연결 후')
-  assertEquals(examSummaryText(examSummary(tests('unused', 'unused'))), '미실시')
-  assertEquals(examSummaryText(examSummary(tests('in_progress', 'unused'))), '실시 중')
+  assertEquals(examSummaryText(examSummary(tests('unused', 'unused'))), '미응시')
+  assertEquals(examSummaryText(examSummary(tests('in_progress', 'unused'))), '응시 중')
   assertEquals(examSummaryText(examSummary(tests('completed', 'in_progress', 'unused'))), '완료 1/3')
-  assertEquals(examSummaryText(examSummary(tests('completed', 'completed', 'deleted'))), '실시 완료')
+  assertEquals(examSummaryText(examSummary(tests('completed', 'completed', 'deleted'))), '응시 완료')
 })
 
 Deno.test('검사를 먼저 마친 정상 흐름: 배정·예약은 누락이 아니라 지금 할 단계', () => {
@@ -94,4 +94,13 @@ Deno.test('회차가 여럿이면 검사는 어느 회차 것인지 몰라 누�
   })
   assertEquals(p.steps.map((x) => x.state), ['done', 'done', 'done', 'done', 'current', 'done', 'pending'])
   assertEquals(p.next.key, 'progress.next.exam')
+})
+
+Deno.test('목록의 진행 검사 줄: 검사마다 한 줄, 같은 검사가 둘이면 번호', () => {
+  const x = (test_name: string, unit_no: number | null, exam_status: string) => ({ test_name, unit_no, exam_status })
+  assertEquals(examLines([x('STS 기질검사', 2, 'unused'), x('K-CBCL', null, 'completed'), x('STS 기질검사', 1, 'in_progress'), x('MMPI', null, 'deleted')]), [
+    { name: 'K-CBCL', status: 'completed' },
+    { name: 'STS 기질검사 1', status: 'in_progress' },
+    { name: 'STS 기질검사 2', status: 'unused' },
+  ])
 })

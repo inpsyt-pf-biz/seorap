@@ -44,3 +44,13 @@ export function examSummaryText(s: ExamSummary): string {
   if (s.completed === 0) return t(s.started > 0 ? 'exam.status.in_progress' : 'exam.status.unused')
   return t('exam.summary.partial', { done: s.completed, total: s.total })
 }
+
+// 목록의 '진행 검사' 칸: 구매한 검사를 모두 한 줄씩(지워진 코드는 뺀다). 같은 검사가 둘 이상이면 이름 뒤에 번호를 붙인다
+export function examLines(tests: { test_name: string; unit_no: number | null; exam_status: string }[]): { name: string; status: string }[] {
+  const live = [...liveTests(tests)].sort((a, b) => a.test_name.localeCompare(b.test_name, 'ko') || (a.unit_no ?? 0) - (b.unit_no ?? 0))
+  const many = new Set(live.map((x) => x.test_name).filter((n, i, all) => all.indexOf(n) !== i))
+  return live.map((x, i) => ({
+    name: many.has(x.test_name) ? `${x.test_name} ${x.unit_no ?? live.filter((y, j) => j <= i && y.test_name === x.test_name).length}` : x.test_name,
+    status: x.exam_status,
+  }))
+}

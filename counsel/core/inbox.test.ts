@@ -5,7 +5,7 @@ import type { PurchaseRow } from './purchases.ts'
 const purchase = (id: string, opts: { name?: string; tel?: string; type?: PurchaseRow['purchase_type']; paid?: string; hasApp?: boolean }): PurchaseRow => ({
   id, purchase_type: opts.type === undefined ? 'test_main' : opts.type, product_name: null, paid_at: opts.paid ?? null, source: 'naver',
   created_at: '2026-10-01T00:00:00Z',
-  applications: opts.hasApp ? { client_name: 'x', guardian_name: null, test_name: null, submitted_at: null, residence: null, preferred_method: null, preferred_schedule: null } : null,
+  applications: opts.hasApp ? { client_name: 'x', client_phone: null, guardian_name: null, guardian_phone: null, test_name: null, submitted_at: null, residence: null, preferred_method: null, preferred_schedule: null } : null,
   naver_product_orders: null,
   naver_orderers: { name_masked: opts.name ?? null, tel_masked: opts.tel ?? null },
   purchase_tests: [],
