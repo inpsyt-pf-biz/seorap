@@ -114,15 +114,16 @@ describe('도움말', () => {
   it('질문 5개와 문의처', async () => {
     stubApi({ help: () => json(200, { contact: '문의: 톡톡' }) })
     open('/help')
+    // 옛 서버 응답(문의처만)이면 기본 질문 + 받은 문의처. 응답이 온 뒤에 그린다
+    expect(await screen.findByText('문의: 톡톡')).toBeTruthy()
     for (const q of ['help.q.noSms', 'help.q.lostLink', 'help.q.cancel', 'help.q.result', 'help.q.scam'] as const) {
       expect(screen.getByText(t(q))).toBeTruthy()
     }
-    expect(await screen.findByText('문의: 톡톡')).toBeTruthy()
   })
 
   it('문의처를 못 불러와도 본문은 보인다', async () => {
     stubApi({ help: () => json(502, { error: { code: 'UPSTREAM_FAILED' } }) })
     open('/help')
-    expect(screen.getByText(t('help.q.cancel'))).toBeTruthy()
+    expect(await screen.findByText(t('help.q.cancel'))).toBeTruthy()
   })
 })

@@ -5,7 +5,7 @@ import { logEvent } from '../lib/events.ts'
 import { ApiError, json, readJson } from '../lib/http.ts'
 import { TOKEN_RE } from '../lib/links.ts'
 import { platformTestUrl } from '../lib/platform.ts'
-import { getSettings } from '../lib/settings.ts'
+import { loadHelp } from '../lib/help.ts'
 
 // 받는 분 1매 화면 (build-spec §4-7). 세션 없이 링크 토큰만으로 연다.
 // 링크를 여는 것(forward/page)은 아무것도 기록하지 않는다: 카카오톡 미리보기 봇이 먼저 열기 때문이다.
@@ -30,7 +30,7 @@ export async function forwardPage(req: Request): Promise<Response> {
   if (!r) refuse('invalid')
   if (r.out_status !== 'ok') refuse(r.out_status)
   const body: ForwardPageResponse = {
-    senderName: r.out_sender_masked ?? '', testName: r.out_test_name, launched: r.out_launched, contact: (await getSettings()).contact_line,
+    senderName: r.out_sender_masked ?? '', testName: r.out_test_name, launched: r.out_launched, contact: (await loadHelp()).contact,
   }
   return json(200, body)
 }
@@ -52,9 +52,9 @@ export async function forwardLaunch(req: Request): Promise<Response> {
   return json(200, body)
 }
 
-// 도움말 화면의 문의처 (세션 없이). 받는 분 화면과 같은 설정값
+// 도움말 화면 (세션 없이). 상담 어드민에서 고친 질문·답·버튼·문의처 (10-30). 받는 분 화면도 같은 문의처
 export async function help(_req: Request): Promise<Response> {
-  const body: HelpResponse = { contact: (await getSettings()).contact_line }
+  const body: HelpResponse = await loadHelp()
   return json(200, body)
 }
 

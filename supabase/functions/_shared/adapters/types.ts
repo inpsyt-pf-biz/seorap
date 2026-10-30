@@ -36,4 +36,6 @@ export interface CounselAdapter {
   formFor(manageCode: string): Promise<CounselFormRef | null>
   // 같은 상품주문번호로 다시 보내도 원장에는 한 건 (created = false)
   submit(s: CounselSubmission): Promise<{ purchaseId: string; created: boolean }>
+  // 도움말(10-30): rpc_seorap_help 원시 응답. 검사는 core/helpContent.normalizeHelp 가 한다
+  help(): Promise<unknown>
 }

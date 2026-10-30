@@ -51,7 +51,8 @@ export type HistoryResponse = { items: HistoryItem[] }
 
 // 받는 분 1매 화면. 보낸 분 번호·같은 주문의 다른 검사·코드는 담지 않는다 (build-spec §4-7)
 export type ForwardPageResponse = { senderName: string; testName: string; launched: boolean; contact: string }
-export type HelpResponse = { contact: string }
+// 도움말 (10-30): 상담 어드민에서 고친 질문·답(마크다운)·버튼·문의처(마크다운)
+export type HelpResponse = import('./helpContent.ts').HelpContent
 export type LaunchResponse = { url: string }
 export type CodeResponse = { code: string }
 export type ForwardResponse = { forwardId: string; created: boolean }
