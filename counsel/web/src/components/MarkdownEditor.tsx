@@ -1,43 +1,48 @@
-import { useRef } from 'react'
-import { Button, ButtonGroup, Stack, TextField } from '@mui/material'
-import { t, type CopyKey } from '@counsel-core/copy.ko.ts'
-import { insertLink, prefixLines, wrapSelection, type Edit } from '@counsel-core/markdownEdit.ts'
+import '@mdxeditor/editor/style.css'
+import {
+  BoldItalicUnderlineToggles, CreateLink, linkDialogPlugin, linkPlugin, listsPlugin, ListsToggle, MDXEditor, Separator, toolbarPlugin, UndoRedo,
+} from '@mdxeditor/editor'
+import { Box, FormHelperText, Typography } from '@mui/material'
+import { editorText } from '@counsel-core/help.ts'
 import { isAllowedUrl } from '@seorap-core/helpContent.ts'
+import { tokens } from '../theme/admin'
 
-// 도움말 답 에디터 (10-30): 마크다운 입력 + 서식 단추. 결과 모양은 옆의 서랍 미리보기로 본다
-type Props = { label: string; value: string; onChange: (v: string) => void; maxLength: number; error?: string; minRows?: number }
+// 도움말 답·문의처 에디터 (10-30, 건우님: 외부 에디터로). MDXEditor 로 서식이 보이는 채로 고치고, 저장은 마크다운.
+// 서랍 도움말이 그리는 서식만 넣는다: 굵게·기울임·글머리·번호 목록·링크. 제목·표·이미지·코드는 플러그인을 넣지 않아 만들 수 없다.
+// MDXEditor 는 처음 값만 읽으므로, 다른 질문으로 바꿀 때는 부모가 key 를 바꿔 새로 띄운다
+type Props = { label: string; value: string; onChange: (v: string) => void; maxLength: number; error?: string }
 
-export default function MarkdownEditor({ label, value, onChange, maxLength, error, minRows = 6 }: Props) {
-  const ref = useRef<HTMLTextAreaElement>(null)
-  const apply = (f: (text: string, s: number, e: number) => Edit | null) => {
-    const el = ref.current
-    if (!el) return
-    const r = f(value, el.selectionStart, el.selectionEnd)
-    if (!r) return
-    onChange(r.text)
-    requestAnimationFrame(() => { el.focus(); el.setSelectionRange(r.selStart, r.selEnd) })
-  }
-  const link = () => apply((text, s, e) => {
-    const url = window.prompt(t('help.linkPrompt'))?.trim()
-    return url && isAllowedUrl(url) ? insertLink(text, s, e, url) : null
-  })
-  const tools: [CopyKey, () => void][] = [
-    ['help.fmt.bold', () => apply((x, s, e) => wrapSelection(x, s, e, '**'))],
-    ['help.fmt.italic', () => apply((x, s, e) => wrapSelection(x, s, e, '*'))],
-    ['help.fmt.ul', () => apply((x, s, e) => prefixLines(x, s, e, 'ul'))],
-    ['help.fmt.ol', () => apply((x, s, e) => prefixLines(x, s, e, 'ol'))],
-    ['help.fmt.link', link],
-  ]
+const toolbar = () => (
+  <>
+    <UndoRedo />
+    <Separator />
+    <BoldItalicUnderlineToggles options={['Bold', 'Italic']} />
+    <Separator />
+    <ListsToggle options={['bullet', 'number']} />
+    <Separator />
+    <CreateLink />
+  </>
+)
+
+export default function MarkdownEditor({ label, value, onChange, maxLength, error }: Props) {
+  const count = [...value].length
+  const bad = !!error || count > maxLength
   return (
-    <Stack spacing={1}>
-      <ButtonGroup size="small" variant="outlined">
-        {tools.map(([k, fn]) => <Button key={k} onClick={fn}>{t(k)}</Button>)}
-      </ButtonGroup>
-      <TextField
-        label={label} value={value} onChange={(e) => onChange(e.target.value)} multiline minRows={minRows} fullWidth
-        inputRef={ref} error={!!error} helperText={error || `${[...value].length} / ${maxLength}`}
-        slotProps={{ htmlInput: { maxLength } }}
-      />
-    </Stack>
+    <Box>
+      <Typography variant="caption" color="text.secondary" component="div" sx={{ mb: 0.5 }}>{label}</Typography>
+      <Box sx={{
+        border: `1px solid ${bad ? tokens.tone.caution.fg : tokens.surface[300]}`, borderRadius: tokens.radius.control, bgcolor: tokens.surface[0],
+        overflow: 'hidden',
+        '& [role="toolbar"]': { bgcolor: tokens.surface[50], borderRadius: 0 },
+        '& [contenteditable="true"]': { minHeight: 96, px: 1.5, py: 1, fontFamily: 'inherit', fontSize: '0.95rem', lineHeight: 1.6 },
+      }}>
+        <MDXEditor
+          markdown={value} onChange={(md) => onChange(md)} translation={editorText}
+          toMarkdownOptions={{ bullet: '-', emphasis: '*', strong: '*' }}
+          plugins={[listsPlugin(), linkPlugin({ validateUrl: isAllowedUrl }), linkDialogPlugin(), toolbarPlugin({ toolbarContents: toolbar })]}
+        />
+      </Box>
+      <FormHelperText error={bad}>{error || `${count} / ${maxLength}`}</FormHelperText>
+    </Box>
   )
 }

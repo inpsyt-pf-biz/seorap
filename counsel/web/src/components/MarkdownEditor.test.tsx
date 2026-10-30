@@ -1,38 +1,26 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { cleanup, fireEvent, render, screen } from '@testing-library/react'
+import { cleanup, render, screen, waitFor } from '@testing-library/react'
 import MarkdownEditor from './MarkdownEditor'
 
 afterEach(() => { cleanup(); vi.restoreAllMocks() })
 
-function setup(value: string) {
-  const onChange = vi.fn()
-  render(<MarkdownEditor label="답" value={value} onChange={onChange} maxLength={2000} />)
-  const box = screen.getByLabelText('답') as HTMLTextAreaElement
-  return { onChange, box }
-}
+const tool = (name: string) => document.querySelector(`[title="${name}"], [aria-label="${name}"]`)
 
-describe('마크다운 에디터 서식 단추', () => {
-  it('굵게: 고른 글자를 ** 로 감싼다', () => {
-    const { onChange, box } = setup('스팸함을 보세요')
-    box.setSelectionRange(0, 3)
-    fireEvent.click(screen.getByRole('button', { name: '굵게' }))
-    expect(onChange).toHaveBeenCalledWith('**스팸함**을 보세요')
+describe('도움말 에디터 (MDXEditor)', () => {
+  it('마크다운을 서식이 보이는 채로 띄운다', async () => {
+    render(<MarkdownEditor label="답" value={'**스팸함**을 보세요\n\n- 하나'} onChange={() => {}} maxLength={2000} />)
+    await waitFor(() => expect(document.querySelector('[contenteditable] strong')?.textContent).toBe('스팸함'))
+    expect(document.querySelector('[contenteditable] li')?.textContent).toBe('하나')
   })
-  it('글머리 목록: 고른 줄 앞에 - 를 붙인다', () => {
-    const { onChange, box } = setup('하나\n둘')
-    box.setSelectionRange(0, 4)
-    fireEvent.click(screen.getByRole('button', { name: '글머리 목록' }))
-    expect(onChange).toHaveBeenCalledWith('- 하나\n- 둘')
+  it('도구 막대는 굵게·기울임·목록 두 가지·링크만, 한국어 이름', async () => {
+    render(<MarkdownEditor label="답" value="" onChange={() => {}} maxLength={2000} />)
+    await waitFor(() => expect(tool('굵게')).toBeTruthy())
+    for (const n of ['기울임', '글머리 목록', '번호 목록', '링크']) expect(tool(n)).toBeTruthy()
+    for (const n of ['Underline', 'Check list', 'Insert table', 'Insert image', 'Insert Code Block']) expect(tool(n)).toBeNull()
   })
-  it('링크: 주소를 물어 [글자](주소)로 넣고, 허용하지 않는 주소면 넣지 않는다', () => {
-    const { onChange, box } = setup('톡톡 문의')
-    box.setSelectionRange(0, 2)
-    vi.spyOn(window, 'prompt').mockReturnValueOnce('https://talk.naver.com/x')
-    fireEvent.click(screen.getByRole('button', { name: '링크' }))
-    expect(onChange).toHaveBeenLastCalledWith('[톡톡](https://talk.naver.com/x) 문의')
-    onChange.mockClear()
-    vi.spyOn(window, 'prompt').mockReturnValueOnce('javascript:alert(1)')
-    fireEvent.click(screen.getByRole('button', { name: '링크' }))
-    expect(onChange).not.toHaveBeenCalled()
+  it('이름표와 글자 수, 넘치면 오류 문구 색', async () => {
+    render(<MarkdownEditor label="답" value="가나다" onChange={() => {}} maxLength={2} />)
+    expect(screen.getByText('답')).toBeTruthy()
+    expect(screen.getByText('3 / 2').className).toMatch(/Mui-error/)
   })
 })

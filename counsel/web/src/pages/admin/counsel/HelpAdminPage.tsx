@@ -1,16 +1,23 @@
 import { useEffect, useState } from 'react'
 import {
-  Alert, Box, Button, Chip, Dialog, DialogActions, DialogContent, FormControlLabel, List, ListItemButton, ListItemText, Paper, Snackbar,
-  Stack, Switch, TextField, Typography,
+  closestCenter, DndContext, KeyboardSensor, PointerSensor, useSensor, useSensors, type Announcements, type DragEndEvent,
+} from '@dnd-kit/core'
+import { SortableContext, sortableKeyboardCoordinates, useSortable, verticalListSortingStrategy } from '@dnd-kit/sortable'
+import { CSS } from '@dnd-kit/utilities'
+import DragIndicator from '@mui/icons-material/DragIndicator'
+import {
+  Alert, Box, Button, Chip, Dialog, DialogActions, DialogContent, FormControlLabel, List, ListItem, ListItemButton, ListItemText, Paper,
+  Snackbar, Stack, Switch, TextField, Typography,
 } from '@mui/material'
 import { t, type CopyKey } from '@counsel-core/copy.ko.ts'
 import { errorText, toCounselError, type CounselError } from '@counsel-core/errors.ts'
+import { reorderIds } from '@counsel-core/help.ts'
 import { contactOk, HELP_LIMITS, helpItemProblems, type HelpContent } from '@seorap-core/helpContent.ts'
 import HelpArticle from '@seorap-web/components/HelpArticle'
 import MarkdownEditor from '../../../components/MarkdownEditor'
 import { ErrorBox, Loading } from '../../../components/PageState'
 import {
-  deleteHelpItem, getHelpContact, listHelpItems, moveHelpItem, saveHelpContact, saveHelpItem, type HelpRow,
+  deleteHelpItem, getHelpContact, listHelpItems, reorderHelpItems, saveHelpContact, saveHelpItem, type HelpRow,
 } from '../../../lib/api'
 import { hasCap, useSession } from '../../../shell/session'
 import { tokens } from '../../../theme/admin'
@@ -18,21 +25,68 @@ import { tokens } from '../../../theme/admin'
 type Draft = { id: string | null; question: string; answer_md: string; buttons: HelpRow['buttons']; hidden: boolean }
 const blank = (): Draft => ({ id: null, question: '', answer_md: '', buttons: [], hidden: false })
 
-// 서랍 도움말 관리 (10-30, help-admin-design.md). 왼쪽 질문 목록, 가운데 편집, 오른쪽 서랍 휴대폰 폭 미리보기
+// 끌어 놓기 안내(화면 읽기 프로그램). 기본은 영어라 한국어로 바꾼다
+const announcements: Announcements = {
+  onDragStart: () => t('help.drag'),
+  onDragOver: () => '',
+  onDragEnd: () => t('help.reordered'),
+  onDragCancel: () => t('help.link.cancel'),
+}
+
+// 질문 목록의 한 줄: 왼쪽 손잡이를 끌어 순서를 바꾼다(키보드: 손잡이에서 스페이스 → 화살표 → 스페이스)
+function SortableRow({ row, selected, draggable, onPick }: { row: HelpRow; selected: boolean; draggable: boolean; onPick: () => void }) {
+  const { attributes, listeners, setNodeRef, setActivatorNodeRef, transform, transition, isDragging } = useSortable({ id: row.id, disabled: !draggable })
+  return (
+    <ListItem
+      ref={setNodeRef} disablePadding
+      style={{ transform: CSS.Transform.toString(transform), transition }}
+      sx={{ position: 'relative', zIndex: isDragging ? 1 : 'auto', bgcolor: isDragging ? tokens.surface[50] : 'transparent', boxShadow: isDragging ? 3 : 'none' }}
+    >
+      {draggable && (
+        <Box
+          component="button" type="button" ref={setActivatorNodeRef} aria-label={t('help.drag')} {...attributes} {...listeners}
+          sx={{
+            alignSelf: 'stretch', display: 'grid', placeItems: 'center', px: 0.5, border: 0, bgcolor: 'transparent', color: 'text.secondary',
+            cursor: isDragging ? 'grabbing' : 'grab', touchAction: 'none', '&:hover': { color: 'text.primary' },
+          }}
+        >
+          <DragIndicator fontSize="small" />
+        </Box>
+      )}
+      <ListItemButton selected={selected} onClick={onPick} sx={{ pl: draggable ? 0.5 : 2 }}>
+        <ListItemText primary={row.question} />
+        {row.hidden && <Chip size="small" label={t('help.hiddenChip')} sx={{ ml: 1 }} />}
+      </ListItemButton>
+    </ListItem>
+  )
+}
+
+// 서랍 도움말 관리 (10-30, help-admin-design.md). 왼쪽 질문 목록(끌어서 순서), 가운데 편집(MDXEditor), 오른쪽 서랍 휴대폰 폭 미리보기
 export default function HelpAdminPage() {
   const { state } = useSession()
   const canManage = hasCap(state, 'help.manage')
   const [rows, setRows] = useState<HelpRow[] | null>(null)
   const [contact, setContact] = useState('')
+  // 다시 읽을 때마다 문의처 에디터를 새로 띄운다(MDXEditor 는 처음 값만 읽는다)
+  const [loads, setLoads] = useState(0)
   const [draft, setDraft] = useState<Draft | null>(null)
   const [problem, setProblem] = useState('')
-  // 저장·옮기기·삭제·문의처 저장이 서버에서 실패한 것. 질문을 고르지 않아도 보이게 화면 위에 둔다
+  // 저장·순서·삭제·문의처 저장이 서버에서 실패한 것. 질문을 고르지 않아도 보이게 화면 위에 둔다
   const [failure, setFailure] = useState('')
   const [error, setError] = useState<CounselError | null>(null)
   const [confirm, setConfirm] = useState(false)
   const [toast, setToast] = useState<string | null>(null)
+  // 마우스는 4px 넘게 움직여야 끌기로 본다(손잡이를 누르기만 해도 끌리지 않게)
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 4 } }),
+    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
+  )
 
-  const load = () => Promise.all([listHelpItems(), getHelpContact()]).then(([r, c]) => { setRows(r); setContact(c) }, (e: unknown) => setError(toCounselError(e)))
+  const load = () => Promise.all([listHelpItems(), getHelpContact()]).then(([r, c]) => {
+    setRows(r)
+    setContact(c)
+    setLoads((n) => n + 1)
+  }, (e: unknown) => setError(toCounselError(e)))
   useEffect(() => { void load() }, [])
   if (error && !rows) return <ErrorBox message={errorText(error)} />
   if (!rows) return <Loading />
@@ -74,6 +128,15 @@ export default function HelpAdminPage() {
     const id = draft?.id
     if (id) void run(async () => { await deleteHelpItem(id); setDraft(null) }, 'help.saved')
   }
+  // 놓는 순간 목록·미리보기를 먼저 바꾸고 저장한다. 실패하면 run 이 다시 읽어 서버 순서로 돌아간다
+  const onDragEnd = (e: DragEndEvent) => {
+    if (!e.over) return
+    const base = rows.map((r) => r.id)
+    const ids = reorderIds(base, String(e.active.id), String(e.over.id))
+    if (ids === base) return
+    setRows(ids.map((id) => rows.find((r) => r.id === id)!))
+    void run(() => reorderHelpItems(ids), 'help.reordered')
+  }
 
   return (
     <Stack spacing={2.5}>
@@ -85,24 +148,18 @@ export default function HelpAdminPage() {
       <Typography variant="body2" color="text.secondary">{t('help.intro')}</Typography>
       {failure && <Alert severity="error" onClose={() => setFailure('')}>{failure}</Alert>}
 
-      <Box sx={{ display: 'grid', gap: 2, gridTemplateColumns: { xs: '1fr', lg: '260px 1fr 360px' }, alignItems: 'start' }}>
+      <Box sx={{ display: 'grid', gap: 2, gridTemplateColumns: { xs: '1fr', lg: '280px 1fr 360px' }, alignItems: 'start' }}>
         <Paper>
-          <List aria-label={t('help.list')} dense>
-            {rows.map((r, i) => (
-              <ListItemButton key={r.id} selected={draft?.id === r.id} onClick={() => pick(r)}>
-                <ListItemText primary={r.question} />
-                {r.hidden && <Chip size="small" label={t('help.hiddenChip')} sx={{ ml: 1 }} />}
-                {canManage && (
-                  <Stack direction="row" onClick={(e) => e.stopPropagation()}>
-                    <Button size="small" sx={{ minWidth: 32 }} disabled={i === 0} aria-label={t('help.up')}
-                      onClick={() => void run(() => moveHelpItem(r.id, -1), 'help.saved')}>↑</Button>
-                    <Button size="small" sx={{ minWidth: 32 }} disabled={i === rows.length - 1} aria-label={t('help.down')}
-                      onClick={() => void run(() => moveHelpItem(r.id, 1), 'help.saved')}>↓</Button>
-                  </Stack>
-                )}
-              </ListItemButton>
-            ))}
-          </List>
+          <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={onDragEnd}
+            accessibility={{ announcements, screenReaderInstructions: { draggable: t('help.dragHelp') } }}>
+            <SortableContext items={rows.map((r) => r.id)} strategy={verticalListSortingStrategy}>
+              <List aria-label={t('help.list')} dense>
+                {rows.map((r) => (
+                  <SortableRow key={r.id} row={r} selected={draft?.id === r.id} draggable={canManage} onPick={() => pick(r)} />
+                ))}
+              </List>
+            </SortableContext>
+          </DndContext>
         </Paper>
 
         <Paper sx={{ p: 2.5 }}>
@@ -110,7 +167,8 @@ export default function HelpAdminPage() {
             <Stack spacing={2}>
               <TextField label={t('help.question')} value={draft.question} onChange={(e) => patch({ question: e.target.value })}
                 slotProps={{ htmlInput: { maxLength: HELP_LIMITS.question } }} disabled={!canManage} />
-              <MarkdownEditor label={t('help.answer')} value={draft.answer_md} onChange={(v) => patch({ answer_md: v })} maxLength={HELP_LIMITS.answer} />
+              <MarkdownEditor key={draft.id ?? 'new'} label={t('help.answer')} value={draft.answer_md}
+                onChange={(v) => patch({ answer_md: v })} maxLength={HELP_LIMITS.answer} />
               <Typography variant="subtitle2">{t('help.buttons')}</Typography>
               {draft.buttons.map((b, i) => (
                 <Stack key={i} direction="row" spacing={1}>
@@ -139,8 +197,8 @@ export default function HelpAdminPage() {
             <Typography variant="body2" color="text.secondary">{t('help.pick')}</Typography>
           )}
           <Stack spacing={1} sx={{ mt: 3, pt: 2, borderTop: `1px solid ${tokens.surface[200]}` }}>
-            <TextField label={t('help.contact')} value={contact} onChange={(e) => setContact(e.target.value)}
-              error={!contactOk(contact)} helperText={contactOk(contact) ? `${[...contact].length} / ${HELP_LIMITS.contact}` : t('help.problem.contact')} />
+            <MarkdownEditor key={`contact-${loads}`} label={t('help.contact')} value={contact} onChange={setContact}
+              maxLength={HELP_LIMITS.contact} error={contactOk(contact) ? undefined : t('help.problem.contact')} />
             {canManage && (
               <Button sx={{ alignSelf: 'flex-start' }} disabled={!contactOk(contact)}
                 onClick={() => void run(() => saveHelpContact(contact.trim()), 'help.saved')}>{t('help.saveContact')}</Button>

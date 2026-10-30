@@ -310,8 +310,9 @@ export async function saveHelpItem(r: { id: string | null; question: string; ans
 export async function deleteHelpItem(id: string): Promise<void> {
   await run(supabase.rpc('rpc_delete_help_item', { p_id: id }))
 }
-export async function moveHelpItem(id: string, dir: -1 | 1): Promise<void> {
-  await run(supabase.rpc('rpc_move_help_item', { p_id: id, p_dir: dir }))
+// 끌어 놓은 뒤의 순서 전체. 그사이 다른 관리자가 질문을 더하거나 지웠으면 VERSION_CONFLICT
+export async function reorderHelpItems(ids: string[]): Promise<void> {
+  await run(supabase.rpc('rpc_reorder_help_items', { p_ids: ids }))
 }
 export async function saveHelpContact(md: string): Promise<void> {
   await run(supabase.rpc('rpc_save_help_contact', { p_contact_md: md }))
