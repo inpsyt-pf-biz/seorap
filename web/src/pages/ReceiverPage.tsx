@@ -4,6 +4,7 @@ import { useParams } from 'react-router-dom'
 import type { CodeResponse, ForwardPageResponse, LaunchResponse } from '@core/apiTypes.ts'
 import { type CopyKey, t } from '@core/copy.ko.ts'
 import CodeDialog from '../components/CodeDialog'
+import HelpMarkdown from '../components/HelpMarkdown'
 import Wordmark from '../components/Wordmark'
 import Toast from '../components/Toast'
 import { api, ApiError } from '../lib/api'
@@ -89,7 +90,7 @@ export default function ReceiverPage() {
         </Accordion>
         {error && <Alert severity="warning">{error}</Alert>}
         <Stack spacing={1}>
-          <Typography variant="body2" color="text.secondary">{page.contact}</Typography>
+          <Box sx={{ color: 'text.secondary' }}><HelpMarkdown md={page.contact} /></Box>
           <Typography variant="caption" color="text.secondary">{t('receiver.scam')}</Typography>
         </Stack>
       </Stack>
