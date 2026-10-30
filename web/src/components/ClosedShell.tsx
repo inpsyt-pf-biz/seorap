@@ -11,7 +11,7 @@ export default function ClosedShell({ children }: { children: ReactNode }) {
     <ThemeProvider theme={closedTheme}>
       <Box
         component="main" data-surface="closed"
-        sx={{ minHeight: '100dvh', bgcolor: tokens.teal[700], color: tokens.surface.page, '--seorap-focus': tokens.focus.onTeal }}
+        sx={{ minHeight: 'var(--frame-min-h)', bgcolor: tokens.teal[700], color: tokens.surface.page, '--seorap-focus': tokens.focus.onTeal }}
       >
         <Box sx={{ maxWidth: tokens.layout.maxWidth, mx: 'auto', px: 2, py: 4 }}>
           <Stack spacing={3}>

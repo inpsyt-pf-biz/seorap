@@ -16,7 +16,7 @@ const KEY: Record<StateKind, CopyKey> = {
 export default function StatePage({ kind, message }: { kind: StateKind; message?: string }) {
   return (
     // 입장 경로(청록 바탕)에서도 보일 수 있으므로 종이 판을 화면 가득 깐다
-    <Box component="main" sx={{ minHeight: '100dvh', bgcolor: 'background.default', display: 'flex', alignItems: 'center', justifyContent: 'center', px: 2 }}>
+    <Box component="main" sx={{ minHeight: 'var(--frame-min-h)', bgcolor: 'background.default', display: 'flex', alignItems: 'center', justifyContent: 'center', px: 2 }}>
       <Stack spacing={3} sx={{ alignItems: 'center', maxWidth: tokens.layout.maxWidth, textAlign: 'center' }}>
         <Wordmark size="lg" />
         <Typography variant="body1" color="text.secondary">{message ?? t(KEY[kind])}</Typography>

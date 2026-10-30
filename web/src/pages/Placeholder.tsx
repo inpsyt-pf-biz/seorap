@@ -10,7 +10,7 @@ export default function Placeholder() {
   const loggedOut = (useLocation().state as { loggedOut?: boolean } | null)?.loggedOut === true
   if (loggedOut) return <StatePage kind="loggedOut" />
   return (
-    <Box component="main" sx={{ minHeight: '100dvh', display: 'flex', alignItems: 'center', justifyContent: 'center', px: 2 }}>
+    <Box component="main" sx={{ minHeight: 'var(--frame-min-h)', display: 'flex', alignItems: 'center', justifyContent: 'center', px: 2 }}>
       <Stack spacing={3} sx={{ alignItems: 'center', maxWidth: tokens.layout.maxWidth, textAlign: 'center' }}>
         <Wordmark size="lg" />
         <Typography variant="body1" color="text.secondary">{t('placeholder.preparing')}</Typography>

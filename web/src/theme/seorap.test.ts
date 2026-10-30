@@ -99,6 +99,11 @@ describe('화면 코드는 컬럼 폭·색·반경 숫자를 직접 쓰지 않�
   it('색 값(#hex)을 직접 쓰지 않는다', () => {
     expect(screens.filter(([, src]) => /#[0-9A-Fa-f]{3,8}\b/.test(src)).map(([path]) => path)).toEqual([])
   })
+  it('판 안의 화면은 100dvh 를 직접 쓰지 않고 판 높이(--frame-min-h)를 따른다 (넓은 화면에서 판 아래가 밀려나지 않게)', () => {
+    expect(screens.filter(([path, src]) => path !== '../App.tsx' && /100dvh/.test(src)).map(([path]) => path)).toEqual([])
+    const app = screens.find(([path]) => path === '../App.tsx')?.[1] ?? ''
+    expect(app).toMatch(/'--frame-min-h'/)
+  })
   it('borderRadius 에 숫자를 쓰지 않는다 (테마 12px 의 배수가 되어 24·36px 로 커진다)', () => {
     expect(screens.filter(([, src]) => /borderRadius:\s*\d/.test(src)).map(([path]) => path)).toEqual([])
   })
