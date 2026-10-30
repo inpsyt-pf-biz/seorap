@@ -5,7 +5,7 @@ import {
   TablePagination, TableRow, TextField, Typography,
 } from '@mui/material'
 import Toast from '@seorap-web/components/Toast.tsx'
-import { formatKstDate, formatKstDateTime, formatKstMonthDay } from '@seorap-core/time.ts'
+import { formatKstDate, formatKstDateTime } from '@seorap-core/time.ts'
 import type { Center } from '@counsel-core/centers.ts'
 import { t, type CopyKey } from '@counsel-core/copy.ko.ts'
 import { errorText, toCounselError, type CounselError } from '@counsel-core/errors.ts'
@@ -13,7 +13,7 @@ import { examLines } from '@counsel-core/exams.ts'
 import { PRODUCT_ORDER_STATUSES, naverCodeLabel, orderStatusText, orderTone } from '@counsel-core/naverOrder.ts'
 import {
   CENTER_NONE, EMPTY_PURCHASE_FILTER, ORDER_CLAIM, ORDER_NONE, ORDER_REVIEW, PURCHASE_TYPES, STAGE_TODO, TYPE_UNCLASSIFIED,
-  PERIODS, assignableSessionIds, byTodo, periodRange, purchaseTodo, clientLabel, contactLabel, countByStage, filterPurchases, mainSession, purchaseTypeLabel, sessionProgress, testNames,
+  PERIODS, assignableSessionIds, byTodo, periodRange, purchaseTodo, clientLabel, contactLabel, countByStage, filterPurchases, purchaseTypeLabel, testNames,
   type PurchaseFilter, type PurchaseRow,
 } from '@counsel-core/purchases.ts'
 import AssignDialog from '../../../components/AssignDialog'
@@ -21,7 +21,7 @@ import DateRangeField from '../../../components/DateRangeField'
 import ExamStatusIcon from '../../../components/ExamStatusIcon'
 import ImportDialog from '../../../components/ImportDialog'
 import { ErrorBox, Loading } from '../../../components/PageState'
-import SessionStatusChip from '../../../components/SessionStatusChip'
+import ProgressCell, { ProgressLegend } from '../../../components/ProgressCell'
 import StageStrip from '../../../components/StageStrip'
 import { countInbox, listCenters, listPurchases } from '../../../lib/api'
 import { usePageCommands } from '../../../shell/commands'
@@ -29,15 +29,13 @@ import { hasCap, useSession } from '../../../shell/session'
 import { centerListLook, tokens } from '../../../theme/admin'
 
 const COLUMNS: { label: CopyKey; width: string }[] = [
-  { label: 'purchases.col.client', width: '14%' },
+  { label: 'purchases.col.client', width: '15%' },
   { label: 'purchases.col.todo', width: '14%' },
   { label: 'purchases.col.type', width: '7%' },
-  { label: 'purchases.col.test', width: '15%' },
-  { label: 'purchases.col.center', width: '10%' },
-  { label: 'purchases.col.paidAt', width: '9%' },
-  { label: 'purchases.col.order', width: '12%' },
-  { label: 'purchases.col.application', width: '8%' },
-  { label: 'purchases.col.status', width: '11%' },
+  { label: 'purchases.col.test', width: '19%' },
+  { label: 'purchases.col.paidAt', width: '10%' },
+  { label: 'purchases.col.order', width: '14%' },
+  { label: 'purchases.col.progress', width: '21%' },
 ]
 
 const ORDER_CHIP = { normal: 'default', done: 'success', warning: 'warning', closed: 'default' } as const
@@ -192,6 +190,8 @@ export default function PurchasesListPage() {
                   {COLUMNS.map((c) => (
                     <TableCell key={c.label} sx={{ width: c.width, py: 1.5, px: 1.5 }}>
                       <Typography variant="caption" sx={{ fontWeight: 600 }}>{t(c.label)}</Typography>
+                      {/* 진행 칸의 아이콘 세 개(신청서·예약·상담)가 무엇인지 아이콘 바로 위에 적어 둔다 */}
+                      {c.label === 'purchases.col.progress' && <ProgressLegend />}
                     </TableCell>
                   ))}
                 </TableRow>
@@ -205,11 +205,9 @@ export default function PurchasesListPage() {
                   </TableRow>
                 )}
                 {shown.map((r) => {
-                  const s = mainSession(r)
                   const todo = purchaseTodo(r, today)
                   const a = r.applications
                   const n = r.naver_product_orders
-                  const progress = sessionProgress(r)
                   const exams = examLines(r.purchase_tests)
                   const contact = contactLabel(r)
                   const guardian = a?.client_name && a.guardian_name ? a.guardian_name : null
@@ -257,11 +255,6 @@ export default function PurchasesListPage() {
                         )}
                       </TableCell>
                       <TableCell>
-                        <Typography variant="body2" sx={twoLines} color={s?.center_id ? 'text.primary' : 'text.secondary'}>
-                          {s?.center_id ? centerName.get(s.center_id) ?? t('center.empty') : t('purchases.filter.centerNone')}
-                        </Typography>
-                      </TableCell>
-                      <TableCell>
                         <Typography variant="body2" color={r.paid_at ? 'text.primary' : 'text.secondary'} sx={{ fontVariantNumeric: 'tabular-nums' }}>
                           {r.paid_at ? formatKstDateTime(r.paid_at) : t('center.empty')}
                         </Typography>
@@ -280,17 +273,7 @@ export default function PurchasesListPage() {
                         </Stack>
                       </TableCell>
                       <TableCell>
-                        <Typography variant="body2" noWrap color={a ? 'text.primary' : 'text.secondary'}>
-                          {a ? t('purchases.application.done', { date: formatKstMonthDay(a.submitted_at ?? r.created_at) }) : t('purchases.application.missing')}
-                        </Typography>
-                      </TableCell>
-                      <TableCell>
-                        {s ? <SessionStatusChip status={s.status} /> : <Typography variant="body2" color="text.secondary">{t('purchases.stage.testOnly')}</Typography>}
-                        {progress.total > 1 && (
-                          <Typography variant="caption" color="text.secondary" component="div" sx={{ mt: 0.5 }}>
-                            {t('purchases.progress', { done: progress.completed, total: progress.total })}
-                          </Typography>
-                        )}
+                        <ProgressCell row={r} centerName={(id) => centerName.get(id)} />
                       </TableCell>
                     </TableRow>
                   )

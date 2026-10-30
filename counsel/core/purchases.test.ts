@@ -1,7 +1,7 @@
 import { assertEquals } from '@std/assert'
 import {
   CENTER_NONE, EMPTY_APPLICATION, EMPTY_PURCHASE_FILTER, EMPTY_PURCHASE_INPUT, ORDER_CLAIM, ORDER_NONE, ORDER_REVIEW, PURCHASE_TYPES,
-  SESSION_STATUSES, STAGE_TEST_ONLY, STAGE_TODO, TYPE_UNCLASSIFIED, byTodo, examDeadline, purchaseTodo, assignableSessionIds, clientLabel, contactLabel, countByStage, filterPurchases, mainSession, periodRange,
+  SESSION_STATUSES, STAGE_TEST_ONLY, STAGE_TODO, STAGE_UNASSIGNED, TYPE_UNCLASSIFIED, byTodo, examDeadline, purchaseTodo, assignableSessionIds, clientLabel, contactLabel, countByStage, filterPurchases, mainSession, periodRange,
   purchaseStage, purchaseTypeLabel, sessionProgress, testNames,
   validatePurchaseInput, type NaverSummary, type PurchaseRow, type SessionStatus,
 } from './purchases.ts'
@@ -48,7 +48,7 @@ Deno.test('거르기: 이름(내담자·보호자), 구분, 센터(미배정 포
   assertEquals(ids({ type: 'group_buy' }), ['b'])
   assertEquals(ids({ center: CENTER_NONE }), ['a', 'd'])
   assertEquals(ids({ center: 'c2' }), ['c'])
-  assertEquals(ids({ test: 'K-CBCL', stage: 'request' }), ['b'])
+  assertEquals(ids({ test: 'K-CBCL', stage: 'booking' }), ['a', 'b'])
   assertEquals(ids({ q: '00000002' }), ['b'])
   assertEquals(ids({ type: TYPE_UNCLASSIFIED }), ['d'])
 })
@@ -97,13 +97,13 @@ const staged = (status: SessionStatus, o: Partial<{ app: boolean; center: string
 
 Deno.test('진행 단계: 미배정은 신청서 유무로 나뉘고, 불가·취소는 멈춘 단계 아래로', () => {
   assertEquals(purchaseStage(staged('unassigned')), { stage: 'application', exit: null })
-  assertEquals(purchaseStage(staged('unassigned', { app: true })), { stage: 'assign', exit: null })
-  assertEquals(purchaseStage(staged('requested', { app: true, center: 'c' })), { stage: 'request', exit: null })
+  assertEquals(purchaseStage(staged('unassigned', { app: true })), { stage: 'booking', exit: null })
+  assertEquals(purchaseStage(staged('requested', { app: true, center: 'c' })), { stage: 'booking', exit: null })
   assertEquals(purchaseStage(staged('completed', { app: true, center: 'c', at: 'x' })), { stage: 'completed', exit: null })
-  assertEquals(purchaseStage(staged('unable', { app: true, center: 'c' })), { stage: 'request', exit: 'unable' })
+  assertEquals(purchaseStage(staged('unable', { app: true, center: 'c' })), { stage: 'booking', exit: 'unable' })
   assertEquals(purchaseStage(staged('unable', { app: true, center: 'c', at: 'x' })), { stage: 'confirmed', exit: 'unable' })
   assertEquals(purchaseStage(staged('cancelled')), { stage: 'application', exit: 'cancelled' })
-  assertEquals(purchaseStage(staged('cancelled', { app: true })), { stage: 'assign', exit: 'cancelled' })
+  assertEquals(purchaseStage(staged('cancelled', { app: true })), { stage: 'booking', exit: 'cancelled' })
   // 상담 회차가 없으면 검사만 산 주문
   assertEquals(purchaseStage({ applications: null, sessions: [] }), null)
 })
@@ -117,12 +117,13 @@ Deno.test('단계별 건수와 단계 거르기', () => {
     { ...row('e', 'unassigned'), sessions: [] },
   ]
   const c = countByStage(list, '2026-10-30')
-  assertEquals([c.all, c.testOnly, c.stage.application, c.stage.assign, c.stage.request], [5, 1, 1, 1, 0])
-  assertEquals([c.exit.assign.cancelled, c.exit.request.unable], [1, 1])
+  assertEquals([c.all, c.testOnly, c.stage.application, c.stage.booking, c.unassigned], [5, 1, 1, 1, 1])
+  assertEquals([c.exit.booking.cancelled, c.exit.booking.unable], [1, 1])
   const ids = (stage: string) => filterPurchases(list, { ...EMPTY_PURCHASE_FILTER, stage }).map((r) => r.id)
-  assertEquals(ids('assign'), ['b'])
-  assertEquals(ids('assign:cancelled'), ['c'])
-  assertEquals(ids('request:unable'), ['d'])
+  assertEquals(ids('booking'), ['b'])
+  assertEquals(ids(STAGE_UNASSIGNED), ['b'])
+  assertEquals(ids('booking:cancelled'), ['c'])
+  assertEquals(ids('booking:unable'), ['d'])
   assertEquals(ids(STAGE_TEST_ONLY), ['e'])
 })
 

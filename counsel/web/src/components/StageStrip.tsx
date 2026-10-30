@@ -2,11 +2,11 @@ import { Fragment } from 'react'
 import { Box, ButtonBase, Chip, Stack, Typography } from '@mui/material'
 import ChevronRightIcon from '@mui/icons-material/ChevronRight'
 import { t, type CopyKey } from '@counsel-core/copy.ko.ts'
-import { STAGES, STAGE_EXITS, STAGE_TEST_ONLY, STAGE_TODO, stageKey, type StageCounts } from '@counsel-core/purchases.ts'
+import { STAGES, STAGE_EXITS, STAGE_TEST_ONLY, STAGE_TODO, STAGE_UNASSIGNED, stageKey, type StageCounts } from '@counsel-core/purchases.ts'
 import { tokens } from '../theme/admin'
 
 // 구매 건 목록 위의 진행 단계 줄. 단계 칸을 누르면 그 단계에 머문 건만, 칸 아래 작은 배지(불가·취소)를 누르면
-// 그 단계에서 빠진 건만 남는다. 같은 것을 다시 누르면 전체로 돌아간다. 맨 앞의 '할 일'은 본사가 손댈 건만 급한 순서로.
+// 그 단계에서 빠진 건만 남는다. 예약 중 칸 아래 '미배정'은 센터를 아직 정하지 않은 건(본사가 배정할 일). 같은 것을 다시 누르면 전체로 돌아간다. 맨 앞의 '할 일'은 본사가 손댈 건만 급한 순서로.
 type Props = { counts: StageCounts; value: string; onChange: (value: string) => void }
 
 export default function StageStrip({ counts, value, onChange }: Props) {
@@ -43,6 +43,11 @@ export default function StageStrip({ counts, value, onChange }: Props) {
                   <Typography variant="h6" component="div" sx={{ fontWeight: 600, color: on ? tokens.teal[900] : 'text.primary' }}>{counts.stage[s]}</Typography>
                 </ButtonBase>
                 <Stack direction="row" sx={{ gap: 0.5, mt: 0.75, minHeight: 24, flexWrap: 'wrap' }}>
+                  {s === 'booking' && counts.unassigned > 0 && (
+                    <Chip size="small" clickable label={t('purchases.stage.unassigned', { n: counts.unassigned })} onClick={() => pick(STAGE_UNASSIGNED)}
+                      variant={value === STAGE_UNASSIGNED ? 'filled' : 'outlined'}
+                      sx={{ borderColor: tokens.tone.warm.fg, color: value === STAGE_UNASSIGNED ? tokens.surface[0] : tokens.tone.warm.fg, bgcolor: value === STAGE_UNASSIGNED ? tokens.tone.warm.fg : undefined }} />
+                  )}
                   {STAGE_EXITS.filter((e) => counts.exit[s][e] > 0).map((e) => {
                     const key = stageKey(s, e)
                     const picked = value === key
