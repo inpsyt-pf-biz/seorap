@@ -1,5 +1,5 @@
-import { NavLink, Outlet } from 'react-router-dom'
-import { AppBar, Box, Button, List, ListItemButton, ListItemText, Toolbar, Typography } from '@mui/material'
+import { NavLink, Outlet, useLocation } from 'react-router-dom'
+import { AppBar, Box, Button, List, ListItemButton, ListItemText, Tab, Tabs, Toolbar, Typography } from '@mui/material'
 import { t, type CopyKey } from '@counsel-core/copy.ko.ts'
 import DemoBanner from '../../../components/DemoBanner'
 import { useSession } from '../../../shell/session'
@@ -16,6 +16,8 @@ export default function AdminShell() {
   const { state, signOut } = useSession()
   const ctx = state.status === 'ready' ? state.ctx : null
   const who = ctx ? [ctx.display_name, ctx.membership && t(`role.${ctx.membership.role}` as CopyKey)].filter(Boolean).join(' · ') : ''
+  const { pathname } = useLocation()
+  const current = NAV.find((n) => pathname.startsWith(n.to))?.to ?? false
 
   return (
     <Box sx={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', bgcolor: 'background.default' }}>
@@ -26,6 +28,11 @@ export default function AdminShell() {
           <Typography variant="body2" color="text.secondary">{who}</Typography>
           <Button size="small" onClick={() => void signOut()}>{t('auth.logout')}</Button>
         </Toolbar>
+        {/* 좁은 화면(왼쪽 메뉴가 숨는 폭)에서는 같은 메뉴를 머리 아래 탭으로 */}
+        <Tabs component="nav" value={current} variant="scrollable" scrollButtons={false}
+          sx={{ display: { xs: 'flex', md: 'none' }, px: 1, borderTop: `1px solid ${tokens.surface[200]}` }}>
+          {NAV.map((n) => <Tab key={n.to} value={n.to} label={t(n.label)} component={NavLink} to={n.to} />)}
+        </Tabs>
       </AppBar>
       <Box sx={{ display: 'flex', flexGrow: 1, minHeight: 0 }}>
         <Box component="nav" sx={{
