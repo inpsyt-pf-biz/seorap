@@ -11,7 +11,7 @@ function LogoMark({ size, onTeal }: { size: number; onTeal: boolean }) {
   )
 }
 
-// onTeal: 닫힌 서랍 화면(청록 바탕)에 놓일 때. 로고 몸체를 밝히고 글자를 종이색으로 바꾼다
+// onTeal: 청록 머리 판(BoxHeader) 위에 놓일 때. 로고 몸체를 밝히고 글자를 종이색으로 바꾼다
 export default function Wordmark({ size = 'sm', onTeal = false }: { size?: 'sm' | 'lg'; onTeal?: boolean }) {
   const logo = size === 'lg' ? 96 : 40
   const word = size === 'lg' ? 34 : 20

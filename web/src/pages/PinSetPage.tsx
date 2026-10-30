@@ -3,7 +3,7 @@ import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { t } from '@core/copy.ko.ts'
 import { checkPin } from '@core/pin.ts'
-import ClosedShell from '../components/ClosedShell'
+import EntryShell from '../components/EntryShell'
 import { api, ApiError } from '../lib/api'
 import StatePage from './StatePage'
 
@@ -40,7 +40,7 @@ export default function PinSetPage() {
   const ready = pin.length === 6
 
   return (
-    <ClosedShell>
+    <EntryShell>
         <Typography variant="h5">{t('pin.set.title')}</Typography>
         <Typography variant="body1">{first === null ? t('pin.set.help') : t('pin.set.again')}</Typography>
         <TextField
@@ -56,6 +56,6 @@ export default function PinSetPage() {
           ? <Button variant="contained" size="large" disabled={!ready} onClick={next}>{t('pin.set.next')}</Button>
           : <Button variant="contained" size="large" disabled={!ready || busy} onClick={done}>{t('pin.set.done')}</Button>}
         {message && <Alert severity="warning">{message}</Alert>}
-    </ClosedShell>
+    </EntryShell>
   )
 }

@@ -152,17 +152,17 @@ describe('PIN 설정', () => {
   })
 })
 
-describe('닫힌 서랍 화면 (R1 restyle: 입장 화면은 청록 바탕)', () => {
-  it('진입(인증번호·비밀번호) 화면은 닫힌 서랍 바탕이고, 로고는 청록 바탕용이다', async () => {
+describe('입장 화면 (75:20:5: 종이 바탕, 10-30)', () => {
+  it('진입(인증번호·비밀번호) 화면은 종이 바탕이고, 로고는 종이 바탕용(청록 몸체)이다', async () => {
     stubApi({ entry: () => json(200, entryBody({ hasPin: true })) })
     openAt(`/${TOKEN}`)
     await screen.findByLabelText(t('pin.enter'))
-    expect(document.querySelector('main')?.getAttribute('data-surface')).toBe('closed')
-    expect(document.querySelector('[data-part="logo-body"]')?.getAttribute('fill')).toBe(tokens.teal[500])
+    expect(document.querySelector('[data-surface]')).toBeNull()
+    expect(document.querySelector('[data-part="logo-body"]')?.getAttribute('fill')).toBe(tokens.teal[700])
   })
-  it('비밀번호 설정 화면도 닫힌 서랍 바탕이다', async () => {
+  it('비밀번호 설정 화면도 종이 바탕이다', async () => {
     openAt('/pin')
     await screen.findByLabelText(t('pin.set.title'))
-    expect(document.querySelector('main')?.getAttribute('data-surface')).toBe('closed')
+    expect(document.querySelector('[data-surface]')).toBeNull()
   })
 })

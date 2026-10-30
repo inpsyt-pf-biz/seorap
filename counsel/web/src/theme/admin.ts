@@ -20,19 +20,20 @@ export const adminTheme = createTheme(theme, {
   },
 })
 
-// 전문 분야 태그 색. 연한 바탕 + 진한 글자(대비 4.5:1 이상).
+// 전문 분야 태그 색. 연한 바탕 + 진한 글자(대비 4.5:1 이상). 서랍 종이 바탕에 맞춘 낮은 채도 (75:20:5, 10-30)
+// 발달·정서·가족은 서랍 칩 색(청록·호박·적갈)을 그대로 쓰고, 청소년·학습만 같은 채도의 회청·올리브를 더한다
 export const specialtyColors: Record<Specialty, { bg: string; fg: string }> = {
-  development: { bg: '#EEF0FF', fg: '#4338CA' },
-  emotion: { bg: '#FFF4E0', fg: '#8A5A00' },
-  youth: { bg: '#E6F4FB', fg: '#0B6E99' },
-  learning: { bg: '#E6F6EC', fg: '#1E7A44' },
-  family: { bg: '#FDEBF2', fg: '#B0306A' },
+  development: tokens.tone.teal,
+  emotion: tokens.tone.warm,
+  youth: { bg: '#E1E6EC', fg: '#34495E' },
+  learning: { bg: '#E7EAD8', fg: '#4A5A1F' },
+  family: tokens.tone.caution,
 }
 
-// 협력센터 목록의 생김새. 기관 아이콘은 서랍 남색을 옅은 쪽에서 진한 쪽으로 흐르게 칠한다.
+// 협력센터 목록의 생김새. 기관 아이콘은 옅은 청록 바탕에 청록 아이콘(그라데이션 없음, 10-30)
 export const centerListLook = {
-  avatarBg: `linear-gradient(135deg, ${tokens.brand[300]} 0%, ${tokens.brand[500]} 100%)`,
-  avatarFg: tokens.surface[0],
+  avatarBg: tokens.teal[100],
+  avatarFg: tokens.teal[700],
   countColor: tokens.brand[500],
   rowBorder: tokens.surface[100],
 } as const

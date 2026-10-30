@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
-import { closedTheme, contrast, theme, tokens } from './seorap'
+import * as seorapTheme from './seorap'
+import { contrast, theme, tokens } from './seorap'
 
 describe('theme', () => {
   it('한글은 단어 중간에서 끊지 않고, 긴 주소·토큰은 넘치지 않게 끊는다', () => {
@@ -79,7 +80,7 @@ describe('명도 대비 (글자 4.5:1 이상)', () => {
     expect(contrast(fg, bg)).toBeGreaterThanOrEqual(4.5)
   })
 
-  it('포커스 링은 종이·흰 카드 위에서 3:1 이상, 닫힌 서랍(청록) 위의 호박 링도 3:1 이상', () => {
+  it('포커스 링은 종이·흰 카드 위에서 3:1 이상, 청록 머리 판 위의 호박 링도 3:1 이상', () => {
     expect(contrast(tokens.focus.light, tokens.surface.page)).toBeGreaterThanOrEqual(3)
     expect(contrast(tokens.focus.light, tokens.surface[0])).toBeGreaterThanOrEqual(3)
     expect(contrast(tokens.focus.onTeal, tokens.teal[700])).toBeGreaterThanOrEqual(3)
@@ -112,19 +113,11 @@ describe('화면 코드는 컬럼 폭·색·반경 숫자를 직접 쓰지 않�
   })
 })
 
-describe('닫힌 서랍 테마 (입장 화면)', () => {
-  it('바탕은 청록, 글자·주 버튼은 종이색, 주 버튼 글자는 청록이다', () => {
-    expect(closedTheme.palette.background.default).toBe(tokens.teal[700])
-    expect(closedTheme.palette.text.primary).toBe(tokens.surface.page)
-    expect(closedTheme.palette.primary.main).toBe(tokens.surface.page)
-    expect(closedTheme.palette.primary.contrastText).toBe(tokens.teal[700])
-  })
-  it('보조 글자도 청록 위에서 4.5:1 이상이다', () => {
-    expect(contrast(closedTheme.palette.text.secondary, tokens.teal[700])).toBeGreaterThanOrEqual(4.5)
-  })
-  it('흰 입력 칸 안의 글자는 진한 글자색이다 (종이색 글자가 흰 칸에 묻히지 않게)', () => {
-    const root = closedTheme.components?.MuiOutlinedInput?.styleOverrides?.root as { color?: string } | undefined
-    expect(root?.color).toBe(tokens.text.primary)
+// 75:20:5 (10-30 건우님 결정): 바탕은 종이, 청록은 버튼·제목, 호박빛은 로고 손잡이 같은 작은 표시.
+// 입장 화면(인증번호·비밀번호)도 서랍 안과 같은 종이 바탕이다. 10-29 의 "닫힌 서랍은 청록 바탕"을 대체한다
+describe('입장 화면도 서랍 안과 같은 테마를 쓴다 (75:20:5)', () => {
+  it('닫힌 서랍 전용 테마(청록 바탕)는 없다', () => {
+    expect(seorapTheme).not.toHaveProperty('closedTheme')
   })
 })
 
@@ -146,16 +139,17 @@ describe('토큰 공개 모양 (상담 어드민이 그대로 가져다 쓴다)'
 
 describe('바깥 바탕(책상) 색', () => {
   const css = theme.components?.MuiCssBaseline?.styleOverrides as Record<string, Record<string, Record<string, string>>>
-  it('휴대폰 폭에서는 바깥도 판과 같은 색(당겨 내려도 같은 색)', () => {
-    expect(css['html[data-surface="open"]']).toMatchObject({ backgroundColor: tokens.surface.page })
-    expect(css['html[data-surface="closed"]']).toMatchObject({ backgroundColor: tokens.teal[700] })
+  const wide = css['@media (min-width: 520px)']
+  it('휴대폰 폭에서는 바깥도 판과 같은 종이색(당겨 내려도 같은 색)', () => {
+    expect(css.html).toMatchObject({ backgroundColor: tokens.surface.page })
   })
   it('넓은 화면에서는 바깥을 한 단계 짙게 깔아 컬럼 판과 구분한다', () => {
-    const wide = css['@media (min-width: 520px)']
-    expect(wide['html[data-surface="open"]']).toMatchObject({ backgroundColor: tokens.desk.open })
-    expect(wide['html[data-surface="closed"]']).toMatchObject({ backgroundColor: tokens.desk.closed })
+    expect(wide.html).toMatchObject({ backgroundColor: tokens.desk.open })
     expect(tokens.desk.open).not.toBe(tokens.surface.page)
-    expect(tokens.desk.closed).not.toBe(tokens.teal[700])
+  })
+  it('경로마다 바탕을 나누지 않는다 (입장 화면용 청록 바깥은 없다)', () => {
+    expect([...Object.keys(css), ...Object.keys(wide)].filter((k) => k.includes('data-surface'))).toEqual([])
+    expect(tokens.desk).not.toHaveProperty('closed')
   })
 })
 

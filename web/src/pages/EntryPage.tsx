@@ -4,7 +4,7 @@ import { useNavigate, useParams } from 'react-router-dom'
 import type { EntryResponse, OtpRequestResponse } from '@core/apiTypes.ts'
 import { t } from '@core/copy.ko.ts'
 import { formatKstDateTime } from '@core/time.ts'
-import ClosedShell from '../components/ClosedShell'
+import EntryShell from '../components/EntryShell'
 import { api, ApiError } from '../lib/api'
 import { useCountdown } from '../lib/useCountdown'
 import StatePage, { type StateKind } from './StatePage'
@@ -83,7 +83,7 @@ export default function EntryPage() {
   const forgotPin = () => { setUsePin(false); setPin(''); setMessage(null) }
 
   return (
-    <ClosedShell>
+    <EntryShell>
         {entry.noticeBanner && <Alert severity="info">{entry.noticeBanner}</Alert>}
         <Typography variant="h5">{t('entry.title', { name: entry.nameMasked })}</Typography>
         {usePin ? (
@@ -125,6 +125,6 @@ export default function EntryPage() {
           </>
         )}
         {message && <Alert severity="warning">{message}</Alert>}
-    </ClosedShell>
+    </EntryShell>
   )
 }

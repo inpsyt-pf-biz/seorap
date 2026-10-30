@@ -5,10 +5,12 @@ declare module '@mui/material/Button' {
 }
 
 // 서랍 테마 토큰. 색·반경·로고는 이 파일에서만 바꾼다.
-// 색 ① (01-plan §0 10-29): "닫힌 서랍은 고요하게, 열린 서랍은 따뜻하게". 깊은 청록 + 종이 + 호박빛.
+// 색 ① (01-plan §0 10-29): 깊은 청록 + 종이 + 호박빛.
+// 비율 75:20:5 (10-30): 바탕은 종이·흰 카드, 청록은 버튼·제목·워드마크, 호박빛은 로고 손잡이·"전달함" 같은 작은 표시.
+// 입장 화면도 종이 바탕이다 (10-29 의 "닫힌 서랍은 청록 바탕"을 대체)
 // 대비는 seorap.test.ts 가 계산해서 막는다 (글자 4.5:1, 포커스 링 3:1)
 export const tokens = {
-  // 주 색. 버튼·강조·닫힌 서랍(입장 화면) 바탕
+  // 주 색. 버튼·제목·워드마크, 서랍 화면의 머리 판
   teal: {
     900: '#123836',
     700: '#1E5552',
@@ -58,11 +60,10 @@ export const tokens = {
   // 넓은 화면의 바깥 바탕(책상). 서랍 컬럼이 그 위에 한 장의 판으로 서 보이게 한 단계 짙게 깐다 (10-29 검수: 컬럼과 바깥이 같은 색이라 미완성처럼 보임)
   desk: {
     open: '#E3DACA',
-    closed: '#123836',
     edge: 'rgba(34, 32, 28, 0.08)',
     shadow: 'rgba(34, 32, 28, 0.10)',
   },
-  // 키보드 포커스 링. 종이·흰 바탕에서는 청록, 닫힌 서랍(청록 바탕)에서는 호박빛
+  // 키보드 포커스 링. 종이·흰 바탕에서는 청록, 청록 머리 판(BoxHeader) 위에서는 호박빛
   focus: { light: '#3F7A76', onTeal: '#F2B24C' },
   // sx 의 borderRadius 숫자는 테마 shape(12px)의 배수로 계산돼 24·36px 이 된다. 반경은 이 문자열만 쓴다
   radius: { control: '10px', card: '12px', sheet: '16px', pill: '999px' },
@@ -120,20 +121,16 @@ export const theme = createTheme({
   shape: { borderRadius: 12 },
   components: {
     // 한글은 낱말 중간에서 줄을 바꾸지 않는다(keep-all). 띄어쓰기 없는 긴 주소·토큰은 넘치지 않게 아무 곳에서나 끊는다.
-    // 포커스 링 색은 CSS 변수로 두어, 닫힌 서랍 화면이 호박빛으로 바꿔 쓸 수 있게 한다
+    // 포커스 링 색은 CSS 변수로 두어, 청록 머리 판이 호박빛으로 바꿔 쓸 수 있게 한다
     MuiCssBaseline: {
-      // 바탕색은 html 이 맡는다(경로별 data-surface). 휴대폰 폭에서는 판과 같은 색이라 당겨 내려도 같고,
-      // 넓은 화면(520px 이상)에서는 바깥을 책상색으로 깔아 서랍 컬럼(AppFrame)과 구분한다
+      // 바탕색은 html 이 맡는다. 휴대폰 폭에서는 판과 같은 종이색이라 당겨 내려도 같고,
+      // 넓은 화면(520px 이상)에서는 바깥을 책상색으로 깔아 서랍 컬럼(App 의 판)과 구분한다
       styleOverrides: {
         body: { wordBreak: 'keep-all', overflowWrap: 'anywhere', '--seorap-focus': tokens.focus.light, backgroundColor: 'transparent' },
         // 브라우저가 그리는 비밀번호 보기·지우기 아이콘은 테마 밖 모양이라 숨긴다 (10-30 비평 ⑥)
         'input::-ms-reveal, input::-ms-clear': { display: 'none' },
-        'html[data-surface="open"]': { backgroundColor: tokens.surface.page },
-        'html[data-surface="closed"]': { backgroundColor: tokens.teal[700] },
-        '@media (min-width: 520px)': {
-          'html[data-surface="open"]': { backgroundColor: tokens.desk.open },
-          'html[data-surface="closed"]': { backgroundColor: tokens.desk.closed },
-        },
+        html: { backgroundColor: tokens.surface.page },
+        '@media (min-width: 520px)': { html: { backgroundColor: tokens.desk.open } },
       },
     },
     // 버튼·탭·칩·목록 단추는 모두 ButtonBase 다. 키보드로 왔을 때만 링이 바로 보인다(물결 효과만으로는 부족)
@@ -172,29 +169,6 @@ export const theme = createTheme({
     },
     MuiDialog: {
       styleOverrides: { paper: { borderRadius: tokens.radius.sheet } },
-    },
-  },
-})
-
-// 닫힌 서랍 테마 (입장 화면: 인증번호·비밀번호). 청록 바탕에 종이색 글자, 주 버튼은 종이색 바탕 + 청록 글자.
-// 흰 입력 칸 안의 글자는 진한 색으로 되돌리고, 포커스 링은 호박빛으로 바꾼다 (ClosedShell 이 감싼다)
-export const closedTheme = createTheme(theme, {
-  palette: {
-    primary: { main: tokens.surface.page, dark: tokens.surface[0], light: tokens.surface[0], contrastText: tokens.teal[700] },
-    background: { default: tokens.teal[700], paper: tokens.surface[0] },
-    text: { primary: tokens.surface.page, secondary: tokens.teal[100], disabled: tokens.teal[100] },
-    action: { disabled: 'rgba(246, 242, 234, 0.6)', disabledBackground: 'rgba(246, 242, 234, 0.18)' },
-  },
-  components: {
-    MuiOutlinedInput: {
-      styleOverrides: {
-        root: {
-          backgroundColor: tokens.surface[0],
-          borderRadius: tokens.radius.control,
-          color: tokens.text.primary,
-          '&.Mui-focused .MuiOutlinedInput-notchedOutline': { borderColor: tokens.amber[500] },
-        },
-      },
     },
   },
 })

@@ -25,7 +25,7 @@ describe('Wordmark (로고 C1 + 리디바탕 워드마크)', () => {
     expect(container.querySelector('[data-part="logo-handle"]')?.getAttribute('stroke')).toBe(tokens.amber[500])
   })
 
-  it('닫힌 서랍(청록 바탕)에서는 로고 몸체를 한 단계 밝혀 바탕에 묻히지 않게 한다', () => {
+  it('청록 머리 판 위에서는 로고 몸체를 한 단계 밝혀 바탕에 묻히지 않게 한다', () => {
     const { container } = render(<Wordmark onTeal />)
     expect(container.querySelector('[data-part="logo-body"]')?.getAttribute('fill')).toBe(tokens.teal[500])
   })
