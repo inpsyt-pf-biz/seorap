@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { useLocation, useNavigate } from 'react-router-dom'
+import { useLocation, useNavigate, useSearchParams } from 'react-router-dom'
 import {
   Box, Button, Checkbox, Chip, MenuItem, Paper, Stack, Table, TableBody, TableCell, TableContainer, TableHead,
   TablePagination, TableRow, TextField, Typography,
@@ -12,8 +12,8 @@ import { errorText, toCounselError, type CounselError } from '@counsel-core/erro
 import { examLines } from '@counsel-core/exams.ts'
 import { PRODUCT_ORDER_STATUSES, naverCodeLabel, orderStatusText, orderTone } from '@counsel-core/naverOrder.ts'
 import {
-  CENTER_NONE, EMPTY_PURCHASE_FILTER, ORDER_CLAIM, ORDER_NONE, ORDER_REVIEW, PURCHASE_TYPES, TYPE_UNCLASSIFIED,
-  assignableSessionIds, clientLabel, contactLabel, countByStage, filterPurchases, mainSession, purchaseTypeLabel, sessionProgress, testNames,
+  CENTER_NONE, EMPTY_PURCHASE_FILTER, ORDER_CLAIM, ORDER_NONE, ORDER_REVIEW, PURCHASE_TYPES, STAGE_TODO, TYPE_UNCLASSIFIED,
+  PERIODS, assignableSessionIds, byTodo, periodRange, purchaseTodo, clientLabel, contactLabel, countByStage, filterPurchases, mainSession, purchaseTypeLabel, sessionProgress, testNames,
   type PurchaseFilter, type PurchaseRow,
 } from '@counsel-core/purchases.ts'
 import AssignDialog from '../../../components/AssignDialog'
@@ -24,21 +24,25 @@ import { ErrorBox, Loading } from '../../../components/PageState'
 import SessionStatusChip from '../../../components/SessionStatusChip'
 import StageStrip from '../../../components/StageStrip'
 import { countInbox, listCenters, listPurchases } from '../../../lib/api'
+import { usePageCommands } from '../../../shell/commands'
 import { hasCap, useSession } from '../../../shell/session'
-import { centerListLook } from '../../../theme/admin'
+import { centerListLook, tokens } from '../../../theme/admin'
 
 const COLUMNS: { label: CopyKey; width: string }[] = [
-  { label: 'purchases.col.client', width: '17%' },
-  { label: 'purchases.col.type', width: '8%' },
-  { label: 'purchases.col.test', width: '17%' },
-  { label: 'purchases.col.center', width: '11%' },
-  { label: 'purchases.col.paidAt', width: '10%' },
-  { label: 'purchases.col.order', width: '15%' },
-  { label: 'purchases.col.application', width: '10%' },
-  { label: 'purchases.col.status', width: '12%' },
+  { label: 'purchases.col.client', width: '14%' },
+  { label: 'purchases.col.todo', width: '14%' },
+  { label: 'purchases.col.type', width: '7%' },
+  { label: 'purchases.col.test', width: '15%' },
+  { label: 'purchases.col.center', width: '10%' },
+  { label: 'purchases.col.paidAt', width: '9%' },
+  { label: 'purchases.col.order', width: '12%' },
+  { label: 'purchases.col.application', width: '8%' },
+  { label: 'purchases.col.status', width: '11%' },
 ]
 
 const ORDER_CHIP = { normal: 'default', done: 'success', warning: 'warning', closed: 'default' } as const
+// 할 일 이유 배지: 응시 기한은 적갈, 취소 요청·다시 배정은 호박, 나머지는 회색(서랍 칩 색)
+const TODO_TONE = { negative: tokens.tone.caution, warning: tokens.tone.warm, neutral: tokens.tone.neutral } as const
 
 // 검사 이름·센터 이름은 길어서 두 줄까지 보이고 그 뒤는 줄인다
 const twoLines = { display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' } as const
@@ -54,7 +58,10 @@ export default function PurchasesListPage() {
   const [rows, setRows] = useState<PurchaseRow[] | null>(null)
   const [centers, setCenters] = useState<Center[]>([])
   const [error, setError] = useState<CounselError | null>(null)
-  const [filter, setFilter] = useState<PurchaseFilter>(EMPTY_PURCHASE_FILTER)
+  // ?stage=__todo__ 처럼 주소로 단계를 열 수 있다(Ctrl+K 의 '할 일 보기')
+  const [params] = useSearchParams()
+  const [filter, setFilter] = useState<PurchaseFilter>(() => ({ ...EMPTY_PURCHASE_FILTER, stage: params.get('stage') ?? '' }))
+  useEffect(() => { setFilter((f) => ({ ...f, stage: params.get('stage') ?? '' })) }, [params])
   const [page, setPage] = useState(0)
   const [perPage, setPerPage] = useState(20)
   const [selected, setSelected] = useState<Set<string>>(new Set())
@@ -74,14 +81,18 @@ export default function PurchasesListPage() {
 
   const centerName = useMemo(() => new Map(centers.map((c) => [c.id, c.name])), [centers])
   // 단계 칸의 건수는 단계를 뺀 나머지 거르기를 적용한 결과로 센다(칸을 눌러도 다른 칸 숫자가 변하지 않게)
-  const beforeStage = useMemo(() => (rows ? filterPurchases(rows, { ...filter, stage: '' }) : []), [rows, filter])
-  const counts = useMemo(() => countByStage(beforeStage), [beforeStage])
-  const filtered = useMemo(() => filterPurchases(beforeStage, { ...EMPTY_PURCHASE_FILTER, stage: filter.stage }), [beforeStage, filter.stage])
+  const today = formatKstDate(new Date().toISOString())
+  const beforeStage = useMemo(() => (rows ? filterPurchases(rows, { ...filter, stage: '' }, today) : []), [rows, filter, today])
+  const counts = useMemo(() => countByStage(beforeStage, today), [beforeStage, today])
+  // 할 일은 급한 순서로, 나머지는 받은 순서(최근 것부터)
+  const filtered = useMemo(() => {
+    const list = filterPurchases(beforeStage, { ...EMPTY_PURCHASE_FILTER, stage: filter.stage }, today)
+    return filter.stage === STAGE_TODO ? [...list].sort(byTodo(today)) : list
+  }, [beforeStage, filter.stage, today])
   const tests = useMemo(() => testNames(rows ?? []), [rows])
   const shown = filtered.slice(page * perPage, page * perPage + perPage)
 
   const change = (patch: Partial<PurchaseFilter>) => { setFilter((f) => ({ ...f, ...patch })); setPage(0) }
-  const today = formatKstDate(new Date().toISOString())
   const notify = (message: string) => setNotice({ message, key: Date.now() })
   const toggle = (id: string, on: boolean) => setSelected((s) => {
     const n = new Set(s)
@@ -100,6 +111,13 @@ export default function PurchasesListPage() {
     return n
   })
   const sessionIds = assignableSessionIds(rows ?? [], selected)
+  // Ctrl+K 의 '이 화면' 명령: 기간, 구글시트 가져오기, 고른 건 배정
+  usePageCommands(() => [
+    ...PERIODS.map((p) => ({ id: `period-${p}`, label: t('palette.period', { name: t(`purchases.period.${p}` as CopyKey) }), keywords: '기간', run: () => change(periodRange(p, today)) })),
+    { id: 'period-all', label: t('palette.period', { name: t('purchases.period.all') }), keywords: '기간', run: () => change({ from: '', to: '' }) },
+    ...(canManage ? [{ id: 'import', label: t('purchases.import'), run: () => setImportOpen(true) }] : []),
+    ...(canAssign && sessionIds.length > 0 ? [{ id: 'assign', label: t('palette.assignSelected', { n: selected.size }), keywords: '배정', run: () => setAssignOpen(true) }] : []),
+  ], [today, canManage, canAssign, sessionIds.length, selected.size])
   const open = (id: string) => navigate(`/admin/counsel/purchases/${id}`, { state: { back: '/admin/counsel/purchases' } })
 
   return (
@@ -188,6 +206,7 @@ export default function PurchasesListPage() {
                 )}
                 {shown.map((r) => {
                   const s = mainSession(r)
+                  const todo = purchaseTodo(r, today)
                   const a = r.applications
                   const n = r.naver_product_orders
                   const progress = sessionProgress(r)
@@ -212,6 +231,12 @@ export default function PurchasesListPage() {
                         {contact && <Typography variant="body2" color="text.secondary" noWrap component="div">{contact}</Typography>}
                         {guardian && <Typography variant="caption" color="text.secondary" noWrap component="div">{t('purchases.guardianOf', { name: guardian })}</Typography>}
                         {product && <Typography variant="caption" color="text.secondary" noWrap component="div" title={product}>{product}</Typography>}
+                      </TableCell>
+                      <TableCell>
+                        {todo && (
+                          <Chip size="small" label={todo.label}
+                            sx={{ maxWidth: '100%', bgcolor: TODO_TONE[todo.tone].bg, color: TODO_TONE[todo.tone].fg, fontWeight: 600 }} />
+                        )}
                       </TableCell>
                       <TableCell>
                         <Typography variant="body2" noWrap color={r.purchase_type ? 'text.primary' : 'warning.main'}>{purchaseTypeLabel(r.purchase_type)}</Typography>

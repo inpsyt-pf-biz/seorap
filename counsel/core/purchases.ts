@@ -1,5 +1,6 @@
 // 구매 건·상담 상태 규칙. 허용값은 DB CHECK(20261012000003_purchases_sessions.sql)와 같아야 하고 purchases.test.ts 가 대조한다.
 import { formatKstDate } from '../../supabase/functions/_shared/core/time.ts'
+import { addDays, dayDiff } from './dateRange.ts'
 import { t, type CopyKey } from './copy.ko.ts'
 import { orderTone } from './naverOrder.ts'
 
@@ -128,11 +129,11 @@ export function purchaseStage(p: Pick<PurchaseRow, 'applications' | 'sessions'>)
   }
 }
 
-export type StageCounts = { all: number; testOnly: number; stage: Record<Stage, number>; exit: Record<Stage, Record<StageExit, number>> }
+export type StageCounts = { all: number; todo: number; testOnly: number; stage: Record<Stage, number>; exit: Record<Stage, Record<StageExit, number>> }
 
-export function countByStage(rows: Pick<PurchaseRow, 'applications' | 'sessions'>[]): StageCounts {
+export function countByStage(rows: TodoRow[], today: string): StageCounts {
   const c: StageCounts = {
-    all: rows.length, testOnly: 0,
+    all: rows.length, todo: rows.filter((r) => purchaseTodo(r, today)).length, testOnly: 0,
     stage: Object.fromEntries(STAGES.map((s) => [s, 0])) as Record<Stage, number>,
     exit: Object.fromEntries(STAGES.map((s) => [s, { unable: 0, cancelled: 0 }])) as Record<Stage, Record<StageExit, number>>,
   }
@@ -145,12 +146,60 @@ export function countByStage(rows: Pick<PurchaseRow, 'applications' | 'sessions'
   return c
 }
 
-// 단계 거르기 값: '' 전체, 단계, '단계:불가·취소', 검사만
+// 응시 기한: 상담일의 이 날수 전까지 구매한 검사를 모두 마쳐야 한다(STS 커플 P0 지표 "상담 3일 전까지 2매 모두 완료")
+export const EXAM_DUE_DAYS = 3
+// 신청서 독촉: 구매(결제) 뒤 이 날수가 지나도 신청서가 없으면 할 일에 올린다
+export const APPLICATION_NUDGE_DAYS = 3
+
+export type ExamDeadline = { session: string; due: string; daysLeft: number; missing: number; late: boolean }
+
+// 예약이 확정된 회차의 응시 기한. 날짜는 모두 한국 날짜. late = 오늘이 기한이거나 지났는데 아직 안 끝난 검사가 있음
+export function examDeadline(s: { status: SessionStatus; scheduled_at: string | null }, tests: { exam_status: string }[], today: string): ExamDeadline | null {
+  if (s.status !== 'confirmed' || !s.scheduled_at) return null
+  const session = formatKstDate(s.scheduled_at)
+  const due = addDays(session, -EXAM_DUE_DAYS)
+  const missing = tests.filter((x) => x.exam_status !== 'completed' && x.exam_status !== 'deleted').length
+  return { session, due, daysLeft: dayDiff(today, session), missing, late: missing > 0 && today >= due && today <= session }
+}
+
+// 할 일: 본사가 손대야 하는 구매 건. 한 건에 이유 하나, rank 가 작을수록 급하다
+export const TODO_KINDS = ['exam', 'claim', 'reassign', 'assign', 'application'] as const
+export type TodoKind = (typeof TODO_KINDS)[number]
+export type Todo = { kind: TodoKind; rank: number; tone: 'negative' | 'warning' | 'neutral'; label: string; since: string }
+
+type TodoRow = Pick<PurchaseRow, 'applications' | 'sessions' | 'purchase_tests' | 'naver_product_orders' | 'paid_at' | 'created_at'>
+
+export function purchaseTodo(p: TodoRow, today: string): Todo | null {
+  const s = mainSession(p)
+  const dl = s ? examDeadline(s, p.purchase_tests, today) : null
+  if (dl?.late) return { kind: 'exam', rank: 0, tone: 'negative', label: t('purchases.todo.exam', { d: dl.daysLeft, n: dl.missing }), since: dl.due }
+  const n = p.naver_product_orders
+  if (n && orderTone(n.product_order_status, n.claim_status) === 'warning') return { kind: 'claim', rank: 1, tone: 'warning', label: t('purchases.todo.claim'), since: p.paid_at ?? p.created_at }
+  if (!s) return null
+  if (s.status === 'unable') return { kind: 'reassign', rank: 2, tone: 'warning', label: t('purchases.todo.reassign'), since: p.paid_at ?? p.created_at }
+  if (s.status !== 'unassigned') return null
+  if (p.applications) return { kind: 'assign', rank: 3, tone: 'neutral', label: t('purchases.todo.assign'), since: p.applications.submitted_at ?? p.created_at }
+  const paid = p.paid_at ?? p.created_at
+  const waited = dayDiff(formatKstDate(paid), today)
+  return waited >= APPLICATION_NUDGE_DAYS ? { kind: 'application', rank: 4, tone: 'neutral', label: t('purchases.todo.application', { d: waited }), since: paid } : null
+}
+
+// 할 일을 급한 순서로: 이유가 급한 것부터, 같은 이유면 오래된 것부터
+export function byTodo(today: string) {
+  return (a: TodoRow, b: TodoRow) => {
+    const x = purchaseTodo(a, today), y = purchaseTodo(b, today)
+    return (x?.rank ?? 9) - (y?.rank ?? 9) || (x?.since ?? '').localeCompare(y?.since ?? '')
+  }
+}
+
+// 단계 거르기 값: '' 전체, 할 일, 단계, '단계:불가·취소', 검사만
+export const STAGE_TODO = '__todo__'
 export const STAGE_TEST_ONLY = '__test_only__'
 export const stageKey = (stage: Stage, exit: StageExit | null = null) => (exit ? `${stage}:${exit}` : stage)
 
-function matchStage(p: Pick<PurchaseRow, 'applications' | 'sessions'>, f: string): boolean {
+function matchStage(p: TodoRow, f: string, today: string): boolean {
   if (!f) return true
+  if (f === STAGE_TODO) return !!purchaseTodo(p, today)
   const info = purchaseStage(p)
   if (f === STAGE_TEST_ONLY) return !info
   return !!info && stageKey(info.stage, info.exit) === f
@@ -196,7 +245,8 @@ function matchOrder(n: NaverSummary | null, f: string): boolean {
 
 const digits = (v: string | null | undefined) => (v ?? '').replace(/\D/g, '')
 
-export function filterPurchases<T extends Pick<PurchaseRow, 'purchase_type' | 'paid_at' | 'applications' | 'sessions' | 'naver_product_orders'>>(rows: T[], f: PurchaseFilter): T[] {
+// today: 할 일 거르기의 기준 날짜(한국 날짜). 비우면 지금
+export function filterPurchases<T extends TodoRow & Pick<PurchaseRow, 'purchase_type'>>(rows: T[], f: PurchaseFilter, today = formatKstDate(new Date().toISOString())): T[] {
   const q = f.q.trim().toLowerCase()
   // 연락처는 하이픈 없이 숫자만 맞춰 본다(4자리 이상일 때만, 주문번호 검색과 섞이지 않게 따로)
   const qDigits = digits(q).length >= 4 ? digits(q) : ''
@@ -208,7 +258,7 @@ export function filterPurchases<T extends Pick<PurchaseRow, 'purchase_type' | 'p
     return (!q || text.includes(q) || (!!qDigits && phones.some((p) => p.includes(qDigits))))
       && (!f.type || (f.type === TYPE_UNCLASSIFIED ? r.purchase_type === null : r.purchase_type === f.type))
       && (!f.test || r.applications?.test_name === f.test)
-      && matchStage(r, f.stage)
+      && matchStage(r, f.stage, today)
       && (!f.center || (f.center === CENTER_NONE ? !s?.center_id : s?.center_id === f.center))
       && matchOrder(r.naver_product_orders, f.order)
       && matchPeriod(r.paid_at, f.from, f.to)

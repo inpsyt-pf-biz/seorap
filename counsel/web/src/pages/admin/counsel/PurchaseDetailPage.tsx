@@ -2,11 +2,13 @@ import { useCallback, useEffect, useState } from 'react'
 import { useLocation, useNavigate, useParams } from 'react-router-dom'
 import { Alert, Box, Button, Chip, MenuItem, Paper, Stack, Tab, Tabs, TextField, Typography } from '@mui/material'
 import Toast from '@seorap-web/components/Toast.tsx'
+import { formatKstDate } from '@seorap-core/time.ts'
 import type { Center } from '@counsel-core/centers.ts'
-import { t } from '@counsel-core/copy.ko.ts'
+import { t, type CopyKey } from '@counsel-core/copy.ko.ts'
 import { errorText, toCounselError, type CounselError } from '@counsel-core/errors.ts'
 import { computeProgress } from '@counsel-core/progress.ts'
 import { PURCHASE_TYPES, purchaseTypeLabel, type PurchaseType } from '@counsel-core/purchases.ts'
+import ExamDeadline from '../../../components/ExamDeadline'
 import ExamsTab from '../../../components/ExamsTab'
 import HistoryList from '../../../components/HistoryList'
 import NotesPanel from '../../../components/NotesPanel'
@@ -15,6 +17,7 @@ import ProgressStepper from '../../../components/ProgressStepper'
 import { ApplicationTab, OrderTab } from '../../../components/PurchaseSections'
 import SessionsPanel from '../../../components/SessionsPanel'
 import { getPurchaseDetail, listCenters, resolveNaverReview, setPurchaseType, type PurchaseDetail } from '../../../lib/api'
+import { usePageCommands } from '../../../shell/commands'
 import { hasCap, useSession } from '../../../shell/session'
 
 type TabKey = 'sessions' | 'application' | 'exams' | 'naver' | 'history'
@@ -36,6 +39,11 @@ export default function PurchaseDetailPage() {
   const [busy, setBusy] = useState(false)
   const [actionError, setActionError] = useState<CounselError | null>(null)
   const [notice, setNotice] = useState<Notice | null>(null)
+  // Ctrl+K 의 '이 화면' 명령: 탭 열기(상담 탭에서 센터 배정·예약·메모)
+  usePageCommands(() => (['sessions', 'application', 'exams', 'naver', 'history'] as TabKey[]).map((k) => ({
+    id: `tab-${k}`, label: t('palette.tab', { name: t(`purchaseDetail.tab.${k}` as CopyKey) }),
+    keywords: k === 'sessions' ? '센터 배정 예약 메모 상담 불가 취소' : undefined, run: () => setTab(k),
+  })), [])
 
   useEffect(() => {
     Promise.all([getPurchaseDetail(id), listCenters()]).then(
@@ -124,7 +132,11 @@ export default function PurchaseDetailPage() {
           <Typography variant="h6" sx={{ mb: 1.5 }}>{t('progress.title')}</Typography>
           <Stack spacing={2.5}>
             {shown.map((s) => (
-              <ProgressStepper key={s.id} progress={progressOf(s)} title={shown.length > 1 ? t('session.seq', { n: s.seq }) : undefined} />
+              <Box key={s.id}>
+                <ProgressStepper progress={progressOf(s)} title={shown.length > 1 ? t('session.seq', { n: s.seq }) : undefined} />
+                {/* 검사는 구매 건 단위라 회차가 하나일 때만 기한선을 그린다 */}
+                {live.length <= 1 && <ExamDeadline session={s} tests={detail.tests} paidAt={detail.purchase.paid_at} today={formatKstDate(new Date().toISOString())} />}
+              </Box>
             ))}
           </Stack>
         </Paper>

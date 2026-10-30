@@ -1,7 +1,7 @@
 import { assertEquals } from '@std/assert'
 import {
   CENTER_NONE, EMPTY_APPLICATION, EMPTY_PURCHASE_FILTER, EMPTY_PURCHASE_INPUT, ORDER_CLAIM, ORDER_NONE, ORDER_REVIEW, PURCHASE_TYPES,
-  SESSION_STATUSES, STAGE_TEST_ONLY, TYPE_UNCLASSIFIED, assignableSessionIds, clientLabel, contactLabel, countByStage, filterPurchases, mainSession, periodRange,
+  SESSION_STATUSES, STAGE_TEST_ONLY, STAGE_TODO, TYPE_UNCLASSIFIED, byTodo, examDeadline, purchaseTodo, assignableSessionIds, clientLabel, contactLabel, countByStage, filterPurchases, mainSession, periodRange,
   purchaseStage, purchaseTypeLabel, sessionProgress, testNames,
   validatePurchaseInput, type NaverSummary, type PurchaseRow, type SessionStatus,
 } from './purchases.ts'
@@ -116,7 +116,7 @@ Deno.test('단계별 건수와 단계 거르기', () => {
     { ...row('d', 'unassigned'), ...staged('unable', { app: true, center: 'c' }) },
     { ...row('e', 'unassigned'), sessions: [] },
   ]
-  const c = countByStage(list)
+  const c = countByStage(list, '2026-10-30')
   assertEquals([c.all, c.testOnly, c.stage.application, c.stage.assign, c.stage.request], [5, 1, 1, 1, 0])
   assertEquals([c.exit.assign.cancelled, c.exit.request.unable], [1, 1])
   const ids = (stage: string) => filterPurchases(list, { ...EMPTY_PURCHASE_FILTER, stage }).map((r) => r.id)
@@ -150,4 +150,50 @@ Deno.test('연락처 표시와 검색(하이픈 없이 숫자 4자리 이상)', 
   assertEquals(ids('12345678'), ['a'])
   assertEquals(ids('1234-5678'), ['a'])
   assertEquals(ids('999'), [])
+})
+
+// 할 일: 회차 하나짜리 구매 건을 상태·신청서·센터·예약 일시·검사·주문으로 만든다
+const todoRow = (status: SessionStatus, o: Partial<{ app: string; at: string; tests: string[]; claim: string | null; paid: string }> = {}): PurchaseRow => ({
+  ...row('x', status, { client: o.app ? '가' : undefined, center: status === 'unassigned' ? undefined : 'c' }),
+  applications: o.app ? { ...row('x', 'unassigned', { client: '가' }).applications!, submitted_at: o.app } : null,
+  paid_at: o.paid ?? '2026-10-20T03:00:00Z',
+  purchase_tests: (o.tests ?? []).map((exam_status, i) => ({ test_name: 'STS', unit_no: i + 1, exam_status })),
+  naver_product_orders: o.claim !== undefined ? naver('2026102000000001', 'PAYED', o.claim) : null,
+  sessions: [{ id: 's', seq: 1, status, center_id: status === 'unassigned' ? null : 'c', scheduled_at: o.at ?? null }],
+})
+
+Deno.test('응시 기한: 상담 3일 전부터 상담일까지, 안 끝난 검사가 있으면 늦음', () => {
+  const s = { status: 'confirmed' as const, scheduled_at: '2026-11-02T05:00:00Z' } // 한국 11-02 14:00
+  assertEquals(examDeadline(s, [{ exam_status: 'completed' }, { exam_status: 'unused' }], '2026-10-29'),
+    { session: '2026-11-02', due: '2026-10-30', daysLeft: 4, missing: 1, late: false })
+  assertEquals(examDeadline(s, [{ exam_status: 'completed' }, { exam_status: 'unused' }], '2026-10-30')?.late, true)
+  assertEquals(examDeadline(s, [{ exam_status: 'completed' }, { exam_status: 'deleted' }], '2026-10-31')?.late, false)
+  assertEquals(examDeadline({ status: 'requested', scheduled_at: null }, [], '2026-10-30'), null)
+})
+
+Deno.test('할 일: 이유 하나씩, 급한 순서(응시 기한 → 취소 요청 → 다시 배정 → 센터 배정 → 신청서 독촉)', () => {
+  const today = '2026-10-30'
+  const kind = (r: PurchaseRow) => purchaseTodo(r, today)?.kind ?? null
+  const exam = todoRow('confirmed', { app: '2026-10-20T00:00:00Z', at: '2026-11-02T05:00:00Z', tests: ['completed', 'unused'] })
+  assertEquals(purchaseTodo(exam, today)?.label, '상담 D-3 · 미응시 1명')
+  assertEquals(kind(todoRow('confirmed', { app: 'x', at: '2026-11-02T05:00:00Z', tests: ['completed', 'completed'] })), null)
+  assertEquals(kind(todoRow('requested', { app: 'x', claim: 'CANCEL_REQUEST' })), 'claim')
+  assertEquals(kind(todoRow('unable', { app: 'x' })), 'reassign')
+  assertEquals(kind(todoRow('unassigned', { app: '2026-10-27T04:00:00Z' })), 'assign')
+  // 신청서 없이 3일째부터 독촉(한국 날짜 기준)
+  assertEquals(purchaseTodo(todoRow('unassigned', { paid: '2026-10-26T15:30:00Z' }), today)?.label, '신청서 독촉 3일')
+  assertEquals(kind(todoRow('unassigned', { paid: '2026-10-27T15:30:00Z' })), null)
+  assertEquals(kind(todoRow('requested', { app: 'x' })), null)
+  assertEquals(kind(todoRow('completed', { app: 'x', at: '2026-10-20T05:00:00Z' })), null)
+
+  const list = [
+    { ...todoRow('unassigned', { paid: '2026-10-20T00:00:00Z' }), id: 'nudge' },
+    { ...todoRow('unassigned', { app: '2026-10-28T00:00:00Z' }), id: 'assign-new' },
+    { ...todoRow('unassigned', { app: '2026-10-25T00:00:00Z' }), id: 'assign-old' },
+    { ...exam, id: 'exam' },
+    { ...todoRow('requested', { app: 'x' }), id: 'quiet' },
+  ]
+  assertEquals([...list].sort(byTodo(today)).map((r) => r.id).slice(0, 4), ['exam', 'assign-old', 'assign-new', 'nudge'])
+  assertEquals(filterPurchases(list, { ...EMPTY_PURCHASE_FILTER, stage: STAGE_TODO }, today).length, 4)
+  assertEquals(countByStage(list, today).todo, 4)
 })

@@ -6,7 +6,7 @@ import StageStrip from './StageStrip'
 afterEach(cleanup)
 
 const counts = (testOnly = 0): StageCounts => ({
-  all: 9, testOnly,
+  all: 9, todo: 4, testOnly,
   stage: { application: 2, assign: 1, request: 2, confirmed: 1, completed: 1 },
   exit: {
     application: { unable: 0, cancelled: 0 }, assign: { unable: 0, cancelled: 1 }, request: { unable: 1, cancelled: 0 },
@@ -34,6 +34,8 @@ describe('StageStrip', () => {
     expect(onChange).toHaveBeenLastCalledWith('')
     fireEvent.click(screen.getByText('불가 1'))
     expect(onChange).toHaveBeenLastCalledWith('request:unable')
+    fireEvent.click(screen.getByText('할 일 4'))
+    expect(onChange).toHaveBeenLastCalledWith('__todo__')
   })
 
   it('검사만 산 주문이 있으면 따로 센다', () => {

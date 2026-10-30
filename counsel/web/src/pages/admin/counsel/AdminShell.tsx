@@ -1,7 +1,11 @@
+import { useEffect, useState } from 'react'
 import { NavLink, Outlet, useLocation } from 'react-router-dom'
 import { AppBar, Box, Button, List, ListItemButton, ListItemText, Tab, Tabs, Toolbar, Typography } from '@mui/material'
+import SearchIcon from '@mui/icons-material/Search'
 import { t, type CopyKey } from '@counsel-core/copy.ko.ts'
+import CommandPalette, { isMac } from '../../../components/CommandPalette'
 import DemoBanner from '../../../components/DemoBanner'
+import { CommandsProvider } from '../../../shell/commands'
 import { useSession } from '../../../shell/session'
 import { adminLayout, tokens } from '../../../theme/admin'
 
@@ -18,13 +22,32 @@ export default function AdminShell() {
   const who = ctx ? [ctx.display_name, ctx.membership && t(`role.${ctx.membership.role}` as CopyKey)].filter(Boolean).join(' · ') : ''
   const { pathname } = useLocation()
   const current = NAV.find((n) => pathname.startsWith(n.to))?.to ?? false
+  const [palette, setPalette] = useState(false)
+  // Ctrl+K(맥 ⌘K)는 어디서나 명령 팔레트를 열고 닫는다. / 는 입력 칸 밖에서만
+  useEffect(() => {
+    const typing = (el: EventTarget | null) => el instanceof HTMLElement && (el.isContentEditable || ['INPUT', 'TEXTAREA', 'SELECT'].includes(el.tagName))
+    const onKey = (e: KeyboardEvent) => {
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'k') { e.preventDefault(); setPalette((o) => !o) }
+      else if (e.key === '/' && !typing(e.target)) { e.preventDefault(); setPalette(true) }
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [])
 
   return (
+    <CommandsProvider>
     <Box sx={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', bgcolor: 'background.default' }}>
       <DemoBanner />
       <AppBar position="static">
         <Toolbar sx={{ gap: 2 }}>
           <Typography variant="h6" sx={{ flexGrow: 1 }}>{t('app.title')}</Typography>
+          <Button variant="outlined" size="small" startIcon={<SearchIcon />} onClick={() => setPalette(true)} aria-keyshortcuts="Control+K Meta+K"
+            sx={{ color: 'text.secondary', borderColor: tokens.surface[300], gap: 0.5 }}>
+            {t('palette.open')}
+            <Box component="kbd" sx={{ display: { xs: 'none', sm: 'inline' }, ml: 1, px: 0.75, borderRadius: tokens.radius.control, border: `1px solid ${tokens.surface[200]}`, font: 'inherit', fontSize: 12 }}>
+              {isMac() ? '⌘K' : 'Ctrl K'}
+            </Box>
+          </Button>
           <Typography variant="body2" color="text.secondary">{who}</Typography>
           <Button size="small" onClick={() => void signOut()}>{t('auth.logout')}</Button>
         </Toolbar>
@@ -54,6 +77,8 @@ export default function AdminShell() {
           </Box>
         </Box>
       </Box>
+      <CommandPalette open={palette} onClose={() => setPalette(false)} />
     </Box>
+    </CommandsProvider>
   )
 }

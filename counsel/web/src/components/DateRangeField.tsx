@@ -59,7 +59,7 @@ export default function DateRangeField({ value, today, onChange }: Props) {
       <Box sx={{ position: 'relative', display: 'inline-flex', minWidth: 230 }}>
         <ButtonBase ref={anchor} onClick={openPopover} aria-haspopup="dialog" aria-expanded={open} aria-label={`${t('purchases.period')}: ${label}`}
           sx={{
-            width: '100%', justifyContent: 'flex-start', gap: 1, height: 40, pl: 1.5, pr: value ? 5 : 1.5, borderRadius: 2,
+            width: '100%', justifyContent: 'flex-start', gap: 1, height: 40, pl: 1.5, pr: value ? 5 : 1.5, borderRadius: tokens.radius.control,
             border: `1px solid ${open ? tokens.teal[500] : tokens.surface[300]}`, bgcolor: tokens.surface[0], typography: 'body2',
             color: value ? 'text.primary' : 'text.secondary', whiteSpace: 'nowrap',
           }}>
@@ -74,17 +74,17 @@ export default function DateRangeField({ value, today, onChange }: Props) {
         )}
       </Box>
       <Popover open={open} anchorEl={anchor.current} onClose={() => setOpen(false)} anchorOrigin={{ vertical: 'bottom', horizontal: 'left' }}
-        slotProps={{ paper: { role: 'dialog', 'aria-label': t('purchases.period'), sx: { mt: 0.75, borderRadius: 3 } } }}>
+        slotProps={{ paper: { role: 'dialog', 'aria-label': t('purchases.period'), sx: { mt: 0.75, borderRadius: tokens.radius.card } } }}>
         <Stack direction="row">
           <Stack sx={{ p: 1, gap: 0.25, borderRight: `1px solid ${tokens.surface[200]}`, minWidth: 112 }}>
             {PERIODS.map((p) => (
               <ButtonBase key={p} onClick={() => finish(periodRange(p, today))}
-                sx={{ justifyContent: 'flex-start', px: 1.5, py: 1, borderRadius: 2, typography: 'body2', '&:hover': { bgcolor: tokens.surface[100] } }}>
+                sx={{ justifyContent: 'flex-start', px: 1.5, py: 1, borderRadius: tokens.radius.control, typography: 'body2', '&:hover': { bgcolor: tokens.surface[100] } }}>
                 {t(`purchases.period.${p}` as CopyKey)}
               </ButtonBase>
             ))}
             <ButtonBase onClick={() => finish(null)}
-              sx={{ justifyContent: 'flex-start', px: 1.5, py: 1, borderRadius: 2, typography: 'body2', color: 'text.secondary', '&:hover': { bgcolor: tokens.surface[100] } }}>
+              sx={{ justifyContent: 'flex-start', px: 1.5, py: 1, borderRadius: tokens.radius.control, typography: 'body2', color: 'text.secondary', '&:hover': { bgcolor: tokens.surface[100] } }}>
               {t('purchases.period.all')}
             </ButtonBase>
           </Stack>
@@ -112,7 +112,7 @@ export default function DateRangeField({ value, today, onChange }: Props) {
                         <ButtonBase key={day} data-day={day} aria-label={day} aria-pressed={role === 'edge'}
                           onClick={() => pick(day)} onMouseEnter={() => setHover(day)}
                           sx={{
-                            height: 36, typography: 'body2', borderRadius: role === 'between' ? 0 : 2,
+                            height: 36, typography: 'body2', borderRadius: role === 'between' ? 0 : tokens.radius.control,
                             bgcolor: role === 'edge' ? tokens.teal[500] : role === 'between' ? tokens.teal[100] : 'transparent',
                             color: role === 'edge' ? tokens.surface[0] : 'text.primary', fontWeight: day === today ? 700 : 400,
                             outline: day === today && role !== 'edge' ? `1px solid ${tokens.teal[500]}` : 'none', outlineOffset: -1,

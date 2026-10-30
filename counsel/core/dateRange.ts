@@ -48,3 +48,6 @@ export function dayRole(day: string, range: DateRange | null, picking: Picking, 
   if (day === from || day === to) return 'edge'
   return day > from && day < to ? 'between' : null
 }
+
+// 두 날짜 사이의 날 수(to - from). 같은 날이면 0
+export const dayDiff = (from: string, to: string) => Math.round((Date.parse(`${to}T00:00:00Z`) - Date.parse(`${from}T00:00:00Z`)) / 86400000)
