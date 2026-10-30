@@ -79,11 +79,30 @@ function parseInline(s: string): Inline[] {
   return out
 }
 
+// 어드민 에디터(MDXEditor)가 저장하는 표기 (10-30): 기호 앞 역슬래시(\*), 줄 끝 역슬래시 줄바꿈, 숫자 문자 표기(&#x20;).
+// 역슬래시로 막은 기호는 잠시 사용자 영역 글자(U+E000 + 코드)로 바꿔 서식으로 읽히지 않게 하고, 다 읽은 뒤 되돌린다
+const ESCAPED = /\\([!-/:-@[-`{-~])/g
+const HELD = /[\uE000-\uE07F]/g
+const ENTITY = /&#x([0-9a-fA-F]{1,6});|&#([0-9]{1,7});/g
+const hold = (s: string) => s.replace(/\\$/, '').replace(ESCAPED, (_, c: string) => String.fromCharCode(0xe000 + c.charCodeAt(0)))
+const release = (s: string) => s.replace(HELD, (c) => String.fromCharCode(c.charCodeAt(0) - 0xe000))
+  .replace(ENTITY, (_, hex?: string, dec?: string) => String.fromCodePoint(hex ? parseInt(hex, 16) : Number(dec)))
+
+function released(nodes: Inline[]): Inline[] {
+  return nodes.map((n) => {
+    if (n.kind === 'text') return { kind: 'text', text: release(n.text) }
+    if (n.kind === 'link') return { kind: 'link', href: release(n.href), children: released(n.children) }
+    if (n.kind === 'br') return n
+    return { kind: n.kind, children: released(n.children) }
+  })
+}
+const inline = (s: string) => released(parseInline(hold(s)))
+
 function parseLines(lines: string[]): Inline[] {
   const out: Inline[] = []
   lines.forEach((line, i) => {
     if (i > 0) out.push({ kind: 'br' })
-    for (const n of parseInline(line)) {
+    for (const n of inline(line)) {
       if (n.kind === 'text') pushText(out, n.text)
       else out.push(n)
     }
@@ -98,8 +117,8 @@ export function parseHelpMarkdown(md: string): Block[] {
     .map((c) => c.split('\n').map((l) => l.trim()).filter(Boolean))
     .filter((c) => c.length)
   return chunks.map((lines): Block => {
-    if (lines.every((l) => UL.test(l))) return { kind: 'ul', items: lines.map((l) => parseInline(UL.exec(l)![1])) }
-    if (lines.every((l) => OL.test(l))) return { kind: 'ol', items: lines.map((l) => parseInline(OL.exec(l)![1])) }
+    if (lines.every((l) => UL.test(l))) return { kind: 'ul', items: lines.map((l) => inline(UL.exec(l)![1])) }
+    if (lines.every((l) => OL.test(l))) return { kind: 'ol', items: lines.map((l) => inline(OL.exec(l)![1])) }
     return { kind: 'p', children: parseLines(lines) }
   })
 }

@@ -80,3 +80,21 @@ Deno.test('normalizeHelp: 규칙 어긴 항목만 빼고, 모양이 틀리면 nu
   assertEquals(normalizeHelp(null, '기본'), null)
   assertEquals(normalizeHelp({ items: 'x' }, '기본'), null)
 })
+
+// 어드민 에디터(MDXEditor, 10-30)가 저장하는 표기: 기호 앞 역슬래시, 줄 끝 역슬래시 줄바꿈, 숫자 문자 표기
+Deno.test('parseHelpMarkdown: 역슬래시로 막은 기호는 서식이 아니라 글자', () => {
+  assertEquals(parseHelpMarkdown('\\*별표\\* 와 \\[괄호\\]'), [{ kind: 'p', children: [{ kind: 'text', text: '*별표* 와 [괄호]' }] }])
+  assertEquals(parseHelpMarkdown('2026\\. 10\\. 30\\. 부터'), [{ kind: 'p', children: [{ kind: 'text', text: '2026. 10. 30. 부터' }] }])
+})
+
+Deno.test('parseHelpMarkdown: 줄 끝 역슬래시는 줄바꿈, 숫자 문자 표기는 글자로', () => {
+  assertEquals(parseHelpMarkdown('첫 줄\\\n둘째 줄'), [{ kind: 'p', children: [{ kind: 'text', text: '첫 줄' }, { kind: 'br' }, { kind: 'text', text: '둘째 줄' }] }])
+  assertEquals(parseHelpMarkdown('&#x20;앞 공백 &#38; 그리고'), [{ kind: 'p', children: [{ kind: 'text', text: ' 앞 공백 & 그리고' }] }])
+})
+
+Deno.test('parseHelpMarkdown: * 글머리 목록과 링크 안의 역슬래시', () => {
+  assertEquals(parseHelpMarkdown('* 하나\n* 둘'), [{ kind: 'ul', items: [[{ kind: 'text', text: '하나' }], [{ kind: 'text', text: '둘' }]] }])
+  assertEquals(parseHelpMarkdown('[a\\*b](https://a.com)'), [
+    { kind: 'p', children: [{ kind: 'link', href: 'https://a.com', children: [{ kind: 'text', text: 'a*b' }] }] },
+  ])
+})
