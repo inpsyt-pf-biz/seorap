@@ -26,6 +26,8 @@ export default function HelpAdminPage() {
   const [contact, setContact] = useState('')
   const [draft, setDraft] = useState<Draft | null>(null)
   const [problem, setProblem] = useState('')
+  // 저장·옮기기·삭제·문의처 저장이 서버에서 실패한 것. 질문을 고르지 않아도 보이게 화면 위에 둔다
+  const [failure, setFailure] = useState('')
   const [error, setError] = useState<CounselError | null>(null)
   const [confirm, setConfirm] = useState(false)
   const [toast, setToast] = useState<string | null>(null)
@@ -46,9 +48,13 @@ export default function HelpAdminPage() {
   const run = async (f: () => Promise<unknown>, done: CopyKey) => {
     try {
       await f()
-      await load()
+      setFailure('')
       setToast(t(done))
-    } catch (e) { setProblem(errorText(toCounselError(e))) }
+    } catch (e) {
+      // 다른 관리자가 먼저 지웠거나 옮겼을 수 있으니 목록을 다시 읽는다
+      setFailure(errorText(toCounselError(e)))
+    }
+    await load()
   }
   const save = async () => {
     if (!draft) return
@@ -77,6 +83,7 @@ export default function HelpAdminPage() {
         {canManage && <Button variant="contained" onClick={() => { setDraft(blank()); setProblem('') }}>{t('help.add')}</Button>}
       </Stack>
       <Typography variant="body2" color="text.secondary">{t('help.intro')}</Typography>
+      {failure && <Alert severity="error" onClose={() => setFailure('')}>{failure}</Alert>}
 
       <Box sx={{ display: 'grid', gap: 2, gridTemplateColumns: { xs: '1fr', lg: '260px 1fr 360px' }, alignItems: 'start' }}>
         <Paper>

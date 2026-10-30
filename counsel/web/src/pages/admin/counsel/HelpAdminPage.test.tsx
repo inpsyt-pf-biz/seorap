@@ -2,6 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
 import * as api from '../../../lib/api'
+import { CounselError } from '@counsel-core/errors.ts'
 import HelpAdminPage from './HelpAdminPage'
 
 vi.mock('../../../lib/api')
@@ -65,5 +66,13 @@ describe('서랍 도움말 관리', () => {
     fireEvent.change(screen.getByLabelText('문의처 (마크다운 한 줄)'), { target: { value: '[톡톡](https://talk.naver.com/x)' } })
     fireEvent.click(screen.getByRole('button', { name: '문의처 저장' }))
     await waitFor(() => expect(api.saveHelpContact).toHaveBeenCalledWith('[톡톡](https://talk.naver.com/x)'))
+  })
+  // 최종 검토 ③: 질문을 고르지 않은 상태의 실패(옮기기·문의처 저장)도 보여야 하고, 목록을 다시 읽는다
+  it('질문을 고르지 않은 상태에서 옮기기가 실패하면 오류를 보이고 목록을 다시 읽는다', async () => {
+    vi.mocked(api.moveHelpItem).mockRejectedValueOnce(new CounselError('NOT_FOUND'))
+    open()
+    fireEvent.click((await screen.findAllByRole('button', { name: '아래로' }))[0])
+    expect(await screen.findByRole('alert')).toBeTruthy()
+    await waitFor(() => expect(api.listHelpItems).toHaveBeenCalledTimes(2))
   })
 })
