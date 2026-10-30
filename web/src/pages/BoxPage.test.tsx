@@ -503,3 +503,21 @@ describe('BoxPage 10-30 검수 2차', () => {
     expect(within(children).getAllByRole('button', { name: '실시하기' }).length).toBe(2)
   })
 })
+
+describe('BoxPage 상담 카드는 패키지의 하위 요소 (10-30 검수)', () => {
+  it('상담 카드는 서랍 맨 위가 아니라 그 주문 판 안 첫 자리에 있다 (1매 주문이어도 판으로)', async () => {
+    const one: BoxLine = { ...launchable, testName: 'STS', unitsOfTest: 1 }
+    vi.stubGlobal('fetch', vi.fn(async (url: string) => {
+      const path = url.replace(/^\/api\//, '')
+      if (path === 'box') return json(200, { ...boxOf([one]), counsel: [{ orderId: 'o1', productName: 'STS', submitted: false }] })
+      throw new Error(`unexpected call: ${path}`)
+    }))
+    open()
+    const btn = await screen.findByRole('button', { name: '상담 신청서 작성' })
+    const order = btn.closest('[data-region="order"]') as HTMLElement
+    expect(order).toBeTruthy()
+    expect(order.getAttribute('data-kind')).toBe('group')
+    const children = order.querySelector('[data-region="children"]') as HTMLElement
+    expect(children.firstElementChild?.contains(btn)).toBe(true)
+  })
+})

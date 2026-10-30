@@ -19,14 +19,8 @@ export default function Wordmark({ size = 'sm', onTeal = false }: { size?: 'sm' 
   return (
     <Stack direction="row" spacing={1.5} role="img" aria-label={tokens.logo.alt} sx={{ alignItems: 'center' }}>
       <LogoMark size={logo} onTeal={onTeal} />
-      {/* "인싸이트"와 "서랍" 모두 리디바탕 윤곽선. 두 글꼴이 섞이지 않게 (10-30 검수) */}
-      <Stack spacing={0.5} sx={{ color: ink }}>
-        <Box
-          component="svg" data-part="wordmark-parent" viewBox={tokens.brandVector.parentViewBox} aria-hidden="true" focusable="false"
-          sx={{ height: word * 0.5, width: word * 0.5 * 3.78, display: 'block', opacity: 0.8 }}
-        >
-          <path d={tokens.brandVector.parentPath} fill="currentColor" />
-        </Box>
+      {/* 로고 옆 글자는 "서랍" 하나 (10-30 검수: "인싸이트" 병기 없음). 읽기 이름(aria-label)은 "인싸이트 서랍" 그대로 */}
+      <Stack sx={{ color: ink }}>
         <Box component="svg" data-part="wordmark-name" viewBox={tokens.brandVector.wordmarkViewBox} aria-hidden="true" focusable="false" sx={{ height: word, width: word * 1.9, display: 'block' }}>
           <path d={tokens.brandVector.wordmarkPath} fill="currentColor" />
         </Box>

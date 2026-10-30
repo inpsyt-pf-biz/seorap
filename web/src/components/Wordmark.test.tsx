@@ -12,9 +12,9 @@ describe('Wordmark (로고 C1 + 리디바탕 워드마크)', () => {
     expect(container.querySelector('img')).toBeNull()
   })
 
-  it('"인싸이트"와 "서랍"을 같은 글꼴(리디바탕 윤곽선) 벡터로 그린다 (두 글꼴이 섞이지 않게, 10-30 검수)', () => {
+  it('로고 옆 글자는 "서랍" 하나뿐이다 ("인싸이트" 병기 없음, 10-30 검수)', () => {
     const { container } = render(<Wordmark />)
-    expect(container.querySelector('[data-part="wordmark-parent"]')).toBeTruthy()
+    expect(container.querySelector('[data-part="wordmark-parent"]')).toBeNull()
     expect(container.querySelector('[data-part="wordmark-name"]')).toBeTruthy()
     expect(screen.queryByText('인싸이트')).toBeNull()
   })

@@ -36,6 +36,21 @@ type Pending =
   | { kind: 'reforward'; line: BoxLine }
   | null
 
+// 상담 신청서 카드 (B2). 패키지 주문 판 안 첫 자리에 놓인다. 신청서를 내기 전에는 아래 검사가 잠겨 있다
+function CounselCard({ c, onOpen }: { c: BoxResponse['counsel'][number]; onOpen: () => void }) {
+  return (
+    <Box sx={{ p: 2, borderRadius: tokens.radius.card, bgcolor: tokens.surface[0], border: `1px solid ${c.submitted ? tokens.surface[200] : tokens.teal[500]}` }}>
+      <Stack spacing={1}>
+        <Typography variant="subtitle1" sx={{ fontWeight: 600 }}>{t(c.submitted ? 'counsel.card.doneTitle' : 'counsel.card.title')}</Typography>
+        <Typography variant="body2" color="text.secondary">
+          {c.submitted ? t('counsel.card.doneBody') : t('counsel.card.bodyInGroup')}
+        </Typography>
+        {!c.submitted && <Button variant="contained" onClick={onOpen}>{t('counsel.card.button')}</Button>}
+      </Stack>
+    </Box>
+  )
+}
+
 export default function BoxPage() {
   const navigate = useNavigate()
   const [box, setBox] = useState<BoxResponse | null>(null)
@@ -133,25 +148,13 @@ export default function BoxPage() {
       <Stack data-region="content" spacing={3} sx={{ px: 2, pt: 3, pb: 5 }}>
         {box.notStartedCount > 0 && <Typography variant="body2" color="text.secondary" sx={{ mb: -1 }}>{t('box.summary', { n: box.notStartedCount })}</Typography>}
         {box.noticeBanner && <Alert severity="info">{box.noticeBanner}</Alert>}
-        {/* 상담 카드 (B2): 신청서를 내기 전에는 검사가 잠겨 있으므로 맨 위에 둔다 */}
-        {box.counsel.map((c) => (
-          <Box key={c.orderId} sx={{ p: 2, borderRadius: tokens.radius.card, bgcolor: tokens.surface[0], border: `1px solid ${c.submitted ? tokens.surface[200] : tokens.teal[500]}` }}>
-            <Stack spacing={1}>
-              <Typography variant="subtitle1" sx={{ fontWeight: 700 }}>{t(c.submitted ? 'counsel.card.doneTitle' : 'counsel.card.title')}</Typography>
-              <Typography variant="body2" color="text.secondary">
-                {c.submitted ? t('counsel.card.doneBody') : t('counsel.card.body', { product: c.productName })}
-              </Typography>
-              {!c.submitted && (
-                <Button variant="contained" onClick={() => navigate(`/box/counsel/${c.orderId}`)}>{t('counsel.card.button')}</Button>
-              )}
-            </Stack>
-          </Box>
-        ))}
         {error && <Alert severity="warning">{error}</Alert>}
         {box.groups.length === 0 && <Typography variant="body1" color="text.secondary">{t('box.empty')}</Typography>}
         {box.groups.map((g) => {
           // 1매이고 검사명이 상품명과 같은 주문은 묶음 층 없이 카드 하나로 (이름이 두 번 나오지 않게, 10-30 비평 ④)
-          const only = g.lines.length === 1 && g.lines[0].testName === g.productName ? g.lines[0] : null
+          // 상담 패키지면 상담 카드가 이 주문의 첫 하위 요소다 (10-30 검수: 신청서는 산 패키지의 자식). 상담이 있으면 1매여도 판으로
+          const counsel = box.counsel.find((c) => c.orderId === g.orderId)
+          const only = !counsel && g.lines.length === 1 && g.lines[0].testName === g.productName ? g.lines[0] : null
           if (only) {
             return (
               <Box key={g.orderId} data-region="order">
@@ -178,6 +181,7 @@ export default function BoxPage() {
                 </AccordionSummary>
                 <AccordionDetails sx={{ px: 0, pt: 1, pb: 0.5 }}>
                   <Stack data-region="children" spacing={1}>
+                    {counsel && <CounselCard c={counsel} onOpen={() => navigate(`/box/counsel/${counsel.orderId}`)} />}
                     {g.lines.map((l) => <LineRow key={l.voucherId} line={l} onAction={(a, line) => onAction(a, line, g)} />)}
                   </Stack>
                 </AccordionDetails>
