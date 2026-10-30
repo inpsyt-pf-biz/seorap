@@ -59,5 +59,9 @@ export function mockCounsel(): CounselAdapter {
       if (s.manage_code === 'MOCK-FAIL') throw new Error('mock counsel submit failed')
       return { purchaseId: crypto.randomUUID(), created: true }
     },
+    // 시험 모드에서는 어드민 내용이 없다고 본다 → 서랍은 기본 문구를 쓴다
+    async help() {
+      return null
+    },
   }
 }

@@ -36,6 +36,11 @@ const realCounsel: CounselAdapter = {
     const d = data as { purchase_id: string; created: boolean }
     return { purchaseId: d.purchase_id, created: d.created }
   },
+  async help() {
+    const { data, error } = await counselDb().rpc('rpc_seorap_help')
+    if (error) throw new Error(`counsel help: ${error.message}`)
+    return data
+  },
 }
 
 export function counsel(s: Settings): CounselAdapter {
