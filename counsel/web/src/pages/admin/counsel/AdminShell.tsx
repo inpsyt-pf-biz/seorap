@@ -7,7 +7,7 @@ import CommandPalette, { isMac } from '../../../components/CommandPalette'
 import DemoBanner from '../../../components/DemoBanner'
 import { CommandsProvider } from '../../../shell/commands'
 import { useSession } from '../../../shell/session'
-import { adminLayout, tokens } from '../../../theme/admin'
+import { adminLayout, adminSheet, tokens } from '../../../theme/admin'
 
 const NAV: { to: string; label: CopyKey }[] = [
   { to: '/admin/counsel/purchases', label: 'nav.purchases' },
@@ -73,8 +73,11 @@ export default function AdminShell() {
           </List>
         </Box>
         <Box component="main" sx={{ flexGrow: 1, minWidth: 0, p: { xs: 2, md: 3 } }}>
+          {/* 화면마다 본문을 흰 판 하나에 담는다(바닥에 요소를 바로 놓지 않는다) */}
           <Box sx={{ maxWidth: adminLayout.contentMaxWidth, mx: 'auto' }}>
-            <Outlet />
+            <Box data-region="sheet" sx={adminSheet}>
+              <Outlet />
+            </Box>
           </Box>
         </Box>
       </Box>

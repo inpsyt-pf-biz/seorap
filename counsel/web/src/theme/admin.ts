@@ -5,18 +5,45 @@ import type { Specialty } from '@counsel-core/centers.ts'
 // 서랍 테마를 그대로 쓰고, PC 폭 어드민에 필요한 것만 더한다. 색은 서랍 tokens 에서만 꺼낸다.
 export const adminLayout = { contentMaxWidth: 1200, navWidth: 220 } as const
 
+// 어드민 바탕 (10-30 건우님 검수: "메뉴마다 바탕과 요소 사이 구분이 없다").
+// 서랍 고객 화면의 옅은 종이 바탕(surface.page)은 흰 판과 거의 같아 표·카드·입력 칸이 묻힌다.
+// 어드민은 바탕을 한 단계 짙게(surface[100]) 깔고, 판·입력 칸은 흰색에 바탕보다 진한 테두리(surface[300])를 둔다
+const ADMIN_BG = tokens.surface[100]
+const EDGE = tokens.surface[300]
+
+// 본문 판 (10-30 건우님 검수: "그릇 없이 밥 먹는 것 같다"). 모든 메뉴의 제목·요약·검색 칸·표를 흰 판 하나에 담고,
+// 바닥(ADMIN_BG)은 판 바깥으로만 보이게 한다. 판 안의 표·카드는 같은 흰색에 테두리로 나뉜다
+export const adminSheet = {
+  bgcolor: tokens.surface[0] as string,
+  border: `1px solid ${EDGE}`,
+  borderRadius: tokens.radius.sheet,
+  boxShadow: `0 1px 3px ${tokens.desk.shadow}`,
+  p: { xs: 2, md: 3 },
+}
+
 export const adminTheme = createTheme(theme, {
+  palette: { background: { default: ADMIN_BG, paper: tokens.surface[0] } },
   components: {
+    MuiCssBaseline: {
+      styleOverrides: { html: { backgroundColor: ADMIN_BG }, '@media (min-width: 520px)': { html: { backgroundColor: ADMIN_BG } } },
+    },
     MuiAppBar: {
       defaultProps: { elevation: 0, color: 'inherit' },
-      styleOverrides: { root: { backgroundColor: tokens.surface[0], borderBottom: `1px solid ${tokens.surface[200]}` } },
+      styleOverrides: { root: { backgroundColor: tokens.surface[0], borderBottom: `1px solid ${EDGE}` } },
     },
     MuiTableCell: {
       styleOverrides: {
         head: { fontWeight: 600, color: tokens.text.secondary, backgroundColor: tokens.surface[50], whiteSpace: 'nowrap' },
       },
     },
-    MuiPaper: { defaultProps: { elevation: 0 }, styleOverrides: { root: { border: `1px solid ${tokens.surface[200]}` } } },
+    MuiPaper: {
+      defaultProps: { elevation: 0 },
+      styleOverrides: { root: { border: `1px solid ${EDGE}`, boxShadow: `0 1px 2px ${tokens.desk.edge}` } },
+    },
+    // 검색·거르기 칸은 바탕 위에 바로 놓이므로 흰색으로 띄운다(서랍 화면은 옅은 종이색)
+    MuiOutlinedInput: {
+      styleOverrides: { root: { backgroundColor: tokens.surface[0] } },
+    },
   },
 })
 
