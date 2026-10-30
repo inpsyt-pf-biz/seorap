@@ -6,7 +6,7 @@ import type { Center } from '@counsel-core/centers.ts'
 import { matchPurchase, matchText } from '@counsel-core/commandSearch.ts'
 import { t, type CopyKey } from '@counsel-core/copy.ko.ts'
 import type { FormTemplateRow } from '@counsel-core/forms.ts'
-import { STAGES, STAGE_TODO, clientLabel, contactLabel, type PurchaseRow } from '@counsel-core/purchases.ts'
+import { STAGES, STAGE_TODO, STAGE_UNASSIGNED, clientLabel, contactLabel, type PurchaseRow } from '@counsel-core/purchases.ts'
 import { listCenters, listFormTemplates, listPurchases } from '../lib/api'
 import { usePageCommandList, type Command } from '../shell/commands'
 import { hasCap, useSession } from '../shell/session'
@@ -47,7 +47,8 @@ export default function CommandPalette({ open, onClose }: { open: boolean; onClo
   const views: Command[] = useMemo(() => [
     { id: 'view-todo', label: t('palette.view', { name: t('purchases.col.todo') }), keywords: '할일 todo', run: go(`${BASE}/purchases?stage=${STAGE_TODO}`) },
     ...STAGES.map((s) => ({ id: `view-${s}`, label: t('palette.view', { name: t(`purchases.stage.${s}` as CopyKey) }), run: go(`${BASE}/purchases?stage=${s}`) })),
-    { id: 'view-unable', label: t('palette.view', { name: t('session.status.unable') }), keywords: '불가 다시 배정', run: go(`${BASE}/purchases?stage=request:unable`) },
+    { id: 'view-unassigned', label: t('palette.view', { name: t('progressCell.unassigned') }), keywords: '미배정 센터 배정', run: go(`${BASE}/purchases?stage=${STAGE_UNASSIGNED}`) },
+    { id: 'view-unable', label: t('palette.view', { name: t('session.status.unable') }), keywords: '불가 다시 배정', run: go(`${BASE}/purchases?stage=booking:unable`) },
   // eslint-disable-next-line react-hooks/exhaustive-deps
   ], [])
   const places: Command[] = useMemo(() => [

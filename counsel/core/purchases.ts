@@ -103,9 +103,9 @@ export function contactLabel(p: Pick<PurchaseRow, 'applications' | 'naver_ordere
   return p.applications?.client_phone || p.applications?.guardian_phone || p.naver_orderers?.tel_masked || null
 }
 
-// 진행 단계(구매는 빼고 신청서 작성부터). 숫자는 "지금 그 단계에 머물러 있는 건"이다.
-// 신청서 작성: 신청서를 기다림 → 센터 배정: 신청서는 왔고 센터를 정해야 함 → 예약 요청 → 예약 확정 → 상담 완료
-export const STAGES = ['application', 'assign', 'request', 'confirmed', 'completed'] as const
+// 진행 단계(구매는 빼고 신청서부터, 10-30 건우님). 숫자는 "지금 그 단계에 머물러 있는 건"이다.
+// 신청서 미작성 → 예약 중(신청서가 왔고 센터 배정·예약을 기다림, 센터 미배정이면 본사 할 일) → 예약 완료 → 상담 완료
+export const STAGES = ['application', 'booking', 'confirmed', 'completed'] as const
 export type Stage = (typeof STAGES)[number]
 // 단계에서 빠진 건. 단계 칸 아래에 따로 센다
 export const STAGE_EXITS = ['unable', 'cancelled'] as const
@@ -113,15 +113,15 @@ export type StageExit = (typeof STAGE_EXITS)[number]
 export type StageInfo = { stage: Stage; exit: StageExit | null }
 
 // 상담 회차가 없는 구매 건(검사만 산 주문)은 단계가 없다(null)
-// 상담 불가·취소는 남은 기록으로 멈춘 단계를 정한다: 예약 일시가 있으면 예약 확정, 센터가 있으면 예약 요청,
-// 신청서가 있으면 센터 배정, 없으면 신청서 작성. 상태를 바꿔도 센터·일시는 지워지지 않는다(rpc_session_action)
+// 상담 불가·취소는 남은 기록으로 멈춘 단계를 정한다: 예약 일시가 있으면 예약 완료, 센터나 신청서가 있으면 예약 중,
+// 없으면 신청서 미작성. 상태를 바꿔도 센터·일시는 지워지지 않는다(rpc_session_action)
 export function purchaseStage(p: Pick<PurchaseRow, 'applications' | 'sessions'>): StageInfo | null {
   const s = mainSession(p)
   if (!s) return null
-  const reached: Stage = s.scheduled_at ? 'confirmed' : s.center_id ? 'request' : p.applications ? 'assign' : 'application'
+  const reached: Stage = s.scheduled_at ? 'confirmed' : s.center_id || p.applications ? 'booking' : 'application'
   switch (s.status) {
-    case 'unassigned': return { stage: p.applications ? 'assign' : 'application', exit: null }
-    case 'requested': return { stage: 'request', exit: null }
+    case 'unassigned': return { stage: p.applications ? 'booking' : 'application', exit: null }
+    case 'requested': return { stage: 'booking', exit: null }
     case 'confirmed': return { stage: 'confirmed', exit: null }
     case 'completed': return { stage: 'completed', exit: null }
     case 'unable': return { stage: reached, exit: 'unable' }
@@ -129,11 +129,11 @@ export function purchaseStage(p: Pick<PurchaseRow, 'applications' | 'sessions'>)
   }
 }
 
-export type StageCounts = { all: number; todo: number; testOnly: number; stage: Record<Stage, number>; exit: Record<Stage, Record<StageExit, number>> }
+export type StageCounts = { all: number; todo: number; testOnly: number; unassigned: number; stage: Record<Stage, number>; exit: Record<Stage, Record<StageExit, number>> }
 
 export function countByStage(rows: TodoRow[], today: string): StageCounts {
   const c: StageCounts = {
-    all: rows.length, todo: rows.filter((r) => purchaseTodo(r, today)).length, testOnly: 0,
+    all: rows.length, todo: rows.filter((r) => purchaseTodo(r, today)).length, testOnly: 0, unassigned: rows.filter(isUnassignedBooking).length,
     stage: Object.fromEntries(STAGES.map((s) => [s, 0])) as Record<Stage, number>,
     exit: Object.fromEntries(STAGES.map((s) => [s, { unable: 0, cancelled: 0 }])) as Record<Stage, Record<StageExit, number>>,
   }
@@ -192,14 +192,22 @@ export function byTodo(today: string) {
   }
 }
 
-// 단계 거르기 값: '' 전체, 할 일, 단계, '단계:불가·취소', 검사만
+// 예약 중인데 센터가 아직 없는 건(예약 중 칸 아래 '미배정 N')
+export function isUnassignedBooking(p: Pick<PurchaseRow, 'applications' | 'sessions'>): boolean {
+  const info = purchaseStage(p)
+  return info?.stage === 'booking' && !info.exit && !mainSession(p)?.center_id
+}
+
+// 단계 거르기 값: '' 전체, 할 일, 단계, '단계:불가·취소', 예약 중 미배정, 검사만
 export const STAGE_TODO = '__todo__'
+export const STAGE_UNASSIGNED = 'booking:unassigned'
 export const STAGE_TEST_ONLY = '__test_only__'
 export const stageKey = (stage: Stage, exit: StageExit | null = null) => (exit ? `${stage}:${exit}` : stage)
 
 function matchStage(p: TodoRow, f: string, today: string): boolean {
   if (!f) return true
   if (f === STAGE_TODO) return !!purchaseTodo(p, today)
+  if (f === STAGE_UNASSIGNED) return isUnassignedBooking(p)
   const info = purchaseStage(p)
   if (f === STAGE_TEST_ONLY) return !info
   return !!info && stageKey(info.stage, info.exit) === f
