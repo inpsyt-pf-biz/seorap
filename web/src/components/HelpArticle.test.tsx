@@ -43,4 +43,13 @@ describe('HelpArticle', () => {
     expect(screen.getByText('문의처')).toBeTruthy()
     expect(screen.queryAllByRole('button')).toEqual([])
   })
+  // 최종 검토 ①: 버튼 주소도 화면에서 한 번 더 거른다(설계: 세 곳에서 막는다). 어드민 미리보기의 초안 주소도 같다
+  it('허용하지 않는 주소의 버튼은 그리지 않는다', async () => {
+    render(<HelpArticle content={{ items: [{ id: 'b', question: '질문', answerMd: '답', buttons: [
+      { label: '나쁜 버튼', url: 'javascript:alert(1)' }, { label: '좋은 버튼', url: 'https://a.com' },
+    ] }], contact: '' }} />)
+    await userEvent.click(screen.getByText('질문'))
+    expect(screen.queryByText('나쁜 버튼')).toBeNull()
+    expect(screen.getByRole('link', { name: '좋은 버튼' })).toBeTruthy()
+  })
 })

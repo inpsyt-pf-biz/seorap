@@ -48,4 +48,11 @@ describe('HelpPage', () => {
     expect(await screen.findByText('문자가 안 와요')).toBeTruthy()
     expect(screen.getByText('이런 문자는 서랍이 보내지 않아요')).toBeTruthy()
   })
+  // 최종 검토 ④: 불러오는 동안 기본 질문을 먼저 보이면, 관리자가 숨긴 질문이 잠깐 비친다
+  it('불러오는 동안에는 기본 질문을 보이지 않는다', async () => {
+    vi.stubGlobal('fetch', vi.fn(() => new Promise(() => {})))
+    render(<MemoryRouter initialEntries={['/help']}><Routes><Route path="/help" element={<HelpPage />} /></Routes></MemoryRouter>)
+    expect(await screen.findByText('도움말')).toBeTruthy()
+    expect(screen.queryByText('문자가 안 와요')).toBeNull()
+  })
 })
