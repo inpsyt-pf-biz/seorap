@@ -130,8 +130,6 @@ export default function BoxPage() {
     else if (a === 'reforward') setPending({ kind: 'reforward', line })
   }
 
-  const logout = () => guard(async () => { await api('logout', {}); navigate('/', { replace: true, state: { loggedOut: true } }) })
-
   if (expired) return <StatePage kind="sessionExpired" />
   if (!box) return error ? <StatePage kind="error" /> : null
 
@@ -142,7 +140,7 @@ export default function BoxPage() {
         ownerName={box.ownerName}
         tab={0}
         onTab={(v) => v === 1 && navigate('/box/history', { state: { ownerName: box.ownerName } })}
-        onLogout={logout}
+        onSettings={() => navigate('/box/settings')}
       />
       {/* 내용(종이). 묶음끼리는 넓게(32px), 묶음 안 제목과 줄은 붙여서(8~12px) 리듬으로 덩어리를 보인다 */}
       <Stack data-region="content" spacing={3} sx={{ px: 2, pt: 3, pb: 5 }}>

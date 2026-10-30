@@ -26,6 +26,35 @@ export async function pinSet(req: Request): Promise<Response> {
   return json(200, body)
 }
 
+// 설정 화면의 비밀번호 바꾸기: 지금 비밀번호를 확인한 뒤 새 비밀번호로. 틀린 횟수·잠금은 입장 때와 같은 규칙(pin_try)
+export async function pinChange(req: Request): Promise<Response> {
+  const sess = await requireSession(req)
+  const { current, next } = await readJson<{ current: unknown; next: unknown }>(req)
+  if (checkPin(current) === 'format') throw new ApiError('VALIDATION', { field: 'current', reason: 'format' })
+  const problem = checkPin(next)
+  if (problem) throw new ApiError('VALIDATION', { field: 'next', reason: problem })
+  const r = must(await db().from('recipients').select('pin_hash, pin_locked_at').eq('id', sess.recipientId).single(), 'pin read') as
+    { pin_hash: string | null; pin_locked_at: string | null }
+  if (!r.pin_hash) throw new ApiError('CONFLICT', { reason: 'no_pin' })
+  if (r.pin_locked_at) throw new ApiError('PIN_LOCKED')
+  const s = await getSettings()
+  const rows = must(await db().rpc('pin_try', { p_recipient_id: sess.recipientId, p_max: s.pin_max_attempts }), 'pin try') as
+    { out_failed_count: number; out_locked: boolean; out_pin_hash: string }[]
+  const t = rows?.[0]
+  if (!t) throw new ApiError('PIN_LOCKED')
+  if (!(await verifyPin(current as string, t.out_pin_hash))) {
+    await logEvent('pin_failed', { recipientId: sess.recipientId })
+    if (t.out_locked) throw new ApiError('PIN_LOCKED')
+    throw new ApiError('PIN_WRONG', { remaining: Math.max(0, s.pin_max_attempts - t.out_failed_count) })
+  }
+  must(await db().rpc('pin_success', { p_recipient_id: sess.recipientId }), 'pin success')
+  must(await db().from('recipients').update({ pin_hash: await hashPin(next as string), pin_set_at: new Date().toISOString() })
+    .eq('id', sess.recipientId), 'pin change')
+  await logEvent('pin_changed', { recipientId: sess.recipientId })
+  const body: PinResponse = { ok: true }
+  return json(200, body)
+}
+
 export async function pinVerify(req: Request): Promise<Response> {
   const { token, pin } = await readJson<{ token: unknown; pin: unknown }>(req)
   if (checkPin(pin) === 'format') throw new ApiError('VALIDATION', { field: 'pin', reason: 'format' })

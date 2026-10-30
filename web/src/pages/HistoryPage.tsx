@@ -1,5 +1,5 @@
 import { Alert, Box, Chip, Stack, Typography } from '@mui/material'
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
 import type { HistoryItem, HistoryResponse } from '@core/apiTypes.ts'
 import { type CopyKey, t } from '@core/copy.ko.ts'
@@ -35,29 +35,13 @@ export default function HistoryPage() {
     })
   }, [])
 
-  // 서랍 화면과 같은 규칙: 성공했거나 이미 세션이 끝났을 때만 "로그아웃했어요"로 간다.
-  // 실패를 성공처럼 보이면 함께 쓰는 휴대폰에서 서랍이 열린 채 남는다
-  const busyRef = useRef(false)
-  const [logoutError, setLogoutError] = useState(false)
-  const logout = async () => {
-    if (busyRef.current) return
-    busyRef.current = true
-    setLogoutError(false)
-    try {
-      await api('logout', {})
-      navigate('/', { replace: true, state: { loggedOut: true } })
-    } catch (e) {
-      if (isSessionEnd(e)) navigate('/', { replace: true, state: { loggedOut: true } })
-      else { setLogoutError(true); busyRef.current = false }
-    }
-  }
 
   if (expired) return <StatePage kind="sessionExpired" />
   return (
     <Box component="main" sx={{ maxWidth: tokens.layout.maxWidth, mx: 'auto' }}>
-      <BoxHeader ownerName={ownerName} tab={1} onTab={(v) => v === 0 && navigate('/box')} onLogout={logout} />
+      <BoxHeader ownerName={ownerName} tab={1} onTab={(v) => v === 0 && navigate('/box')} onSettings={() => navigate('/box/settings')} />
       <Stack data-region="content" spacing={2} sx={{ px: 2, pt: 3, pb: 5 }}>
-        {(failed || logoutError) && <Alert severity="warning">{t('error.generic')}</Alert>}
+        {failed && <Alert severity="warning">{t('error.generic')}</Alert>}
         {items && items.length === 0 && <Typography variant="body1" color="text.secondary">{t('history.empty')}</Typography>}
         {items && items.length > 0 && (
           <Stack component="ul" spacing={1} sx={{ listStyle: 'none', m: 0, p: 0 }}>

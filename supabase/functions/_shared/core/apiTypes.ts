@@ -27,6 +27,8 @@ export type BoxGroup = { orderId: string; purchasedAt: string; productName: stri
 // 상담이 든 주문마다 하나 (B2). submitted 면 "제출 완료" 카드
 export type CounselCard = { orderId: string; productName: string; submitted: boolean; submittedAt: string | null }
 // pinSet 이 false 면 화면이 PIN 설정으로 보낸다 (OTP 로 들어와 PIN 을 아직 정하지 않은 경우)
+// 설정 화면: 지금 닉네임과, 닉네임이 없을 때 받는 분에게 보이는 이름(가린 실명)
+export type ProfileResponse = { nickname: string | null; defaultName: string }
 export type BoxResponse = {
   ownerName: string; notStartedCount: number; noticeBanner: string | null; pinSet: boolean; counsel: CounselCard[]; groups: BoxGroup[]
 }

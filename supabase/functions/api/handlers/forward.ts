@@ -106,8 +106,9 @@ async function orReplay(clientRequestId: string, voucherId: string, fn: () => Pr
 }
 
 async function senderMasked(recipientId: string): Promise<string> {
-  const data = must(await db().from('recipients').select('name_masked').eq('id', recipientId).single(), 'sender read') as { name_masked: string | null }
-  return data.name_masked ?? ''
+  // 설정에서 정한 닉네임이 있으면 닉네임, 없으면 가린 실명 (10-30 검수)
+  const data = must(await db().from('recipients').select('name_masked, nickname').eq('id', recipientId).single(), 'sender read') as { name_masked: string | null; nickname: string | null }
+  return data.nickname ?? data.name_masked ?? ''
 }
 
 export async function forwardCreate(req: Request): Promise<Response> {

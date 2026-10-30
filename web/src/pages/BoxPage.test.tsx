@@ -221,19 +221,18 @@ describe('BoxPage 코드 보기 없음 (10-29 검수)', () => {
 })
 
 describe('BoxPage 로그아웃', () => {
-  it('로그아웃하면 로그아웃했다는 안내 화면으로 간다', async () => {
-    stubApi([launchable], { logout: async () => json(200, { ok: true }) })
+  it('머리 판의 [설정]으로 설정 화면에 간다 (로그아웃은 설정 안에 있다)', async () => {
+    stubApi([launchable], {})
     render(
       <MemoryRouter initialEntries={['/box']}>
         <Routes>
-          <Route path="/" element={<Placeholder />} />
           <Route path="/box" element={<BoxPage />} />
+          <Route path="/box/settings" element={<div>설정 화면</div>} />
         </Routes>
       </MemoryRouter>,
     )
-    await userEvent.click(await screen.findByRole('button', { name: '로그아웃' }))
-    expect(await screen.findByText('로그아웃했어요. 받은 알림톡의 링크로 다시 들어올 수 있어요.')).toBeTruthy()
-    expect(screen.queryByText('서비스를 준비하고 있어요.')).toBeNull()
+    await userEvent.click(await screen.findByRole('button', { name: '설정' }))
+    expect(await screen.findByText('설정 화면')).toBeTruthy()
   })
 
   it('그냥 첫 화면으로 오면 준비 중 안내 그대로', () => {

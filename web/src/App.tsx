@@ -12,6 +12,9 @@ const HistoryPage = lazy(() => import('./pages/HistoryPage'))
 const PinSetPage = lazy(() => import('./pages/PinSetPage'))
 const ReceiverPage = lazy(() => import('./pages/ReceiverPage'))
 const HelpPage = lazy(() => import('./pages/HelpPage'))
+const SettingsPage = lazy(() => import('./pages/SettingsPage'))
+const PinChangePage = lazy(() => import('./pages/PinChangePage'))
+const NicknamePage = lazy(() => import('./pages/NicknamePage'))
 const CounselPage = lazy(() => import('./pages/CounselPage'))
 // 가짜 발신함은 개발 서버·로컬·미리보기에서만 만든다(허용 목록). 환경값이 없거나 production 이면 아래 import 자체가 빌드에서
 // 사라져 화면 코드가 운영 번들에 들어가지 않는다. API 쪽도 같은 허용 목록(SEORAP_ENV local/preview)을 쓴다.
@@ -44,6 +47,9 @@ export default function App() {
         <Route path="/box" element={<BoxPage />} />
         <Route path="/box/history" element={<HistoryPage />} />
         <Route path="/box/counsel/:orderId" element={<CounselPage />} />
+        <Route path="/box/settings" element={<SettingsPage />} />
+        <Route path="/box/settings/pin" element={<PinChangePage />} />
+        <Route path="/box/settings/nickname" element={<NicknamePage />} />
         <Route path="/pin" element={<PinSetPage />} />
         <Route path="/f/:token" element={<ReceiverPage />} />
         <Route path="/help" element={<HelpPage />} />

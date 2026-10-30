@@ -8,14 +8,15 @@ afterEach(cleanup)
 
 // 서랍 안 화면의 머리 판: 닫힌 서랍의 앞판(청록)이 위에 남고 그 아래로 서랍이 열린다 (10-29 검수: 요소가 시각적으로 묶이지 않음)
 describe('BoxHeader (머리 판)', () => {
-  const draw = (onTab = vi.fn()) => render(<BoxHeader ownerName="김서랍" tab={0} onTab={onTab} onLogout={() => {}} />)
+  const draw = (onTab = vi.fn(), onSettings = vi.fn()) => render(<BoxHeader ownerName="김서랍" tab={0} onTab={onTab} onSettings={onSettings} />)
 
-  it('워드마크·로그아웃·제목·탭이 청록 판 하나에 묶이고, 요약 줄은 없다(탭마다 높이가 같게)', () => {
+  it('워드마크·설정·제목·탭이 청록 판 하나에 묶이고, 요약 줄은 없다(탭마다 높이가 같게). 로그아웃은 설정 안으로', () => {
     draw()
     const shell = document.querySelector('[data-region="shell"]') as HTMLElement
     expect(shell).toBeTruthy()
     const s = within(shell)
-    expect(s.getByRole('button', { name: '로그아웃' })).toBeTruthy()
+    expect(s.getByRole('button', { name: '설정' })).toBeTruthy()
+    expect(s.queryByRole('button', { name: '로그아웃' })).toBeNull()
     expect(s.getByText('김서랍님의 서랍')).toBeTruthy()
     expect(s.queryByText(/실시 전/)).toBeNull()
     expect(s.getByRole('tablist')).toBeTruthy()
