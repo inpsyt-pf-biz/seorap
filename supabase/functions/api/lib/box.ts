@@ -17,6 +17,10 @@ async function forwardDisplay(f: Omit<ForwardRow, 'id' | 'delivery_mode' | 'acce
   if (f.actor_type === 'recipient' && f.to_name_enc && f.to_phone_enc) {
     return { name: await decrypt('A', f.to_name_enc), phone: formatPhone(await decrypt('A', f.to_phone_enc)) }
   }
+  // 직접 전달에 남긴 호칭 (번호는 없다)
+  if (f.actor_type === 'recipient' && f.to_name_enc && !f.to_phone_enc && !f.to_phone_last4) {
+    return { name: await decrypt('A', f.to_name_enc), phone: '' }
+  }
   // 가린 번호도 앞자리는 실제 번호를 따른다 (011·016 등을 010 으로 보이지 않게). 원문이 없으면 끝 4자리만.
   const phone = f.to_phone_enc ? maskPhone(await decrypt('A', f.to_phone_enc)) : f.to_phone_last4 ? `****-${f.to_phone_last4}` : ''
   return { name: f.to_name_masked ?? '', phone }
@@ -45,9 +49,9 @@ export async function lineInputs(vouchers: VoucherRow[], s: Settings) {
   for (const v of vouchers) {
     const f = v.current_forward_id ? fwdById.get(v.current_forward_id) : undefined
     const link = f?.access_link_id ? linkById.get(f.access_link_id) : undefined
-    // 직접 공유는 받는 분이 기록되지 않으므로 이름·번호 줄을 만들지 않는다
+    // 직접 공유는 번호가 없다. 호칭을 남겼으면 호칭만, 아니면 받는 분 줄을 만들지 않는다
     const direct = f?.delivery_mode === 'direct_share'
-    const forwardTo = f && !direct ? await forwardDisplay(f) : null
+    const forwardTo = f && (!direct || f.to_name_enc) ? await forwardDisplay(f) : null
     out.set(v.id, {
       forwardTo,
       input: {
@@ -84,10 +88,10 @@ async function myVouchers(recipientId: string, s: Settings) {
   const orderIds = orders.map((o) => o.id)
   if (!orderIds.length) return { orders: [], items: [], vouchers: [] as VoucherRow[] }
   const items = must(
-    await db().from('order_items').select('id, order_id, product_name').in('order_id', orderIds)
+    await db().from('order_items').select('id, order_id, product_name, mapping_id').in('order_id', orderIds)
       .order('created_at', { ascending: true }).order('id', { ascending: true }),
     'order items read',
-  ) as { id: string; order_id: string; product_name: string }[]
+  ) as { id: string; order_id: string; product_name: string; mapping_id: string | null }[]
   const vouchers = must(
     await db().from('vouchers').select(VOUCHER_COLS).in('order_id', orderIds).neq('issue_status', 'replaced')
       .order('created_at', { ascending: true }).order('unit_no', { ascending: true })
@@ -97,11 +101,26 @@ async function myVouchers(recipientId: string, s: Settings) {
   return { orders, items, vouchers }
 }
 
+// 전달할 때 고를 호칭 목록: 주문 줄의 상품 매핑 → 그 매핑의 검사 줄(psy_item_id = 발송권의 검사)
+async function recipientLabels(items: { id: string; mapping_id: string | null }[]) {
+  const mappingIds = [...new Set(items.map((i) => i.mapping_id).filter((x): x is string => !!x))]
+  const rows = mappingIds.length
+    ? must(
+      await db().from('product_mapping_items').select('mapping_id, psy_item_id, recipient_labels').in('mapping_id', mappingIds),
+      'mapping items read',
+    ) as { mapping_id: string; psy_item_id: string; recipient_labels: string[] }[]
+    : []
+  const mappingOf = new Map(items.map((i) => [i.id, i.mapping_id]))
+  return (orderItemId: string, testItemId: string): string[] =>
+    rows.find((r) => r.mapping_id === mappingOf.get(orderItemId) && r.psy_item_id === testItemId)?.recipient_labels ?? []
+}
+
 export async function buildBox(recipientId: string, s: Settings): Promise<BoxResponse> {
   const rec = must(await db().from('recipients').select('name_enc, pin_hash').eq('id', recipientId).single(), 'recipient read') as
     { name_enc: string | null; pin_hash: string | null }
   const { orders, items, vouchers } = await myVouchers(recipientId, s)
   const inputs = await lineInputs(vouchers, s)
+  const labelsOf = await recipientLabels(items)
   const unitsOf = new Map<string, number>()
   for (const v of vouchers) unitsOf.set(`${v.order_item_id}|${v.test_item_id}`, (unitsOf.get(`${v.order_item_id}|${v.test_item_id}`) ?? 0) + 1)
 
@@ -113,6 +132,7 @@ export async function buildBox(recipientId: string, s: Settings): Promise<BoxRes
         voucherId: v.id, testItemId: v.test_item_id, testName: v.test_name, unitNo: v.unit_no,
         unitsOfTest: unitsOf.get(`${v.order_item_id}|${v.test_item_id}`) ?? 1,
         status: lineStatus(li.input), firstLaunchedAt: v.first_launched_at, forwardTo: li.forwardTo,
+        recipientLabels: labelsOf(v.order_item_id, v.test_item_id),
       }
     })
     const productName = items.find((i) => i.order_id === o.id)?.product_name ?? ''

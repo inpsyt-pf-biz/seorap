@@ -41,7 +41,11 @@ function core(i: LineInput): LineStatus {
   if (i.forward) {
     const note = i.forward.openedAt ? t('line.forwardOpened') : t('line.forwardNotOpened')
     // 직접 공유는 보낼 번호가 없어 다시 보내기가 없다. 받는 분이 코드를 봤으면 다른 분께도 없다.
-    if (i.forward.direct) return { label: t('line.forwardedDirect'), tone: 'warm', actions: i.forward.codeExposed ? [] : ['reforward'], note }
+    // 호칭을 남겼으면 "연인에게 전달함" (10-30)
+    if (i.forward.direct) {
+      const label = i.forward.displayName ? t('line.forwardedTo', { name: i.forward.displayName }) : t('line.forwardedDirect')
+      return { label, tone: 'warm', actions: i.forward.codeExposed ? [] : ['reforward'], note }
+    }
     return {
       label: t('line.forwarded', { name: i.forward.displayName }),
       tone: 'warm',

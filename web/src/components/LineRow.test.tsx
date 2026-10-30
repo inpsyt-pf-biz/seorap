@@ -5,7 +5,7 @@ import type { BoxLine } from '@core/apiTypes.ts'
 import LineRow from './LineRow'
 
 const line = (o: Partial<BoxLine> = {}): BoxLine => ({
-  voucherId: 'v1', testItemId: 'T', testName: 'STS 성인 기질검사', unitNo: 1, unitsOfTest: 2, firstLaunchedAt: null, forwardTo: null,
+  voucherId: 'v1', testItemId: 'T', testName: 'STS 성인 기질검사', unitNo: 1, unitsOfTest: 2, firstLaunchedAt: null, forwardTo: null, recipientLabels: [],
   status: { label: '실시 전', tone: 'neutral', actions: ['launch', 'forward'] }, ...o,
 })
 

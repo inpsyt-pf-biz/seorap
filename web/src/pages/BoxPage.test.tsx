@@ -17,7 +17,7 @@ afterEach(() => {
 const json = (status: number, body: unknown) => new Response(JSON.stringify(body), { status })
 
 const launchable: BoxLine = {
-  voucherId: 'v1', testItemId: 'T', testName: 'STS 성인 기질검사', unitNo: 1, unitsOfTest: 1, firstLaunchedAt: null, forwardTo: null,
+  voucherId: 'v1', testItemId: 'T', testName: 'STS 성인 기질검사', unitNo: 1, unitsOfTest: 1, firstLaunchedAt: null, forwardTo: null, recipientLabels: [],
   status: { label: '실시 전', tone: 'neutral', actions: ['launch', 'forward'] },
 }
 const forwarded: BoxLine = {
@@ -176,19 +176,24 @@ describe('BoxPage 다시 보내기 결과 안내', () => {
   })
 })
 
+// 전달 시트는 [직접 전달]로 휴대폰 공유 창을 연다 (10-30). 시험에서는 공유 창을 바로 성공시킨다
+const DIRECT = { url: 'https://seorap.test/f/abc', text: '문구 https://seorap.test/f/abc', kakaoText: '문구' }
+function nativeShare() {
+  Object.defineProperty(navigator, 'share', { value: vi.fn(async () => {}), configurable: true })
+}
+afterEach(() => { Reflect.deleteProperty(navigator, 'share') })
+
 describe('BoxPage 전달 시트 결과', () => {
   it('전달에 성공하면 시트를 닫고 서랍을 새로 불러온 뒤 토스트로 알린다', async () => {
-    const calls = stubApi([launchable], { 'forward/create': async () => json(200, { forwardId: 'f1', created: true }) })
+    const calls = stubApi([launchable], { 'forward/direct': async () => json(200, DIRECT) })
+    nativeShare()
     open()
     await userEvent.click(await screen.findByRole('button', { name: '전달하기' }))
-    await userEvent.type(screen.getByLabelText('이름 또는 호칭'), '홍길동')
-    await userEvent.type(screen.getByLabelText('휴대폰 번호'), '01012345678')
-    await userEvent.click(screen.getByRole('button', { name: '다음' }))
-    await userEvent.click(screen.getByRole('button', { name: '보내기' }))
-    const text = await screen.findByText('홍길동님께 보냈어요')
+    await userEvent.click(screen.getByRole('button', { name: '직접 전달' }))
+    const text = await screen.findByText('전달했어요')
     expect(text.closest('.MuiSnackbar-root')).not.toBeNull()
     expect(text.closest('.MuiAlert-root')).toBeNull()
-    expect(screen.queryByLabelText('이름 또는 호칭')).toBeNull() // 시트는 닫혔다
+    expect(screen.queryByRole('button', { name: '직접 전달' })).toBeNull() // 시트는 닫혔다
     expect(count(calls, 'box')).toBe(2) // 처음 한 번 + 전달 뒤 새로고침
   })
 })
@@ -255,18 +260,16 @@ describe('BoxPage 묶음 펼침', () => {
     vi.stubGlobal('fetch', vi.fn(async (url: string) => {
       const path = url.replace(/^\/api\//, '')
       if (path === 'box') return json(200, n++ === 0 ? groupOf(orderId, false, [launchable]) : groupOf(orderId, true, [sent]))
-      if (path === 'forward/create') return json(200, { forwardId: 'f1', created: true })
+      if (path === 'forward/direct') return json(200, DIRECT)
       throw new Error(`unexpected call: ${path}`)
     }))
   }
   const summary = () => screen.getByRole('button', { name: /2026-10-01 구매/ })
   async function forwardFirstLine() {
+    nativeShare()
     await userEvent.click(await screen.findByRole('button', { name: '전달하기' }))
-    await userEvent.type(screen.getByLabelText('이름 또는 호칭'), '홍길동')
-    await userEvent.type(screen.getByLabelText('휴대폰 번호'), '01012345678')
-    await userEvent.click(screen.getByRole('button', { name: '다음' }))
-    await userEvent.click(screen.getByRole('button', { name: '보내기' }))
-    await screen.findByText('홍길동님께 보냈어요')
+    await userEvent.click(screen.getByRole('button', { name: '직접 전달' }))
+    await screen.findByText('전달했어요')
   }
 
   it('처음 볼 때 끝난 묶음은 접혀 있고, 눌러서 펼 수 있다', async () => {

@@ -62,6 +62,11 @@ Deno.test('11 링크로 직접 공유한 줄: 받는 분이 코드를 봤으면 
   const r = s({ forward: { displayName: '', openedAt: '2026-10-22T01:00:00Z', codeExposed: true, direct: true } })
   assertEquals(r, { label: '링크로 전달함', tone: 'warm', actions: [], note: '받는 분이 열어 봄' })
 })
+// 10-30: 직접 전달할 때 호칭(연인·엄마 등)을 남기면 줄에 그 호칭을 보인다. 번호가 없으니 다시 보내기는 그대로 없다
+Deno.test('11 직접 전달에 호칭이 있으면 "연인에게 전달함"', () => {
+  const r = s({ forward: { displayName: '연인', openedAt: null, codeExposed: false, direct: true } })
+  assertEquals(r, { label: '연인에게 전달함', tone: 'warm', actions: ['reforward'], note: '아직 안 열어 봄' })
+})
 Deno.test('11-1 본인이 코드를 본 줄은 실시만 (전달 불가, 코드 보기는 화면이 그대로 둔다)', () => {
   assertEquals(s({ codeExposedAt: '2026-10-22T15:30:00Z' }), { label: '코드 확인함 (10-23)', tone: 'info', actions: ['launch'] })
 })

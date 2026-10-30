@@ -22,6 +22,8 @@ export type BoxLine = {
   status: LineStatus
   firstLaunchedAt: string | null
   forwardTo: { name: string; phone: string } | null
+  // 전달할 때 고를 호칭 목록 (상품 매핑의 검사 줄마다, 10-30). 비어 있으면 직접 입력만
+  recipientLabels: string[]
 }
 export type BoxGroup = { orderId: string; purchasedAt: string; productName: string; lineCount: number; done: boolean; lines: BoxLine[] }
 // 상담이 든 주문마다 하나 (B2). submitted 면 "제출 완료" 카드
@@ -53,5 +55,6 @@ export type HelpResponse = { contact: string }
 export type LaunchResponse = { url: string }
 export type CodeResponse = { code: string }
 export type ForwardResponse = { forwardId: string; created: boolean }
-export type DirectShareResponse = { text: string; url: string }
+// text: 주소를 담은 문구(공유 창·복사용), kakaoText: 주소 없는 문구(카카오 메시지는 링크를 버튼에 담는다)
+export type DirectShareResponse = { text: string; url: string; kakaoText: string }
 export type DevOutboxItem = { id: string; createdAt: string; kind: 'sms' | 'alimtalk'; toLast4: string; body: string }

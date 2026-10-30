@@ -13,7 +13,12 @@ import StatePage from './StatePage'
 type Tone = keyof typeof tokens.tone
 // 한 건 = 누구에게(제목) · 결과(칩) / 무슨 검사 · 표시 / 언제. 한 문장으로 잇지 않고 줄을 나눠 훑기 쉽게 (UX 진단 F5)
 function head(i: HistoryItem): { title: string; chip: string | null; tone: Tone } {
-  if (i.action === 'direct_share') return { title: t('history.direct'), chip: t('history.directNote'), tone: 'neutral' }
+  // 직접 전달에 호칭을 남겼으면 "연인에게 전달" · 링크 직접 공유 (10-30)
+  if (i.action === 'direct_share') {
+    return i.toName
+      ? { title: t('history.directTo', { name: i.toName }), chip: t('history.direct'), tone: 'neutral' }
+      : { title: t('history.direct'), chip: t('history.directNote'), tone: 'neutral' }
+  }
   if (i.action === 'cancel') return { title: t('history.cancel', { name: i.toName ?? '' }), chip: null, tone: 'neutral' }
   const chip = i.result ? t(`history.result.${i.result}` as CopyKey) : t('history.result.sending')
   const tone: Tone = i.result === 'failed' ? 'caution' : i.result ? 'teal' : 'neutral'

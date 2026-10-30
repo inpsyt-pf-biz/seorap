@@ -28,7 +28,8 @@ const must = <T>(r: { data: T; error: { message: string } | null }, what: string
 
 export const tokenFor = (s: string) => ('seed' + s).padEnd(32, '0')
 
-type TestUnit = { testItemId: string; testName: string; count: number }
+// labels: 전달할 때 고를 호칭 목록 (10-30)
+type TestUnit = { testItemId: string; testName: string; count: number; labels?: string[] }
 type Unit = { launched?: string; forward?: { name: string; phone: string; opened?: boolean }; cancel?: 'checking' | 'cancelled'; lock?: string[]; issue?: 'issued' | 'failed' }
 
 async function recipient(name: string, phone: string, firstAt: string, lastAt: string) {
@@ -58,7 +59,7 @@ async function order(o: {
   }).select('id').single(), 'order')
   const mapping = must(await db.from('product_mappings').insert({ key_type: 'product_option', naver_product_id: `NP-${o.orderNo}`, option_code: 'OPT-1', includes_counsel: !!o.counsel }).select('id').single(), 'mapping')
   for (const tu of o.tests) {
-    must(await db.from('product_mapping_items').insert({ mapping_id: mapping.id, psy_item_id: tu.testItemId, test_name: tu.testName, count_per_unit: tu.count }), 'mapping item')
+    must(await db.from('product_mapping_items').insert({ mapping_id: mapping.id, psy_item_id: tu.testItemId, test_name: tu.testName, count_per_unit: tu.count, recipient_labels: tu.labels ?? [] }), 'mapping item')
   }
   const expected = o.tests.reduce((a, b) => a + b.count, 0)
   const anyFailed = o.units.some((u) => u.issue === 'failed')
@@ -123,7 +124,9 @@ await order({
   units: [{ launched: '2026-10-22T03:00:00Z' }, {}, { forward: { name: '김영희', phone: '01022223333', opened: true } }],
 })
 
-const GOLDEN1 = { testItemId: 'PSY-GOLDEN', testName: 'GOLDEN 성격유형검사', count: 1 }
+const GOLDEN1 = { testItemId: 'PSY-GOLDEN', testName: 'GOLDEN 성격유형검사', count: 1, labels: ['친구', '연인', '배우자', '가족'] }
+// STS 커플상담 패키지 안의 STS 성인 기질검사는 커플 둘이 하나씩 쓴다
+const STS_COUPLE = { ...STS_ADULT2, labels: ['연인', '배우자'] }
 const GOLDEN2 = { ...GOLDEN1, count: 2 }
 const STS_ADULT1 = { ...STS_ADULT2, count: 1 }
 
@@ -140,7 +143,7 @@ await boxLink(r2, 'S2')
 await order({
   recipientId: r2, recipientName: '김철수', orderNo: '2026102200002', paidAt: '2026-10-22T02:00:00Z',
   productName: 'STS 커플상담 패키지', optionName: '커플상담 1회 + STS 성인 기질검사 2매', amount: 150000,
-  tests: [STS_ADULT2], units: [{}, {}], counsel: true, manageCode: 'STS-CPL-S',
+  tests: [STS_COUPLE], units: [{}, {}], counsel: true, manageCode: 'STS-CPL-S',
 })
 
 // S4 선물 주문 (구매자 ≠ 수취인)
@@ -234,7 +237,7 @@ if (extraFile) {
       // 가짜 검사 코드가 주문번호 끝 4자리를 쓰므로 9001~ 로 잡아 위 시나리오(0001~0016)와 겹치지 않게
       recipientId: r, recipientName: name, orderNo: `202610290${9000 + n}`, paidAt: '2026-10-29T01:00:00Z',
       productName: 'STS 커플상담 패키지', optionName: '커플상담 1회 + STS 성인 기질검사 2매', amount: 150000,
-      tests: [STS_ADULT2], units: [{}, {}], counsel: true, manageCode: 'STS-CPL-S',
+      tests: [STS_COUPLE], units: [{}, {}], counsel: true, manageCode: 'STS-CPL-S',
     })
   }
   console.log(`추가 서랍 ${names.length}개 (T1~T${names.length})`)

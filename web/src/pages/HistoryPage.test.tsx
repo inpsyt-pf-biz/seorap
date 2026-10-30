@@ -129,3 +129,16 @@ describe('HistoryPage 리뷰 반영', () => {
     expect(screen.getByText('STS 성인 기질검사 1번째')).toBeTruthy()
   })
 })
+
+describe('HistoryPage 10-30 전달 방식', () => {
+  it('호칭을 남긴 직접 전달은 "연인에게 전달"과 "링크 직접 공유"로, 호칭이 없으면 지금처럼 "받는 분 미확인"', async () => {
+    open({ items: [
+      { ...base, id: 'a', action: 'direct_share', toName: '연인', toPhone: '', result: null },
+      { ...base, id: 'b', action: 'direct_share', toName: null, toPhone: null, result: null },
+    ] })
+    expect(await screen.findByText('연인에게 전달')).toBeTruthy()
+    // 호칭 있는 줄은 칩, 호칭 없는 줄은 제목에 "링크 직접 공유"
+    expect(screen.getAllByText('링크 직접 공유')).toHaveLength(2)
+    expect(screen.getByText('받는 분 미확인')).toBeTruthy()
+  })
+})
