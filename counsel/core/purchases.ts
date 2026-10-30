@@ -156,12 +156,11 @@ function matchStage(p: Pick<PurchaseRow, 'applications' | 'sessions'>, f: string
   return !!info && stageKey(info.stage, info.exit) === f
 }
 
-// 기간 거르기(구매일시, 한국 시각 날짜 기준). 앞 칸은 고르기 쉬운 기간, 직접 입력이면 from·to 를 쓴다
-export const PERIODS = ['today', '7d', '30d', 'custom'] as const
+// 기간 거르기(구매일시, 한국 시각 날짜 기준). 달력 왼쪽의 자주 쓰는 기간. 그 밖의 범위는 달력에서 두 번 눌러 고른다
+export const PERIODS = ['today', '7d', '30d'] as const
 export type Period = (typeof PERIODS)[number]
 
-export function periodRange(period: Period, today: string): { from: string; to: string } | null {
-  if (period === 'custom') return null
+export function periodRange(period: Period, today: string): { from: string; to: string } {
   const days = period === 'today' ? 0 : period === '7d' ? 6 : 29
   const d = new Date(`${today}T00:00:00Z`)
   d.setUTCDate(d.getUTCDate() - days)

@@ -130,7 +130,6 @@ Deno.test('기간 거르기: 한국 시각 날짜로, 구매일시가 없으면 
   assertEquals(periodRange('today', '2026-10-30'), { from: '2026-10-30', to: '2026-10-30' })
   assertEquals(periodRange('7d', '2026-10-30'), { from: '2026-10-24', to: '2026-10-30' })
   assertEquals(periodRange('30d', '2026-03-01'), { from: '2026-01-31', to: '2026-03-01' })
-  assertEquals(periodRange('custom', '2026-10-30'), null)
   const list = [
     row('a', 'unassigned', { paid: '2026-10-29T15:30:00Z' }), // 한국 시각 10-30 00:30
     row('b', 'unassigned', { paid: '2026-10-29T14:30:00Z' }), // 한국 시각 10-29 23:30

@@ -9,14 +9,16 @@ import { formatKstDate, formatKstDateTime, formatKstMonthDay } from '@seorap-cor
 import type { Center } from '@counsel-core/centers.ts'
 import { t, type CopyKey } from '@counsel-core/copy.ko.ts'
 import { errorText, toCounselError, type CounselError } from '@counsel-core/errors.ts'
-import { examLines, examStatusLabel } from '@counsel-core/exams.ts'
+import { examLines } from '@counsel-core/exams.ts'
 import { PRODUCT_ORDER_STATUSES, naverCodeLabel, orderStatusText, orderTone } from '@counsel-core/naverOrder.ts'
 import {
-  CENTER_NONE, EMPTY_PURCHASE_FILTER, ORDER_CLAIM, ORDER_NONE, ORDER_REVIEW, PERIODS, PURCHASE_TYPES, TYPE_UNCLASSIFIED,
-  assignableSessionIds, clientLabel, contactLabel, countByStage, filterPurchases, mainSession, periodRange, purchaseTypeLabel, sessionProgress, testNames,
-  type Period, type PurchaseFilter, type PurchaseRow,
+  CENTER_NONE, EMPTY_PURCHASE_FILTER, ORDER_CLAIM, ORDER_NONE, ORDER_REVIEW, PURCHASE_TYPES, TYPE_UNCLASSIFIED,
+  assignableSessionIds, clientLabel, contactLabel, countByStage, filterPurchases, mainSession, purchaseTypeLabel, sessionProgress, testNames,
+  type PurchaseFilter, type PurchaseRow,
 } from '@counsel-core/purchases.ts'
 import AssignDialog from '../../../components/AssignDialog'
+import DateRangeField from '../../../components/DateRangeField'
+import ExamStatusIcon from '../../../components/ExamStatusIcon'
 import ImportDialog from '../../../components/ImportDialog'
 import { ErrorBox, Loading } from '../../../components/PageState'
 import SessionStatusChip from '../../../components/SessionStatusChip'
@@ -28,18 +30,15 @@ import { centerListLook } from '../../../theme/admin'
 const COLUMNS: { label: CopyKey; width: string }[] = [
   { label: 'purchases.col.client', width: '17%' },
   { label: 'purchases.col.type', width: '8%' },
-  { label: 'purchases.col.test', width: '19%' },
+  { label: 'purchases.col.test', width: '17%' },
   { label: 'purchases.col.center', width: '11%' },
-  { label: 'purchases.col.paidAt', width: '8%' },
+  { label: 'purchases.col.paidAt', width: '10%' },
   { label: 'purchases.col.order', width: '15%' },
   { label: 'purchases.col.application', width: '10%' },
   { label: 'purchases.col.status', width: '12%' },
 ]
 
 const ORDER_CHIP = { normal: 'default', done: 'success', warning: 'warning', closed: 'default' } as const
-// 진행 검사 줄의 응시 상태 배지
-const EXAM_CHIP: Record<string, 'default' | 'warning' | 'success'> = { unused: 'default', in_progress: 'warning', completed: 'success' }
-const smallChip = { height: 22, flexShrink: 0, '& .MuiChip-label': { px: 1, fontSize: 12 } } as const
 
 // 검사 이름·센터 이름은 길어서 두 줄까지 보이고 그 뒤는 줄인다
 const twoLines = { display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' } as const
@@ -56,7 +55,6 @@ export default function PurchasesListPage() {
   const [centers, setCenters] = useState<Center[]>([])
   const [error, setError] = useState<CounselError | null>(null)
   const [filter, setFilter] = useState<PurchaseFilter>(EMPTY_PURCHASE_FILTER)
-  const [period, setPeriod] = useState<Period | ''>('')
   const [page, setPage] = useState(0)
   const [perPage, setPerPage] = useState(20)
   const [selected, setSelected] = useState<Set<string>>(new Set())
@@ -83,12 +81,7 @@ export default function PurchasesListPage() {
   const shown = filtered.slice(page * perPage, page * perPage + perPage)
 
   const change = (patch: Partial<PurchaseFilter>) => { setFilter((f) => ({ ...f, ...patch })); setPage(0) }
-  // 기간: 고르기 쉬운 기간은 오늘(한국 날짜)부터 거꾸로 센다. 직접 입력은 지금 날짜를 그대로 두고 칸을 연다
-  const changePeriod = (p: Period | '') => {
-    setPeriod(p)
-    if (p === '') change({ from: '', to: '' })
-    else if (p !== 'custom') change(periodRange(p, formatKstDate(new Date().toISOString())) ?? {})
-  }
+  const today = formatKstDate(new Date().toISOString())
   const notify = (message: string) => setNotice({ message, key: Date.now() })
   const toggle = (id: string, on: boolean) => setSelected((s) => {
     const n = new Set(s)
@@ -130,18 +123,8 @@ export default function PurchasesListPage() {
 
       <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.5} useFlexGap sx={{ flexWrap: 'wrap' }}>
         <TextField size="small" label={t('purchases.search')} value={filter.q} onChange={(e) => change({ q: e.target.value })} sx={{ flexGrow: 1, minWidth: 240 }} />
-        <TextField size="small" select label={t('purchases.period')} value={period} onChange={(e) => changePeriod(e.target.value as Period | '')} sx={{ minWidth: 130 }}>
-          <MenuItem value="">{t('purchases.period.all')}</MenuItem>
-          {PERIODS.map((p) => <MenuItem key={p} value={p}>{t(`purchases.period.${p}` as CopyKey)}</MenuItem>)}
-        </TextField>
-        {period === 'custom' && (
-          <>
-            <TextField size="small" type="date" label={t('purchases.period.from')} value={filter.from} onChange={(e) => change({ from: e.target.value })}
-              slotProps={{ inputLabel: { shrink: true }, htmlInput: { max: filter.to || undefined } }} sx={{ minWidth: 150 }} />
-            <TextField size="small" type="date" label={t('purchases.period.to')} value={filter.to} onChange={(e) => change({ to: e.target.value })}
-              slotProps={{ inputLabel: { shrink: true }, htmlInput: { min: filter.from || undefined } }} sx={{ minWidth: 150 }} />
-          </>
-        )}
+        <DateRangeField value={filter.from ? { from: filter.from, to: filter.to } : null} today={today}
+          onChange={(r) => change({ from: r?.from ?? '', to: r?.to ?? '' })} />
         <TextField size="small" select label={t('purchases.filter.type')} value={filter.type} onChange={(e) => change({ type: e.target.value })} sx={{ minWidth: 130 }}>
           <MenuItem value="">{t('centers.filter.all')}</MenuItem>
           {PURCHASE_TYPES.map((p) => <MenuItem key={p} value={p}>{purchaseTypeLabel(p)}</MenuItem>)}
@@ -238,17 +221,14 @@ export default function PurchasesListPage() {
                           <Stack sx={{ gap: 0.5 }}>
                             {exams.map((x) => (
                               <Stack key={x.name} direction="row" sx={{ alignItems: 'center', gap: 0.75, minWidth: 0 }}>
+                                <ExamStatusIcon status={x.status} />
                                 <Typography variant="body2" title={x.name} sx={{ ...twoLines, flex: 1, minWidth: 0 }}>{x.name}</Typography>
-                                <Chip size="small" label={examStatusLabel(x.status)} color={EXAM_CHIP[x.status] ?? 'default'}
-                                  variant={x.status === 'completed' ? 'filled' : 'outlined'} sx={smallChip} />
                               </Stack>
                             ))}
                           </Stack>
-                        ) : (
-                          <>
-                            <Typography variant="body2" title={a?.test_name ?? undefined} sx={twoLines}>{a?.test_name ?? t('center.empty')}</Typography>
-                            <Typography variant="caption" color="text.secondary">{t('purchases.testProgress.pending')}</Typography>
-                          </>
+                        ) : a?.test_name && (
+                          // 서랍과 연결되기 전에는 신청서에 적힌 검사 이름만. 검사가 없는 구매 건(상담만)은 비워 둔다
+                          <Typography variant="body2" title={a.test_name} sx={twoLines}>{a.test_name}</Typography>
                         )}
                       </TableCell>
                       <TableCell>
@@ -256,13 +236,10 @@ export default function PurchasesListPage() {
                           {s?.center_id ? centerName.get(s.center_id) ?? t('center.empty') : t('purchases.filter.centerNone')}
                         </Typography>
                       </TableCell>
-                      <TableCell title={r.paid_at ? formatKstDateTime(r.paid_at) : undefined}>
-                        {r.paid_at ? (
-                          <>
-                            <Typography variant="body2" noWrap>{formatKstMonthDay(r.paid_at)}</Typography>
-                            <Typography variant="caption" color="text.secondary" noWrap component="div">{formatKstDateTime(r.paid_at).slice(11)}</Typography>
-                          </>
-                        ) : <Typography variant="body2" color="text.secondary">{t('center.empty')}</Typography>}
+                      <TableCell>
+                        <Typography variant="body2" color={r.paid_at ? 'text.primary' : 'text.secondary'} sx={{ fontVariantNumeric: 'tabular-nums' }}>
+                          {r.paid_at ? formatKstDateTime(r.paid_at) : t('center.empty')}
+                        </Typography>
                       </TableCell>
                       <TableCell>
                         <Stack sx={{ alignItems: 'flex-start', gap: 0.5 }}>

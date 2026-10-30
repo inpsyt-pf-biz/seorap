@@ -32,11 +32,11 @@ export default function StageStrip({ counts, value, onChange }: Props) {
               <Box sx={{ flex: '1 0 120px', minWidth: 120 }}>
                 <ButtonBase aria-pressed={on} onClick={() => pick(s)} sx={{
                   width: '100%', display: 'block', textAlign: 'left', px: 1.75, py: 1.25, borderRadius: 2,
-                  border: `1px solid ${on ? tokens.brand[500] : tokens.surface[200]}`, boxShadow: on ? `inset 0 0 0 1px ${tokens.brand[500]}` : 'none',
-                  bgcolor: on ? tokens.brand[100] : tokens.surface[0],
+                  border: `1px solid ${on ? tokens.teal[500] : tokens.surface[200]}`, boxShadow: on ? `inset 0 0 0 1px ${tokens.teal[500]}` : 'none',
+                  bgcolor: on ? tokens.teal[100] : tokens.surface[0],
                 }}>
-                  <Typography variant="caption" color={on ? tokens.brand[900] : 'text.secondary'} component="div">{t(`purchases.stage.${s}` as CopyKey)}</Typography>
-                  <Typography variant="h6" component="div" sx={{ fontWeight: 600, color: on ? tokens.brand[900] : 'text.primary' }}>{counts.stage[s]}</Typography>
+                  <Typography variant="caption" color={on ? tokens.teal[900] : 'text.secondary'} component="div">{t(`purchases.stage.${s}` as CopyKey)}</Typography>
+                  <Typography variant="h6" component="div" sx={{ fontWeight: 600, color: on ? tokens.teal[900] : 'text.primary' }}>{counts.stage[s]}</Typography>
                 </ButtonBase>
                 <Stack direction="row" sx={{ gap: 0.5, mt: 0.75, minHeight: 24, flexWrap: 'wrap' }}>
                   {STAGE_EXITS.filter((e) => counts.exit[s][e] > 0).map((e) => {
