@@ -1,6 +1,7 @@
 import { Alert, Box, Button, Stack, TextField, Typography } from '@mui/material'
 import { useState } from 'react'
 import { Link as RouterLink } from 'react-router-dom'
+import Wordmark from '../components/Wordmark'
 import { tokens } from '../theme/seorap'
 
 // 기본 주소 시연용 구매자 인증 화면 (10-21). 서버를 부르지 않고, 인증번호도 보내지 않는다.
@@ -17,21 +18,11 @@ export default function VerifyDemo() {
   const ready = /^010\d{8}$/.test(phone.replace(/\D/g, ''))
 
   return (
-    <Box component="main" sx={{ minHeight: '100dvh', display: 'flex', justifyContent: 'center', px: 2, py: 4 }}>
-      <Stack spacing={3} sx={{ width: '100%', maxWidth: tokens.layout.maxWidth }}>
-        <Stack direction="row" spacing={1.5} sx={{ alignItems: 'center' }}>
-          <Box component="img" src={tokens.logo.src} alt={tokens.logo.alt} sx={{ width: 40, height: 40 }} />
-          <Stack>
-            <Typography variant="caption" color="text.secondary">
-              인싸이트
-            </Typography>
-            <Typography variant="h6" sx={{ color: tokens.seorapAccent, lineHeight: 1.1 }}>
-              서랍
-            </Typography>
-          </Stack>
-        </Stack>
+    <Box component="main" sx={{ minHeight: 'var(--frame-min-h)', px: 2, py: 4 }}>
+      <Stack spacing={3}>
+        <Wordmark />
 
-        <Box sx={{ bgcolor: 'background.paper', borderRadius: 3, p: 3 }}>
+        <Box sx={{ bgcolor: 'background.paper', borderRadius: tokens.radius.card, p: 3 }}>
           <Stack
             component="form"
             spacing={2.5}
@@ -64,7 +55,8 @@ export default function VerifyDemo() {
               인증번호 받기
             </Button>
             {sent && (
-              <Alert severity="info">시연용 화면이에요. 실제로 인증번호를 보내지 않아요.</Alert>
+              // MUI 기본 파랑(info) 대신 서랍 칩의 청록으로 칠한다
+              <Alert icon={false} sx={{ bgcolor: tokens.tone.teal.bg, color: tokens.tone.teal.fg }}>시연용 화면이에요. 실제로 인증번호를 보내지 않아요.</Alert>
             )}
           </Stack>
         </Box>

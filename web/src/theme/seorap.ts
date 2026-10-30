@@ -1,56 +1,118 @@
 import { createTheme } from '@mui/material/styles'
 
-// 서랍 테마 토큰. 임시 브랜딩 단계라 색·로고는 이 파일에서만 바꾼다.
-// 기준: Booth design-system (inpsytorderv3/design-system/02_DESIGN_TOKENS.md)
+declare module '@mui/material/Button' {
+  interface ButtonPropsVariantOverrides { soft: true }
+}
+
+// 서랍 테마 토큰. 색·반경·로고는 이 파일에서만 바꾼다.
+// 색 ① (01-plan §0 10-29): 깊은 청록 + 종이 + 호박빛.
+// 비율 75:20:5 (10-30): 바탕은 종이·흰 카드, 청록은 버튼·제목·워드마크, 호박빛은 로고 손잡이·"전달함" 같은 작은 표시.
+// 입장 화면도 종이 바탕이다 (10-29 의 "닫힌 서랍은 청록 바탕"을 대체)
+// 대비는 seorap.test.ts 가 계산해서 막는다 (글자 4.5:1, 포커스 링 3:1)
 export const tokens = {
-  // 인싸이트 브랜드 남색. 주요 버튼과 강조는 이 색
-  brand: {
-    900: '#1F2A6B',
-    700: '#2B398F',
-    500: '#4B5BB3',
-    300: '#A9B2E0',
-    100: '#E8EBF7',
+  // 주 색. 버튼·제목·워드마크, 서랍 화면의 머리 판
+  teal: {
+    900: '#123836',
+    700: '#1E5552',
+    500: '#3F7A76',
+    100: '#DDEBE8',
+    50: '#EEF5F3',
   },
-  // 서랍 포인트 컬러 = 로고 파랑(10-21 로고 교체). 흰 배경 대비 약 3.5:1, 쪽 배경 대비 약 3.1:1 → 로고·큰 굵은 제목에만 (작은 글씨·흰 글씨 버튼 금지)
-  // 이전 값: '#D4664B'(산호색)
-  seorapAccent: '#0088FF',
-  seorapAccentSoft: '#FCC9A5',
+  // 열었을 때 드러나는 온기. 로고 손잡이와 "전달함"처럼 사람 사이의 표시에만
+  amber: {
+    500: '#F2B24C',
+    100: '#F6E7C8',
+    800: '#6E4A0C',
+  },
   surface: {
-    // 쪽 배경. 브랜드 남색을 옅게 푼 색이라 흰 카드·입력 칸이 배경 위에 떠 보인다
-    page: '#EEF0F7',
+    // 쪽 배경(종이). 흰 카드·입력 칸이 그 위에 놓인다
+    page: '#F6F2EA',
+    // 주문 묶음 판. 하위 검사 카드(흰색)를 담아 종속 관계를 보인다 (10-30 검수)
+    group: '#F0EBE1',
     0: '#FFFFFF',
-    50: '#F7F7F9',
-    100: '#EEEEF2',
-    200: '#DEDEE5',
-    300: '#C4C4CF',
+    50: '#FAF8F3',
+    100: '#ECE6DA',
+    200: '#E6DFD2',
+    300: '#CFC6B6',
   },
   text: {
-    primary: '#1B1B22',
-    secondary: '#555566',
-    disabled: '#8A8A99',
+    primary: '#22201C',
+    secondary: '#6E675C',
+    disabled: '#9A9385',
   },
+  // 예전 남색 단계 자리. 상담 어드민(사수 브랜치)이 이 파일을 그대로 가져다 tokens.brand[900~100] 을 쓴다.
+  // 남색은 버리고 같은 단계 이름에 청록 계열을 넣어 어드민이 깨지지 않게 한다 (새 화면 코드는 teal 을 쓴다)
+  brand: {
+    900: '#123836',
+    700: '#1E5552',
+    500: '#3F7A76',
+    300: '#9DC0BB',
+    100: '#DDEBE8',
+  },
+  // 줄 상태 칩의 색. MUI 기본 info·warning 을 쓰지 않고 여기서 직접 칠한다
+  tone: {
+    neutral: { bg: '#ECE6DA', fg: '#4F493F' },
+    teal: { bg: '#DDEBE8', fg: '#1E5552' },
+    warm: { bg: '#F6E7C8', fg: '#6E4A0C' },
+    caution: { bg: '#F8E1D8', fg: '#8A3B22' },
+    muted: { bg: 'transparent', fg: '#6E675C', border: '#CFC6B6' },
+  },
+  // 넓은 화면의 바깥 바탕(책상). 서랍 컬럼이 그 위에 한 장의 판으로 서 보이게 한 단계 짙게 깐다 (10-29 검수: 컬럼과 바깥이 같은 색이라 미완성처럼 보임)
+  desk: {
+    open: '#E3DACA',
+    edge: 'rgba(34, 32, 28, 0.08)',
+    shadow: 'rgba(34, 32, 28, 0.10)',
+  },
+  // 키보드 포커스 링. 종이·흰 바탕에서는 청록, 청록 머리 판(BoxHeader) 위에서는 호박빛
+  focus: { light: '#3F7A76', onTeal: '#F2B24C' },
+  // sx 의 borderRadius 숫자는 테마 shape(12px)의 배수로 계산돼 24·36px 이 된다. 반경은 이 문자열만 쓴다
+  radius: { control: '10px', card: '12px', sheet: '16px', pill: '999px' },
   // 화면은 폰 한 칸짜리 주 컬럼 하나다 (PC 별도 배치 없음). 시트·토스트·페이지 폭은 모두 이 값을 따른다
   layout: { maxWidth: 480 },
   logo: {
     src: '/brand/seorap-logo.png',
     alt: '인싸이트 서랍',
   },
+  // 브랜드 벡터 (로고 C1 손잡이, 리디바탕 "서랍" 윤곽선). 원본: Works-archive assets/brand/seorap-logo-c1-*.svg · seorap-wordmark-ridibatang.svg
+  // 워드마크는 글꼴 없이도 같은 모양으로 보이고, 색은 글자색(currentColor)을 따른다
+  brandVector: {
+    handlePath: 'M35 75C47.5 86.25 112.5 86.25 125 75',
+    wordmarkViewBox: '31 -782 1824 960',
+    wordmarkPath: 'M696 176C714 179 744 178 755 175C763 173 765 167 766 158C770 124 777 53 777 11V-742C777 -750 773 -754 762 -758C733 -769 665 -782 634 -782C630 -782 626 -781 623 -776C619 -770 613 -752 610 -740C638 -734 667 -722 679 -713C691 -704 696 -700 696 -685V-456H600C561 -456 497 -463 487 -463C473 -463 468 -461 468 -449C468 -437 474 -409 480 -390H696ZM68 -124C76 -118 84 -119 91 -125C145 -168 232 -280 300 -388C374 -301 444 -220 515 -130C531 -142 554 -163 566 -177C572 -184 573 -191 566 -198C489 -276 416 -354 335 -444C375 -513 402 -574 402 -606C402 -619 399 -626 391 -632C362 -653 289 -675 267 -675C264 -675 262 -674 259 -671C253 -664 245 -652 239 -641C274 -627 304 -609 304 -587C304 -491 121 -243 31 -158C44 -143 60 -130 68 -124Z M1069 -244C1196 -244 1428 -279 1596 -319V-244C1614 -241 1644 -242 1655 -245C1663 -247 1665 -253 1666 -262C1670 -296 1677 -367 1677 -409V-472H1843C1849 -491 1855 -519 1855 -531C1855 -543 1850 -545 1836 -545C1826 -545 1762 -535 1723 -535H1677V-742C1677 -750 1673 -754 1662 -758C1633 -769 1565 -782 1534 -782C1530 -782 1526 -781 1523 -776C1519 -770 1513 -754 1510 -742C1538 -736 1567 -724 1579 -715C1591 -706 1596 -702 1596 -687V-379C1451 -343 1218 -311 1094 -311V-435H1400C1408 -435 1413 -441 1413 -452V-657C1413 -677 1404 -684 1388 -684C1363 -684 1298 -680 1273 -680H1108C1069 -680 1025 -679 987 -686C982 -679 972 -660 972 -655C972 -651 975 -648 977 -646C993 -631 1017 -613 1042 -602C1068 -611 1088 -616 1115 -616H1332V-499H1083C1057 -499 1009 -506 985 -506C972 -506 965 -472 964 -463C989 -457 1013 -448 1013 -419V-305C1013 -265 1027 -244 1069 -244ZM1221 156H1637C1652 156 1667 150 1667 125V-179C1667 -189 1664 -194 1655 -198C1631 -208 1583 -216 1552 -217C1548 -217 1545 -216 1542 -211C1538 -205 1534 -189 1533 -179C1564 -175 1587 -160 1587 -133V-81H1257V-154C1257 -164 1254 -169 1245 -173C1221 -183 1173 -191 1142 -192C1138 -192 1135 -191 1132 -186C1128 -180 1124 -164 1123 -154C1154 -150 1177 -135 1177 -108V102C1177 140 1194 156 1221 156ZM1257 90V-15H1587V90Z',
+  },
 } as const
+
+// WCAG 상대 휘도 대비. 시험에서 토큰 조합을 검사할 때 쓴다
+export function contrast(fg: string, bg: string): number {
+  const lum = (hex: string) => {
+    const n = hex.replace('#', '')
+    const [r, g, b] = [0, 2, 4].map((i) => parseInt(n.slice(i, i + 2), 16) / 255)
+      .map((v) => (v <= 0.03928 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4))
+    return 0.2126 * r + 0.7152 * g + 0.0722 * b
+  }
+  const [a, b] = [lum(fg), lum(bg)].sort((x, y) => y - x)
+  return (a + 0.05) / (b + 0.05)
+}
+
+const BODY_FONT =
+  '"Pretendard Variable", Pretendard, -apple-system, BlinkMacSystemFont, "Apple SD Gothic Neo", "Malgun Gothic", "Noto Sans KR", sans-serif'
+// 리디바탕은 index.html 의 @font-face(font-display: swap)로 불러온다. 늦으면 본문 글꼴로 먼저 보인다
+const HEADING_FONT = `"RIDIBatang", ${BODY_FONT}`
 
 export const theme = createTheme({
   palette: {
-    primary: { main: tokens.brand[700], dark: tokens.brand[900], light: tokens.brand[500], contrastText: '#FFFFFF' },
+    primary: { main: tokens.teal[700], dark: tokens.teal[900], light: tokens.teal[500], contrastText: '#FFFFFF' },
     background: { default: tokens.surface.page, paper: tokens.surface[0] },
     text: { primary: tokens.text.primary, secondary: tokens.text.secondary, disabled: tokens.text.disabled },
     divider: tokens.surface[200],
   },
   typography: {
-    fontFamily:
-      '"Pretendard Variable", Pretendard, -apple-system, BlinkMacSystemFont, "Apple SD Gothic Neo", "Malgun Gothic", "Noto Sans KR", sans-serif',
-    // 본문 16 · 보조 14 · 캡션 12 (12 미만 금지)
-    h4: { fontSize: '1.5rem', fontWeight: 700, lineHeight: 1.35 },
-    h5: { fontSize: '1.25rem', fontWeight: 700, lineHeight: 1.4 },
-    h6: { fontSize: '1.125rem', fontWeight: 600, lineHeight: 1.4 },
+    fontFamily: BODY_FONT,
+    // 본문 16 · 보조 14 · 캡션 12 (12 미만 금지).
+    // 제목만 리디바탕(굵기 Regular 하나뿐이라 위계는 크기로). 버튼·숫자·코드는 본문 글꼴
+    h4: { fontFamily: HEADING_FONT, fontSize: '1.875rem', fontWeight: 400, lineHeight: 1.3, textWrap: 'balance' },
+    h5: { fontFamily: HEADING_FONT, fontSize: '1.375rem', fontWeight: 400, lineHeight: 1.4, textWrap: 'balance' },
+    h6: { fontFamily: HEADING_FONT, fontSize: '1.1875rem', fontWeight: 400, lineHeight: 1.4, textWrap: 'balance' },
     body1: { fontSize: '1rem', fontWeight: 400, lineHeight: 1.5 },
     body2: { fontSize: '0.875rem', fontWeight: 400, lineHeight: 1.5 },
     caption: { fontSize: '0.75rem', fontWeight: 400, lineHeight: 1.5 },
@@ -59,16 +121,54 @@ export const theme = createTheme({
   shape: { borderRadius: 12 },
   components: {
     // 한글은 낱말 중간에서 줄을 바꾸지 않는다(keep-all). 띄어쓰기 없는 긴 주소·토큰은 넘치지 않게 아무 곳에서나 끊는다.
+    // 포커스 링 색은 CSS 변수로 두어, 청록 머리 판이 호박빛으로 바꿔 쓸 수 있게 한다
     MuiCssBaseline: {
-      styleOverrides: { body: { wordBreak: 'keep-all', overflowWrap: 'anywhere' } },
+      // 바탕색은 html 이 맡는다. 휴대폰 폭에서는 판과 같은 종이색이라 당겨 내려도 같고,
+      // 넓은 화면(520px 이상)에서는 바깥을 책상색으로 깔아 서랍 컬럼(App 의 판)과 구분한다
+      styleOverrides: {
+        body: { wordBreak: 'keep-all', overflowWrap: 'anywhere', '--seorap-focus': tokens.focus.light, backgroundColor: 'transparent' },
+        // 브라우저가 그리는 비밀번호 보기·지우기 아이콘은 테마 밖 모양이라 숨긴다 (10-30 비평 ⑥)
+        'input::-ms-reveal, input::-ms-clear': { display: 'none' },
+        html: { backgroundColor: tokens.surface.page },
+        '@media (min-width: 520px)': { html: { backgroundColor: tokens.desk.open } },
+      },
     },
+    // 버튼·탭·칩·목록 단추는 모두 ButtonBase 다. 키보드로 왔을 때만 링이 바로 보인다(물결 효과만으로는 부족)
+    MuiButtonBase: {
+      styleOverrides: { root: { '&.Mui-focusVisible': { outline: '2px solid var(--seorap-focus)', outlineOffset: '2px' } } },
+    },
+    // soft: 줄 카드의 주 행동. 진한 채움(contained)은 화면당 하나(상담 신청서 작성, 시트의 다음 등)로 아낀다
     MuiButton: {
       defaultProps: { disableElevation: true },
-      styleOverrides: { root: { minHeight: 44 } },
+      styleOverrides: {
+        root: {
+          minHeight: 44,
+          borderRadius: tokens.radius.control,
+          variants: [{
+            props: { variant: 'soft' },
+            style: {
+              backgroundColor: tokens.teal[100],
+              color: tokens.teal[700],
+              '&:hover': { backgroundColor: tokens.teal[50] },
+              '&.Mui-disabled': { backgroundColor: tokens.surface[100], color: tokens.text.disabled },
+            },
+          }],
+        },
+      },
     },
-    // 쪽 배경이 옅은 색이라 글자 입력 칸은 흰색으로 둔다
+    // 쪽 배경이 종이색이라 글자 입력 칸은 흰색으로 둔다
     MuiOutlinedInput: {
-      styleOverrides: { root: { backgroundColor: tokens.surface[0] } },
+      // 쨍한 흰색 대신 약관 상자와 같은 옅은 종이색, 테두리는 선택지(Choice)와 같은 선 (10-30 검수: 입력 간 통일감)
+      styleOverrides: {
+        root: {
+          backgroundColor: tokens.surface[50], borderRadius: tokens.radius.control,
+          '& .MuiOutlinedInput-notchedOutline': { borderColor: tokens.surface[300] },
+          '&:hover .MuiOutlinedInput-notchedOutline': { borderColor: tokens.teal[500] },
+        },
+      },
+    },
+    MuiDialog: {
+      styleOverrides: { paper: { borderRadius: tokens.radius.sheet } },
     },
   },
 })
