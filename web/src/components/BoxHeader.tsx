@@ -19,7 +19,7 @@ export default function BoxHeader({ ownerName, summary, tab, onTab, onLogout }: 
         <Button variant="text" onClick={onLogout} sx={{ color: tokens.surface.page }}>{t('box.logout')}</Button>
       </Stack>
       <Stack spacing={0.5} sx={{ mt: 3, mb: 2 }}>
-        {ownerName && <Typography variant="h5">{t('box.title', { name: ownerName })}</Typography>}
+        {ownerName && <Typography variant="h4">{t('box.title', { name: ownerName })}</Typography>}
         {summary && <Typography variant="body2" sx={{ color: tokens.teal[100] }}>{summary}</Typography>}
       </Stack>
       <Tabs
@@ -27,7 +27,7 @@ export default function BoxHeader({ ownerName, summary, tab, onTab, onLogout }: 
         onChange={(_, v) => onTab(v)}
         slotProps={{ indicator: { style: { backgroundColor: tokens.amber[500], height: 3 } } }}
         sx={{
-          '& .MuiTab-root': { color: tokens.teal[100], px: 0, mr: 3, minWidth: 0 },
+          '& .MuiTab-root': { color: tokens.teal[100], px: 0, mr: 3, minWidth: 0, fontWeight: 500 },
           '& .MuiTab-root.Mui-selected': { color: tokens.surface.page },
         }}
       >

@@ -4,6 +4,7 @@ import { useLocation, useNavigate } from 'react-router-dom'
 import type { HistoryItem, HistoryResponse } from '@core/apiTypes.ts'
 import { type CopyKey, t } from '@core/copy.ko.ts'
 import { formatKstDateTime } from '@core/time.ts'
+import BoxFloor from '../components/BoxFloor'
 import BoxHeader from '../components/BoxHeader'
 import { api, isSessionEnd } from '../lib/api'
 import { tokens } from '../theme/seorap'
@@ -82,6 +83,7 @@ export default function HistoryPage() {
             })}
           </Stack>
         )}
+        <BoxFloor />
       </Stack>
     </Box>
   )

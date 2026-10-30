@@ -450,3 +450,28 @@ describe('BoxPage 묶음 (10-29 검수: 시각적 청킹)', () => {
     expect(within(orders[0] as HTMLElement).getAllByRole('button', { name: '실시하기' }).length).toBe(2)
   })
 })
+
+describe('BoxPage 1매 주문·바닥 (10-30 비평)', () => {
+  it('1매이고 검사명이 상품명과 같으면 묶음 층 없이 카드 하나로, 이름은 한 번만 보인다', async () => {
+    const one: BoxLine = { ...launchable, testName: 'STS', unitsOfTest: 1 }
+    stubApi([one], {})
+    open()
+    await screen.findByRole('button', { name: '실시하기' })
+    expect(screen.getAllByText('STS').length).toBe(1)
+    expect(screen.getByText('2026-10-01 구매')).toBeTruthy()
+    expect(document.querySelector('.MuiAccordion-root')).toBeNull()
+  })
+  it('묶음 제목은 카드 제목보다 큰 제목(h5)이다', async () => {
+    stubApi([launchable, { ...launchable, voucherId: 'v3', unitNo: 2, unitsOfTest: 2 }], {})
+    open()
+    expect(await screen.findByRole('heading', { level: 5, name: 'STS' })).toBeTruthy()
+  })
+  it('내용 끝에 바닥(도움말 링크)이 있어 화면이 끝난 것이 보인다', async () => {
+    stubApi([launchable], {})
+    open()
+    await screen.findByRole('button', { name: '실시하기' })
+    const floor = document.querySelector('[data-region="floor"]') as HTMLElement
+    expect(floor).toBeTruthy()
+    expect(within(floor).getByRole('link', { name: '도움말' }).getAttribute('href')).toBe('/help')
+  })
+})

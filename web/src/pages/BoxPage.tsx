@@ -9,6 +9,7 @@ import ConfirmDialog from '../components/ConfirmDialog'
 import ForwardSheet from '../components/ForwardSheet'
 import LineRow from '../components/LineRow'
 import Toast from '../components/Toast'
+import BoxFloor from '../components/BoxFloor'
 import BoxHeader from '../components/BoxHeader'
 import { api, ApiError, isSessionEnd } from '../lib/api'
 import { openInNewWindow } from '../lib/openInNewWindow'
@@ -148,30 +149,42 @@ export default function BoxPage() {
         ))}
         {error && <Alert severity="warning">{error}</Alert>}
         {box.groups.length === 0 && <Typography variant="body1" color="text.secondary">{t('box.empty')}</Typography>}
-        {box.groups.map((g) => (
+        {box.groups.map((g) => {
+          // 1매이고 검사명이 상품명과 같은 주문은 묶음 층 없이 카드 하나로 (이름이 두 번 나오지 않게, 10-30 비평 ④)
+          const only = g.lines.length === 1 && g.lines[0].testName === g.productName ? g.lines[0] : null
+          if (only) {
+            return (
+              <Box key={g.orderId} data-region="order">
+                <LineRow line={only} meta={t('box.group', { date: formatKstDate(g.purchasedAt) })} onAction={(a, line) => onAction(a, line, g)} />
+              </Box>
+            )
+          }
           // 주문 하나 = 제목 + 줄들. 판으로 감싸지 않고 간격(근접)으로 묶는다 (UX 진단 F4: 카드 안의 카드)
-          <Box key={g.orderId} data-region="order">
-            <Accordion
-              expanded={expanded[g.orderId] ?? !g.done} onChange={(_, open) => toggle(g.orderId, open)}
-              disableGutters elevation={0} square
-              sx={{ bgcolor: 'transparent', '&::before': { display: 'none' } }}
-            >
-              <AccordionSummary expandIcon={<ExpandChevron />} sx={{ px: 0, minHeight: 0, '& .MuiAccordionSummary-content': { my: 0.5 } }}>
-                <Box>
-                  <Typography variant="h6">{g.productName}</Typography>
-                  <Typography variant="body2" color="text.secondary">
-                    {t('box.group', { date: formatKstDate(g.purchasedAt) })}
-                  </Typography>
-                </Box>
-              </AccordionSummary>
-              <AccordionDetails sx={{ px: 0, pt: 1.5, pb: 0 }}>
-                <Stack spacing={1.5}>
-                  {g.lines.map((l) => <LineRow key={l.voucherId} line={l} onAction={(a, line) => onAction(a, line, g)} />)}
-                </Stack>
-              </AccordionDetails>
-            </Accordion>
-          </Box>
-        ))}
+          return (
+            <Box key={g.orderId} data-region="order">
+              <Accordion
+                expanded={expanded[g.orderId] ?? !g.done} onChange={(_, open) => toggle(g.orderId, open)}
+                disableGutters elevation={0} square
+                sx={{ bgcolor: 'transparent', '&::before': { display: 'none' } }}
+              >
+                <AccordionSummary expandIcon={<ExpandChevron />} sx={{ px: 0, minHeight: 0, '& .MuiAccordionSummary-content': { my: 0.5 } }}>
+                  <Box>
+                    <Typography variant="h5">{g.productName}</Typography>
+                    <Typography variant="body2" color="text.secondary">
+                      {t('box.group', { date: formatKstDate(g.purchasedAt) })}
+                    </Typography>
+                  </Box>
+                </AccordionSummary>
+                <AccordionDetails sx={{ px: 0, pt: 1.5, pb: 0 }}>
+                  <Stack spacing={1.5}>
+                    {g.lines.map((l) => <LineRow key={l.voucherId} line={l} onAction={(a, line) => onAction(a, line, g)} />)}
+                  </Stack>
+                </AccordionDetails>
+              </Accordion>
+            </Box>
+          )
+        })}
+        <BoxFloor />
       </Stack>
 
       <ConfirmDialog

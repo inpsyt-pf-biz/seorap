@@ -28,7 +28,11 @@ export default function App() {
       sx={{
         maxWidth: tokens.layout.maxWidth, mx: 'auto', minHeight: '100dvh',
         bgcolor: surface === 'closed' ? tokens.teal[700] : tokens.surface.page,
-        '@media (min-width: 520px)': { boxShadow: `0 0 0 1px ${tokens.desk.edge}, 0 12px 40px ${tokens.desk.shadow}` },
+        '@media (min-width: 520px)': {
+          boxShadow: `0 0 0 1px ${tokens.desk.edge}, 0 12px 40px ${tokens.desk.shadow}`,
+          // 위아래가 잘린 띠가 아니라 한 장의 판으로 보이게 위아래 여백과 둥근 모서리 (10-30 비평 ①)
+          my: 3, minHeight: 'calc(100dvh - 48px)', borderRadius: tokens.radius.sheet, overflow: 'hidden',
+        },
       }}
     >
     <Suspense fallback={null}>

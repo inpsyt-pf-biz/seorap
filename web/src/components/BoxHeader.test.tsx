@@ -22,6 +22,11 @@ describe('BoxHeader (머리 판)', () => {
     expect(shell.querySelector('[data-part="logo-body"]')?.getAttribute('fill')).toBe(tokens.teal[500])
   })
 
+  it('주인 제목은 화면에서 가장 큰 제목(h4)이다: 리디바탕 한 굵기라 크기로 위계를 세운다', () => {
+    draw()
+    expect(screen.getByRole('heading', { level: 4, name: '김서랍님의 서랍' })).toBeTruthy()
+  })
+
   it('선택된 탭 표시는 로고 손잡이와 같은 호박빛이다', () => {
     draw()
     const indicator = document.querySelector('.MuiTabs-indicator') as HTMLElement

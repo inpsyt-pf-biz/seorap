@@ -107,9 +107,9 @@ export const theme = createTheme({
     fontFamily: BODY_FONT,
     // 본문 16 · 보조 14 · 캡션 12 (12 미만 금지).
     // 제목만 리디바탕(굵기 Regular 하나뿐이라 위계는 크기로). 버튼·숫자·코드는 본문 글꼴
-    h4: { fontFamily: HEADING_FONT, fontSize: '1.625rem', fontWeight: 400, lineHeight: 1.35 },
-    h5: { fontFamily: HEADING_FONT, fontSize: '1.375rem', fontWeight: 400, lineHeight: 1.4 },
-    h6: { fontFamily: HEADING_FONT, fontSize: '1.1875rem', fontWeight: 400, lineHeight: 1.4 },
+    h4: { fontFamily: HEADING_FONT, fontSize: '1.875rem', fontWeight: 400, lineHeight: 1.3, textWrap: 'balance' },
+    h5: { fontFamily: HEADING_FONT, fontSize: '1.375rem', fontWeight: 400, lineHeight: 1.4, textWrap: 'balance' },
+    h6: { fontFamily: HEADING_FONT, fontSize: '1.1875rem', fontWeight: 400, lineHeight: 1.4, textWrap: 'balance' },
     body1: { fontSize: '1rem', fontWeight: 400, lineHeight: 1.5 },
     body2: { fontSize: '0.875rem', fontWeight: 400, lineHeight: 1.5 },
     caption: { fontSize: '0.75rem', fontWeight: 400, lineHeight: 1.5 },
@@ -124,6 +124,8 @@ export const theme = createTheme({
       // 넓은 화면(520px 이상)에서는 바깥을 책상색으로 깔아 서랍 컬럼(AppFrame)과 구분한다
       styleOverrides: {
         body: { wordBreak: 'keep-all', overflowWrap: 'anywhere', '--seorap-focus': tokens.focus.light, backgroundColor: 'transparent' },
+        // 브라우저가 그리는 비밀번호 보기·지우기 아이콘은 테마 밖 모양이라 숨긴다 (10-30 비평 ⑥)
+        'input::-ms-reveal, input::-ms-clear': { display: 'none' },
         'html[data-surface="open"]': { backgroundColor: tokens.surface.page },
         'html[data-surface="closed"]': { backgroundColor: tokens.teal[700] },
         '@media (min-width: 520px)': {

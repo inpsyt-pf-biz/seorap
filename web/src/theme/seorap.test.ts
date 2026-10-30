@@ -150,3 +150,17 @@ describe('바깥 바탕(책상) 색', () => {
     expect(tokens.desk.closed).not.toBe(tokens.teal[700])
   })
 })
+
+describe('위계와 브라우저 기본값 (10-30 비평)', () => {
+  it('제목 크기는 30·22·19px 로 벌려, 굵은 본문보다 크기로 앞선다', () => {
+    expect(theme.typography.h4.fontSize).toBe('1.875rem')
+    expect(theme.typography.h5.fontSize).toBe('1.375rem')
+  })
+  it('제목은 줄을 고르게 나눈다(외톨이 단어 방지)', () => {
+    for (const v of ['h4', 'h5', 'h6'] as const) expect((theme.typography[v] as Record<string, unknown>).textWrap).toBe('balance')
+  })
+  it('브라우저 기본 비밀번호 보기·지우기 아이콘을 숨긴다', () => {
+    const css = theme.components?.MuiCssBaseline?.styleOverrides as Record<string, unknown>
+    expect(css['input::-ms-reveal, input::-ms-clear']).toEqual({ display: 'none' })
+  })
+})

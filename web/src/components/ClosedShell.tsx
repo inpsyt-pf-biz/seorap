@@ -1,6 +1,7 @@
 import { Box, Stack, ThemeProvider } from '@mui/material'
 import type { ReactNode } from 'react'
 import { closedTheme, tokens } from '../theme/seorap'
+import BoxFloor from './BoxFloor'
 import Wordmark from './Wordmark'
 
 // 닫힌 서랍: 입장 화면(인증번호·비밀번호)을 감싸는 청록 바탕. "닫힌 서랍은 고요하게, 열린 서랍은 따뜻하게" (01-plan §0 10-29)
@@ -16,6 +17,7 @@ export default function ClosedShell({ children }: { children: ReactNode }) {
           <Stack spacing={3}>
             <Wordmark onTeal />
             {children}
+            <BoxFloor onTeal />
           </Stack>
         </Box>
       </Box>

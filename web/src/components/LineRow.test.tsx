@@ -51,11 +51,29 @@ describe('LineRow', () => {
     expect(screen.getByText('상담 신청서를 제출하면 열려요')).toBeTruthy()
     expect((screen.getByRole('button', { name: '전달하기' }) as HTMLButtonElement).disabled).toBe(true)
   })
-  it('줄 버튼에는 진한 채움 버튼이 없다: 주 행동은 옅은 청록(soft), 나머지는 테두리', () => {
+  it('주 행동은 자리가 아니라 의미로 정한다: 실시하기가 주(soft), 전달하기는 보조(테두리), 진한 채움은 없다', () => {
     const { container } = render(<LineRow line={line()} onAction={() => {}} />)
     expect(container.querySelector('.MuiButton-contained')).toBeNull()
-    expect(screen.getByRole('button', { name: '전달하기' }).className).toMatch(/MuiButton-soft/)
+    expect(screen.getByRole('button', { name: '실시하기' }).className).toMatch(/MuiButton-soft/)
+    expect(screen.getByRole('button', { name: '전달하기' }).className).toMatch(/MuiButton-outlined/)
+  })
+  it('이미 실시한 줄의 [결과 보기]는 할 일이 아니므로 글자 버튼으로 낮춘다', () => {
+    render(<LineRow line={line({ status: { label: '실시함 (10-23)', tone: 'info', actions: ['result'] } })} onAction={() => {}} />)
+    expect(screen.getByRole('button', { name: '결과 보기' }).className).toMatch(/MuiButton-text/)
+  })
+  it('전달한 줄의 [다시 보내기]·[다른 분께]는 둘 다 보조(테두리)다', () => {
+    render(<LineRow line={line({ status: { label: '김영희님께 전달', tone: 'warm', actions: ['resend', 'reforward'] } })} onAction={() => {}} />)
+    expect(screen.getByRole('button', { name: '다시 보내기' }).className).toMatch(/MuiButton-outlined/)
+    expect(screen.getByRole('button', { name: '다른 분께' }).className).toMatch(/MuiButton-outlined/)
+  })
+  it('꺼진 버튼은 한 가지 모양(테두리)이다', () => {
+    render(<LineRow line={line({ status: { label: '대기 중', tone: 'neutral', actions: [], disabled: ['launch', 'forward'], note: '상담 신청서를 제출하면 열려요' } })} onAction={() => {}} />)
     expect(screen.getByRole('button', { name: '실시하기' }).className).toMatch(/MuiButton-outlined/)
+    expect(screen.getByRole('button', { name: '전달하기' }).className).toMatch(/MuiButton-outlined/)
+  })
+  it('1매 주문은 카드에 구매일을 함께 보여 묶음 제목 없이도 알 수 있다', () => {
+    render(<LineRow line={line({ unitsOfTest: 1 })} meta="2026-10-22 구매" onAction={() => {}} />)
+    expect(screen.getByText('2026-10-22 구매')).toBeTruthy()
   })
   it('링크로 직접 공유한 줄은 이름·번호 줄 없이 [다른 분께]만 보인다', () => {
     render(<LineRow line={line({ forwardTo: null, status: { label: '링크로 전달함', tone: 'warm', actions: ['reforward'], note: '아직 안 열어 봄' } })} onAction={() => {}} />)
