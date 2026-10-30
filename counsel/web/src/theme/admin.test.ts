@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { SPECIALTIES } from '@counsel-core/centers.ts'
 import { contrast, theme, tokens } from '@seorap-web/theme/seorap.ts'
-import { adminTheme, centerListLook, specialtyColors } from './admin'
+import { adminSheet, adminTheme, centerListLook, specialtyColors } from './admin'
 
 describe('어드민 테마', () => {
   it('서랍 테마의 색과 글꼴을 그대로 이어받는다', () => {
@@ -58,6 +58,20 @@ describe('어드민 바탕과 판·입력 칸의 구분', () => {
     const css = adminTheme.components?.MuiCssBaseline?.styleOverrides as Record<string, Record<string, unknown>>
     expect(css.html).toMatchObject({ backgroundColor: bg })
     expect((css['@media (min-width: 520px)'] as Record<string, Record<string, unknown>>).html).toMatchObject({ backgroundColor: bg })
+  })
+})
+
+// 10-30 건우님 검수: "그릇 없이 밥 먹는 것 같다". 제목·요약·검색 칸이 바닥에 그대로 놓이고 기간 칸만 혼자 하얬다.
+// 모든 메뉴의 본문은 어드민 틀이 흰 판(adminSheet) 하나에 담는다. 바닥은 판 바깥으로만 보인다
+describe('본문은 흰 판 하나에 담긴다', () => {
+  it('판은 흰색이고 바닥과 눈에 띄게 다르며, 바닥보다 진한 테두리가 있다', () => {
+    expect(adminSheet.bgcolor).toBe(tokens.surface[0])
+    expect(contrast(adminSheet.bgcolor, adminTheme.palette.background.default)).toBeGreaterThanOrEqual(1.2)
+    expect(adminSheet.border).toContain(tokens.surface[300])
+  })
+  it('어드민 틀이 화면(Outlet)을 이 판 안에 넣는다', () => {
+    const shell = Object.entries(import.meta.glob('../pages/admin/counsel/AdminShell.tsx', { query: '?raw', import: 'default', eager: true }))[0][1] as string
+    expect(shell).toMatch(/sx=\{adminSheet\}[\s\S]*<Outlet \/>/)
   })
 })
 

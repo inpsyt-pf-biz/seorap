@@ -11,6 +11,16 @@ export const adminLayout = { contentMaxWidth: 1200, navWidth: 220 } as const
 const ADMIN_BG = tokens.surface[100]
 const EDGE = tokens.surface[300]
 
+// 본문 판 (10-30 건우님 검수: "그릇 없이 밥 먹는 것 같다"). 모든 메뉴의 제목·요약·검색 칸·표를 흰 판 하나에 담고,
+// 바닥(ADMIN_BG)은 판 바깥으로만 보이게 한다. 판 안의 표·카드는 같은 흰색에 테두리로 나뉜다
+export const adminSheet = {
+  bgcolor: tokens.surface[0] as string,
+  border: `1px solid ${EDGE}`,
+  borderRadius: tokens.radius.sheet,
+  boxShadow: `0 1px 3px ${tokens.desk.shadow}`,
+  p: { xs: 2, md: 3 },
+}
+
 export const adminTheme = createTheme(theme, {
   palette: { background: { default: ADMIN_BG, paper: tokens.surface[0] } },
   components: {
