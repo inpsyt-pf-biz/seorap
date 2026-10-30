@@ -59,7 +59,8 @@ Deno.test('코드 보기: 코드를 주고 노출 시각을 남긴다', async ()
 
 Deno.test('전달된 줄은 실시할 수 없다', async () => {
   const c = await login('S1', '5678')
-  const fwd = (await lines(c)).find((l: any) => l.status.label.startsWith('전달함'))
+  // 문구가 아니라 전달 정보로 찾는다 (문구는 바뀔 수 있다: R1 에서 '전달함 · 이름' → '이름님께 전달')
+  const fwd = (await lines(c)).find((l: any) => l.forwardTo)
   const r = await c.call('voucher/launch', { voucherId: fwd.voucherId })
   assertEquals(r.status, 409)
 })

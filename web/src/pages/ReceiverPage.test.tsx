@@ -47,9 +47,9 @@ describe('받는 분 1매 화면', () => {
     expect(calls).toEqual(['forward/page'])
   })
 
-  it('[실시하기]는 검사 주소로 이동하고, 연타해도 한 번만 부른다', async () => {
+  it('[실시하기]는 검사 주소를 새 창으로 열고, 연타해도 한 번만 부른다', async () => {
     const assign = vi.fn()
-    vi.stubGlobal('location', { ...window.location, assign })
+    vi.stubGlobal('open', vi.fn(() => ({ opener: {}, close: vi.fn(), location: { set href(v: string) { assign(v) } } })))
     let release: (r: Response) => void = () => {}
     const calls = stubApi({
       'forward/page': () => json(200, PAGE),

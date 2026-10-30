@@ -17,13 +17,13 @@ afterEach(() => {
 const json = (status: number, body: unknown) => new Response(JSON.stringify(body), { status })
 
 const launchable: BoxLine = {
-  voucherId: 'v1', testItemId: 'T', testName: 'STS 성인 기질검사', unitNo: 1, unitsOfTest: 1, firstLaunchedAt: null, forwardTo: null,
+  voucherId: 'v1', testItemId: 'T', testName: 'STS 성인 기질검사', unitNo: 1, unitsOfTest: 1, firstLaunchedAt: null, forwardTo: null, recipientLabels: [],
   status: { label: '실시 전', tone: 'neutral', actions: ['launch', 'forward'] },
 }
 const forwarded: BoxLine = {
   ...launchable, voucherId: 'v2',
   forwardTo: { name: '홍길동', phone: '010-1234-5678' },
-  status: { label: '전달함 · 홍길동', tone: 'info', actions: ['resend', 'reforward'] },
+  status: { label: '홍길동님께 전달', tone: 'warm', actions: ['resend', 'reforward'] },
 }
 const boxOf = (lines: BoxLine[]): BoxResponse => ({
   ownerName: '김서랍', notStartedCount: lines.length, noticeBanner: null, pinSet: true, counsel: [],
@@ -50,9 +50,9 @@ function open() {
 }
 
 describe('BoxPage 처리 중 잠금', () => {
-  it('실시하기 연타는 한 번만 부르고, 성공한 뒤에는 이동 중이라 계속 잠근다', async () => {
+  it('실시하기 연타는 한 번만 부르고, 성공하면 새 창으로 열고 서랍을 다시 불러온다', async () => {
     const assign = vi.fn()
-    vi.stubGlobal('location', { ...window.location, assign })
+    vi.stubGlobal('open', vi.fn(() => ({ opener: {}, close: vi.fn(), location: { set href(v: string) { assign(v) } } })))
     let release: (r: Response) => void = () => {}
     const calls = stubApi([launchable], {
       'voucher/launch': () => new Promise<Response>((resolve) => { release = resolve }),
@@ -64,8 +64,8 @@ describe('BoxPage 처리 중 잠금', () => {
     expect(count(calls, 'voucher/launch')).toBe(1)
     await act(async () => { release(json(200, { url: 'https://exam.test/start' })) })
     await waitFor(() => expect(assign).toHaveBeenCalledWith('https://exam.test/start'))
-    await userEvent.click(screen.getByRole('button', { name: '실시하기' }))
-    expect(count(calls, 'voucher/launch')).toBe(1)
+    // 서랍은 그대로 남아 있으므로 바뀐 상태(실시함)를 보이게 다시 불러온다
+    await waitFor(() => expect(count(calls, 'box')).toBe(2))
   })
 
   it('실패하면 잠금이 풀려 다시 누를 수 있다', async () => {
@@ -176,19 +176,24 @@ describe('BoxPage 다시 보내기 결과 안내', () => {
   })
 })
 
+// 전달 시트는 [직접 전달]로 휴대폰 공유 창을 연다 (10-30). 시험에서는 공유 창을 바로 성공시킨다
+const DIRECT = { url: 'https://seorap.test/f/abc', text: '문구 https://seorap.test/f/abc', kakaoText: '문구' }
+function nativeShare() {
+  Object.defineProperty(navigator, 'share', { value: vi.fn(async () => {}), configurable: true })
+}
+afterEach(() => { Reflect.deleteProperty(navigator, 'share') })
+
 describe('BoxPage 전달 시트 결과', () => {
   it('전달에 성공하면 시트를 닫고 서랍을 새로 불러온 뒤 토스트로 알린다', async () => {
-    const calls = stubApi([launchable], { 'forward/create': async () => json(200, { forwardId: 'f1', created: true }) })
+    const calls = stubApi([launchable], { 'forward/direct': async () => json(200, DIRECT) })
+    nativeShare()
     open()
     await userEvent.click(await screen.findByRole('button', { name: '전달하기' }))
-    await userEvent.type(screen.getByLabelText('이름 또는 호칭'), '홍길동')
-    await userEvent.type(screen.getByLabelText('휴대폰 번호'), '01012345678')
-    await userEvent.click(screen.getByRole('button', { name: '다음' }))
-    await userEvent.click(screen.getByRole('button', { name: '보내기' }))
-    const text = await screen.findByText('홍길동님께 보냈어요')
+    await userEvent.click(screen.getByRole('button', { name: '직접 전달' }))
+    const text = await screen.findByText('전달했어요')
     expect(text.closest('.MuiSnackbar-root')).not.toBeNull()
     expect(text.closest('.MuiAlert-root')).toBeNull()
-    expect(screen.queryByLabelText('이름 또는 호칭')).toBeNull() // 시트는 닫혔다
+    expect(screen.queryByRole('button', { name: '직접 전달' })).toBeNull() // 시트는 닫혔다
     expect(count(calls, 'box')).toBe(2) // 처음 한 번 + 전달 뒤 새로고침
   })
 })
@@ -211,32 +216,28 @@ describe('BoxPage 세션 끝 판단', () => {
   })
 })
 
-describe('BoxPage 코드 보기', () => {
-  it('코드 창에는 닫기 버튼이 하나뿐이다', async () => {
-    stubApi([launchable], { 'voucher/code': async () => json(200, { code: 'TEST-0001-0001' }) })
+describe('BoxPage 코드 보기 없음 (10-29 검수)', () => {
+  it('줄 카드에 [코드 보기]가 없다: 실시는 새 창으로 바로 연다', async () => {
+    stubApi([launchable], {})
     open()
-    await userEvent.click(await screen.findByRole('button', { name: '코드 보기' }))
-    expect(await screen.findByText(/TEST-0001-0001/)).toBeTruthy()
-    expect(screen.getAllByRole('button', { name: '닫기' })).toHaveLength(1)
-    await userEvent.click(screen.getByRole('button', { name: '닫기' }))
-    await waitFor(() => expect(screen.queryByText(/TEST-0001-0001/)).toBeNull())
+    await screen.findByRole('button', { name: '실시하기' })
+    expect(screen.queryByRole('button', { name: '코드 보기' })).toBeNull()
   })
 })
 
 describe('BoxPage 로그아웃', () => {
-  it('로그아웃하면 로그아웃했다는 안내 화면으로 간다', async () => {
-    stubApi([launchable], { logout: async () => json(200, { ok: true }) })
+  it('머리 판의 [설정]으로 설정 화면에 간다 (로그아웃은 설정 안에 있다)', async () => {
+    stubApi([launchable], {})
     render(
       <MemoryRouter initialEntries={['/box']}>
         <Routes>
-          <Route path="/" element={<Placeholder />} />
           <Route path="/box" element={<BoxPage />} />
+          <Route path="/box/settings" element={<div>설정 화면</div>} />
         </Routes>
       </MemoryRouter>,
     )
-    await userEvent.click(await screen.findByRole('button', { name: '로그아웃' }))
-    expect(await screen.findByText('로그아웃했어요. 받은 알림톡의 링크로 다시 들어올 수 있어요.')).toBeTruthy()
-    expect(screen.queryByText('서비스를 준비하고 있어요.')).toBeNull()
+    await userEvent.click(await screen.findByRole('button', { name: '설정' }))
+    expect(await screen.findByText('설정 화면')).toBeTruthy()
   })
 
   it('그냥 첫 화면으로 오면 준비 중 안내 그대로', () => {
@@ -259,24 +260,22 @@ describe('BoxPage 묶음 펼침', () => {
     vi.stubGlobal('fetch', vi.fn(async (url: string) => {
       const path = url.replace(/^\/api\//, '')
       if (path === 'box') return json(200, n++ === 0 ? groupOf(orderId, false, [launchable]) : groupOf(orderId, true, [sent]))
-      if (path === 'forward/create') return json(200, { forwardId: 'f1', created: true })
+      if (path === 'forward/direct') return json(200, DIRECT)
       throw new Error(`unexpected call: ${path}`)
     }))
   }
   const summary = () => screen.getByRole('button', { name: /2026-10-01 구매/ })
   async function forwardFirstLine() {
+    nativeShare()
     await userEvent.click(await screen.findByRole('button', { name: '전달하기' }))
-    await userEvent.type(screen.getByLabelText('이름 또는 호칭'), '홍길동')
-    await userEvent.type(screen.getByLabelText('휴대폰 번호'), '01012345678')
-    await userEvent.click(screen.getByRole('button', { name: '다음' }))
-    await userEvent.click(screen.getByRole('button', { name: '보내기' }))
-    await screen.findByText('홍길동님께 보냈어요')
+    await userEvent.click(screen.getByRole('button', { name: '직접 전달' }))
+    await screen.findByText('전달했어요')
   }
 
   it('처음 볼 때 끝난 묶음은 접혀 있고, 눌러서 펼 수 있다', async () => {
     vi.stubGlobal('fetch', vi.fn(async () => json(200, groupOf('o-done', true, [sent]))))
     open()
-    await screen.findByText('전달함 · 홍길동')
+    await screen.findByText('홍길동님께 전달')
     expect(summary().getAttribute('aria-expanded')).toBe('false')
     await userEvent.click(summary())
     expect(summary().getAttribute('aria-expanded')).toBe('true')
@@ -289,7 +288,7 @@ describe('BoxPage 묶음 펼침', () => {
     await screen.findByRole('button', { name: '실시하기' })
     expect(summary().getAttribute('aria-expanded')).toBe('true')
     await forwardFirstLine()
-    expect(await screen.findByText('전달함 · 홍길동')).toBeTruthy()
+    expect(await screen.findByText('홍길동님께 전달')).toBeTruthy()
     expect(summary().getAttribute('aria-expanded')).toBe('true')
     expect(errors.mock.calls.some((c) => String(c[0]).includes('uncontrolled'))).toBe(false)
   })
@@ -307,7 +306,7 @@ describe('BoxPage 묶음 펼침', () => {
     await forwardFirstLine()
     await userEvent.click(screen.getByRole('tab', { name: '전달 이력' }))
     await userEvent.click(await screen.findByRole('link', { name: 'back' }))
-    expect(await screen.findByText('전달함 · 홍길동')).toBeTruthy()
+    expect(await screen.findByText('홍길동님께 전달')).toBeTruthy()
     expect(summary().getAttribute('aria-expanded')).toBe('true')
   })
 })
@@ -347,7 +346,7 @@ describe('BoxPage 결과 보기·이어서 하기', () => {
   // 실시 주소를 열기까지의 호출을 모은다: 어떤 줄로 launch 를 불렀는지, 어디로 이동했는지
   function stubLaunch(lines: BoxLine[]) {
     const assign = vi.fn()
-    vi.stubGlobal('location', { ...window.location, assign })
+    vi.stubGlobal('open', vi.fn(() => ({ opener: {}, close: vi.fn(), location: { set href(v: string) { assign(v) } } })))
     const ids: string[] = []
     vi.stubGlobal('fetch', vi.fn(async (url: string, init?: RequestInit) => {
       const path = url.replace(/^\/api\//, '')
@@ -410,10 +409,117 @@ describe('BoxPage 결과 보기·이어서 하기', () => {
     expect(screen.queryByText(CHOOSE)).toBeNull()
   })
 
-  it('실시한 줄도 [코드 보기]로 코드를 볼 수 있다', async () => {
-    stubApi([launched], { 'voucher/code': async () => json(200, { code: 'TEST-0002-0001' }) })
+})
+
+describe('BoxPage 배치 (R1 restyle)', () => {
+  it('주문 묶음은 상품명을 제목으로, 구매일을 그 아래 한 줄로 (매수 문구 없이) 보인다 (점 이음 없이)', async () => {
+    stubApi([launchable, { ...launchable, voucherId: 'v3', unitNo: 2, unitsOfTest: 2 }], {})
     open()
-    await userEvent.click(await screen.findByRole('button', { name: '코드 보기' }))
-    expect(await screen.findByText(/TEST-0002-0001/)).toBeTruthy()
+    expect(await screen.findByText('STS')).toBeTruthy()
+    expect(screen.getByText('2026-10-01 구매')).toBeTruthy()
+  })
+  it('묶음은 그림자 판으로 감싸지 않는다 (카드 안의 카드 해소)', async () => {
+    stubApi([launchable], {})
+    const { container } = render(<MemoryRouter><BoxPage /></MemoryRouter>)
+    await screen.findByText('STS')
+    const acc = container.querySelector('.MuiAccordion-root')!
+    expect(acc.className).toMatch(/MuiPaper-elevation0/)
+  })
+  it('실시 전 매수가 0이면 요약 줄을 보이지 않는다', async () => {
+    stubApi([forwarded], {})
+    vi.mocked(fetch).mockImplementation(async (url) => {
+      const path = String(url).replace(/^\/api\//, '')
+      if (path === 'box') return json(200, { ...boxOf([forwarded]), notStartedCount: 0 })
+      throw new Error(`unexpected call: ${path}`)
+    })
+    open()
+    await screen.findByText('홍길동님께 전달')
+    expect(screen.queryByText('실시 전 0매')).toBeNull()
+  })
+})
+
+describe('BoxPage 묶음 (10-29 검수: 시각적 청킹)', () => {
+  it('머리 판과 내용 영역이 나뉘고, 주문마다 제목과 줄이 한 덩어리(order)로 묶인다', async () => {
+    stubApi([launchable, { ...launchable, voucherId: 'v3', unitNo: 2, unitsOfTest: 2 }], {})
+    open()
+    await screen.findByText('STS')
+    const shell = document.querySelector('[data-region="shell"]')!
+    const content = document.querySelector('[data-region="content"]')!
+    expect(shell.contains(content)).toBe(false)
+    const orders = content.querySelectorAll('[data-region="order"]')
+    expect(orders.length).toBe(1)
+    expect(within(orders[0] as HTMLElement).getByText('STS')).toBeTruthy()
+    expect(within(orders[0] as HTMLElement).getAllByRole('button', { name: '실시하기' }).length).toBe(2)
+  })
+})
+
+describe('BoxPage 1매 주문·바닥 (10-30 비평)', () => {
+  it('1매이고 검사명이 상품명과 같으면 묶음 층 없이 카드 하나로, 이름은 한 번만 보인다', async () => {
+    const one: BoxLine = { ...launchable, testName: 'STS', unitsOfTest: 1 }
+    stubApi([one], {})
+    open()
+    await screen.findByRole('button', { name: '실시하기' })
+    expect(screen.getAllByText('STS').length).toBe(1)
+    expect(screen.getByText('2026-10-01 구매')).toBeTruthy()
+    expect(document.querySelector('.MuiAccordion-root')).toBeNull()
+  })
+  it('묶음 제목은 카드 제목보다 큰 제목(h5)이다', async () => {
+    stubApi([launchable, { ...launchable, voucherId: 'v3', unitNo: 2, unitsOfTest: 2 }], {})
+    open()
+    expect(await screen.findByRole('heading', { level: 5, name: 'STS' })).toBeTruthy()
+  })
+  it('내용 끝에 바닥(도움말 링크)이 있어 화면이 끝난 것이 보인다', async () => {
+    stubApi([launchable], {})
+    open()
+    await screen.findByRole('button', { name: '실시하기' })
+    const floor = document.querySelector('[data-region="floor"]') as HTMLElement
+    expect(floor).toBeTruthy()
+    expect(within(floor).getByRole('link', { name: '도움말' }).getAttribute('href')).toBe('/help')
+  })
+})
+
+describe('BoxPage 10-30 검수 2차', () => {
+  it('바닥에는 도움말만 둔다 (인싸이트 서랍 병기 없음)', async () => {
+    stubApi([launchable], {})
+    open()
+    await screen.findByRole('button', { name: '실시하기' })
+    const floor = document.querySelector('[data-region="floor"]') as HTMLElement
+    expect(within(floor).queryByText(/인싸이트/)).toBeNull()
+  })
+  it('"실시 전 N매"는 머리 판이 아니라 내 검사 탭 아래 내용에 있다 (탭을 오가도 머리 판 높이가 같게)', async () => {
+    stubApi([launchable, { ...launchable, voucherId: 'v3', unitNo: 2, unitsOfTest: 2 }], {})
+    open()
+    await screen.findByText('실시 전 2매')
+    const shell = document.querySelector('[data-region="shell"]') as HTMLElement
+    const content = document.querySelector('[data-region="content"]') as HTMLElement
+    expect(within(shell).queryByText('실시 전 2매')).toBeNull()
+    expect(within(content).getByText('실시 전 2매')).toBeTruthy()
+  })
+  it('여러 매 주문은 한 판(group) 안에 제목과 하위 검사들이 들어가 종속 관계가 보인다', async () => {
+    stubApi([launchable, { ...launchable, voucherId: 'v3', unitNo: 2, unitsOfTest: 2 }], {})
+    open()
+    await screen.findByText('실시 전 2매')
+    const order = document.querySelector('[data-region="order"]') as HTMLElement
+    expect(order.getAttribute('data-kind')).toBe('group')
+    const children = order.querySelector('[data-region="children"]') as HTMLElement
+    expect(within(children).getAllByRole('button', { name: '실시하기' }).length).toBe(2)
+  })
+})
+
+describe('BoxPage 상담 카드는 패키지의 하위 요소 (10-30 검수)', () => {
+  it('상담 카드는 서랍 맨 위가 아니라 그 주문 판 안 첫 자리에 있다 (1매 주문이어도 판으로)', async () => {
+    const one: BoxLine = { ...launchable, testName: 'STS', unitsOfTest: 1 }
+    vi.stubGlobal('fetch', vi.fn(async (url: string) => {
+      const path = url.replace(/^\/api\//, '')
+      if (path === 'box') return json(200, { ...boxOf([one]), counsel: [{ orderId: 'o1', productName: 'STS', submitted: false }] })
+      throw new Error(`unexpected call: ${path}`)
+    }))
+    open()
+    const btn = await screen.findByRole('button', { name: '상담 신청서 작성' })
+    const order = btn.closest('[data-region="order"]') as HTMLElement
+    expect(order).toBeTruthy()
+    expect(order.getAttribute('data-kind')).toBe('group')
+    const children = order.querySelector('[data-region="children"]') as HTMLElement
+    expect(children.firstElementChild?.contains(btn)).toBe(true)
   })
 })

@@ -1,7 +1,7 @@
-import { Accordion, AccordionDetails, AccordionSummary, Alert, Box, Button, Stack, Tab, Tabs, Typography } from '@mui/material'
+import { Accordion, AccordionDetails, AccordionSummary, Alert, Box, Button, Stack, Typography } from '@mui/material'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import type { BoxGroup, BoxLine, BoxResponse, CodeResponse, ForwardResponse, LaunchResponse } from '@core/apiTypes.ts'
+import type { BoxGroup, BoxLine, BoxResponse, ForwardResponse, LaunchResponse } from '@core/apiTypes.ts'
 import { t } from '@core/copy.ko.ts'
 import type { LineAction } from '@core/lineStatus.ts'
 import { formatKstDate } from '@core/time.ts'
@@ -9,8 +9,10 @@ import ConfirmDialog from '../components/ConfirmDialog'
 import ForwardSheet from '../components/ForwardSheet'
 import LineRow from '../components/LineRow'
 import Toast from '../components/Toast'
-import Wordmark from '../components/Wordmark'
+import BoxFloor from '../components/BoxFloor'
+import BoxHeader from '../components/BoxHeader'
 import { api, ApiError, isSessionEnd } from '../lib/api'
+import { openInNewWindow } from '../lib/openInNewWindow'
 import { failText } from '../lib/failText'
 import { tokens } from '../theme/seorap'
 import StatePage from './StatePage'
@@ -30,10 +32,24 @@ function ExpandChevron() {
 
 type Pending =
   | { kind: 'choose'; line: BoxLine; sibling: BoxLine }
-  | { kind: 'code'; code: string }
   | { kind: 'resend'; line: BoxLine }
   | { kind: 'reforward'; line: BoxLine }
   | null
+
+// 상담 신청서 카드 (B2). 패키지 주문 판 안 첫 자리에 놓인다. 신청서를 내기 전에는 아래 검사가 잠겨 있다
+function CounselCard({ c, onOpen }: { c: BoxResponse['counsel'][number]; onOpen: () => void }) {
+  return (
+    <Box sx={{ p: 2, borderRadius: tokens.radius.card, bgcolor: tokens.surface[0], border: `1px solid ${c.submitted ? tokens.surface[200] : tokens.teal[500]}` }}>
+      <Stack spacing={1}>
+        <Typography variant="subtitle1" sx={{ fontWeight: 600 }}>{t(c.submitted ? 'counsel.card.doneTitle' : 'counsel.card.title')}</Typography>
+        <Typography variant="body2" color="text.secondary">
+          {c.submitted ? t('counsel.card.doneBody') : t('counsel.card.bodyInGroup')}
+        </Typography>
+        {!c.submitted && <Button variant="contained" onClick={onOpen}>{t('counsel.card.button')}</Button>}
+      </Stack>
+    </Box>
+  )
+}
 
 export default function BoxPage() {
   const navigate = useNavigate()
@@ -95,12 +111,13 @@ export default function BoxPage() {
     }
   }
 
+  // 검사는 새 창으로 연다. 서랍은 남아 있으므로 바뀐 상태(실시함)를 보이게 다시 불러온다 (10-29 검수)
   const launch = (voucherId: string) => guard(async () => {
-    const r = await api<LaunchResponse>('voucher/launch', { voucherId })
-    window.location.assign(r.url)
-  }, true)
+    await openInNewWindow(async () => (await api<LaunchResponse>('voucher/launch', { voucherId })).url)
+    void load()
+  })
 
-  const onAction = (a: LineAction | 'code', line: BoxLine, group: BoxGroup) => {
+  const onAction = (a: LineAction, line: BoxLine, group: BoxGroup) => {
     // 결과 보기는 선택 창 없이 바로 플랫폼 주소를 연다. 플랫폼이 결과를, 아직 끝나지 않았으면 검사 화면을 보인다.
     if (a === 'result') void launch(line.voucherId)
     else if (a === 'launch' || a === 'continue') {
@@ -108,64 +125,69 @@ export default function BoxPage() {
       const sibling = group.lines.find((l) => l.testItemId === line.testItemId && l.voucherId !== line.voucherId && l.firstLaunchedAt && l.status.actions.includes('continue'))
       if (a === 'launch' && sibling) { setPending({ kind: 'choose', line, sibling }); return }
       void launch(line.voucherId)
-    } else if (a === 'code') {
-      void guard(async () => setPending({ kind: 'code', code: (await api<CodeResponse>('voucher/code', { voucherId: line.voucherId })).code }))
     } else if (a === 'forward') setSheetLine(line)
     else if (a === 'resend') setPending({ kind: 'resend', line })
     else if (a === 'reforward') setPending({ kind: 'reforward', line })
   }
 
-  const logout = () => guard(async () => { await api('logout', {}); navigate('/', { replace: true, state: { loggedOut: true } }) })
-
   if (expired) return <StatePage kind="sessionExpired" />
   if (!box) return error ? <StatePage kind="error" /> : null
 
   return (
-    <Box component="main" sx={{ maxWidth: tokens.layout.maxWidth, mx: 'auto', px: 2, py: 3 }}>
-      <Stack spacing={2}>
-        <Stack direction="row" sx={{ justifyContent: 'space-between', alignItems: 'center' }}>
-          <Wordmark />
-          <Button variant="text" onClick={logout}>{t('box.logout')}</Button>
-        </Stack>
+    <Box component="main" sx={{ maxWidth: tokens.layout.maxWidth, mx: 'auto' }}>
+      {/* 0매면 말할 것이 없다 (잠긴 줄·준비 중 줄만 있는 서랍에서 "실시 전 0매"가 오해를 부른다) */}
+      <BoxHeader
+        ownerName={box.ownerName}
+        tab={0}
+        onTab={(v) => v === 1 && navigate('/box/history', { state: { ownerName: box.ownerName } })}
+        onSettings={() => navigate('/box/settings')}
+      />
+      {/* 내용(종이). 묶음끼리는 넓게(32px), 묶음 안 제목과 줄은 붙여서(8~12px) 리듬으로 덩어리를 보인다 */}
+      <Stack data-region="content" spacing={3} sx={{ px: 2, pt: 3, pb: 5 }}>
+        {box.notStartedCount > 0 && <Typography variant="body2" color="text.secondary" sx={{ mb: -1 }}>{t('box.summary', { n: box.notStartedCount })}</Typography>}
         {box.noticeBanner && <Alert severity="info">{box.noticeBanner}</Alert>}
-        <Typography variant="h5">{t('box.title', { name: box.ownerName })}</Typography>
-        <Typography variant="body2" color="text.secondary">{t('box.summary', { n: box.notStartedCount })}</Typography>
-        {/* 상담 카드 (B2): 신청서를 내기 전에는 검사가 잠겨 있으므로 맨 위에 둔다 */}
-        {box.counsel.map((c) => (
-          <Box key={c.orderId} sx={{ p: 2, borderRadius: 3, bgcolor: tokens.surface[0], border: `1px solid ${c.submitted ? tokens.surface[200] : tokens.brand[300]}` }}>
-            <Stack spacing={1}>
-              <Typography variant="subtitle1" sx={{ fontWeight: 700 }}>{t(c.submitted ? 'counsel.card.doneTitle' : 'counsel.card.title')}</Typography>
-              <Typography variant="body2" color="text.secondary">
-                {c.submitted ? t('counsel.card.doneBody') : t('counsel.card.body', { product: c.productName })}
-              </Typography>
-              {!c.submitted && (
-                <Button variant="contained" onClick={() => navigate(`/box/counsel/${c.orderId}`)}>{t('counsel.card.button')}</Button>
-              )}
-            </Stack>
-          </Box>
-        ))}
-        <Tabs value={0} onChange={(_, v) => v === 1 && navigate('/box/history')}>
-          <Tab label={t('box.tab.mine')} />
-          <Tab label={t('box.tab.history')} />
-        </Tabs>
         {error && <Alert severity="warning">{error}</Alert>}
         {box.groups.length === 0 && <Typography variant="body1" color="text.secondary">{t('box.empty')}</Typography>}
-        {box.groups.map((g) => (
-          <Accordion key={g.orderId} expanded={expanded[g.orderId] ?? !g.done} onChange={(_, open) => toggle(g.orderId, open)} disableGutters>
-            <AccordionSummary expandIcon={<ExpandChevron />}>
-              <Typography variant="body2" color="text.secondary">
-                {g.lineCount > 1
-                  ? t('box.group', { date: formatKstDate(g.purchasedAt), product: g.productName, n: g.lineCount })
-                  : t('box.groupSingle', { date: formatKstDate(g.purchasedAt), product: g.productName })}
-              </Typography>
-            </AccordionSummary>
-            <AccordionDetails>
-              <Stack spacing={1}>
-                {g.lines.map((l) => <LineRow key={l.voucherId} line={l} onAction={(a, line) => onAction(a, line, g)} />)}
-              </Stack>
-            </AccordionDetails>
-          </Accordion>
-        ))}
+        {box.groups.map((g) => {
+          // 1매이고 검사명이 상품명과 같은 주문은 묶음 층 없이 카드 하나로 (이름이 두 번 나오지 않게, 10-30 비평 ④)
+          // 상담 패키지면 상담 카드가 이 주문의 첫 하위 요소다 (10-30 검수: 신청서는 산 패키지의 자식). 상담이 있으면 1매여도 판으로
+          const counsel = box.counsel.find((c) => c.orderId === g.orderId)
+          const only = !counsel && g.lines.length === 1 && g.lines[0].testName === g.productName ? g.lines[0] : null
+          if (only) {
+            return (
+              <Box key={g.orderId} data-region="order">
+                <LineRow line={only} meta={t('box.group', { date: formatKstDate(g.purchasedAt) })} onAction={(a, line) => onAction(a, line, g)} />
+              </Box>
+            )
+          }
+          // 주문 하나 = 제목 + 줄들. 판으로 감싸지 않고 간격(근접)으로 묶는다 (UX 진단 F4: 카드 안의 카드)
+          return (
+            // 여러 매 주문은 한 판 안에 제목과 하위 검사들을 담아 어디까지가 이 주문인지 보이게 한다 (10-30 검수: 종속 관계)
+            <Box key={g.orderId} data-region="order" data-kind="group" sx={{ bgcolor: tokens.surface.group, borderRadius: tokens.radius.sheet, px: 1.5, py: 1 }}>
+              <Accordion
+                expanded={expanded[g.orderId] ?? !g.done} onChange={(_, open) => toggle(g.orderId, open)}
+                disableGutters elevation={0} square
+                sx={{ bgcolor: 'transparent', '&::before': { display: 'none' } }}
+              >
+                <AccordionSummary expandIcon={<ExpandChevron />} sx={{ px: 0.5, minHeight: 0, '& .MuiAccordionSummary-content': { my: 0.5 } }}>
+                  <Box>
+                    <Typography variant="h5">{g.productName}</Typography>
+                    <Typography variant="body2" color="text.secondary">
+                      {t('box.group', { date: formatKstDate(g.purchasedAt) })}
+                    </Typography>
+                  </Box>
+                </AccordionSummary>
+                <AccordionDetails sx={{ px: 0, pt: 1, pb: 0.5 }}>
+                  <Stack data-region="children" spacing={1}>
+                    {counsel && <CounselCard c={counsel} onOpen={() => navigate(`/box/counsel/${counsel.orderId}`)} />}
+                    {g.lines.map((l) => <LineRow key={l.voucherId} line={l} onAction={(a, line) => onAction(a, line, g)} />)}
+                  </Stack>
+                </AccordionDetails>
+              </Accordion>
+            </Box>
+          )
+        })}
+        <BoxFloor />
       </Stack>
 
       <ConfirmDialog
@@ -176,14 +198,6 @@ export default function BoxPage() {
         onConfirm={() => { if (pending?.kind === 'choose') void launch(pending.sibling.voucherId); setPending(null) }}
         onCancel={() => { if (pending?.kind === 'choose') void launch(pending.line.voucherId); setPending(null) }}
         onDismiss={() => setPending(null)}
-      />
-      <ConfirmDialog
-        open={pending?.kind === 'code'}
-        title={t('code.title')}
-        message={pending?.kind === 'code' ? `${pending.code}\n${t('code.pcNote')}` : ''}
-        confirmLabel={t('common.close')}
-        onConfirm={() => setPending(null)}
-        onCancel={() => setPending(null)}
       />
       <ConfirmDialog
         open={pending?.kind === 'resend'}

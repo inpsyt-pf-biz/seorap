@@ -3,9 +3,11 @@ import { useEffect, useRef, useState } from 'react'
 import { useParams } from 'react-router-dom'
 import type { CodeResponse, ForwardPageResponse, LaunchResponse } from '@core/apiTypes.ts'
 import { type CopyKey, t } from '@core/copy.ko.ts'
-import ConfirmDialog from '../components/ConfirmDialog'
+import CodeDialog from '../components/CodeDialog'
 import Wordmark from '../components/Wordmark'
+import Toast from '../components/Toast'
 import { api, ApiError } from '../lib/api'
+import { openInNewWindow } from '../lib/openInNewWindow'
 import { tokens } from '../theme/seorap'
 import StatePage from './StatePage'
 
@@ -29,6 +31,8 @@ export default function ReceiverPage() {
   const [page, setPage] = useState<ForwardPageResponse | null>(null)
   const [blocked, setBlocked] = useState<{ kind: 'linkInvalid' | 'linkRevoked' | 'error'; message?: string } | null>(null)
   const [code, setCode] = useState<string | null>(null)
+  const [copied, setCopied] = useState(false)
+  const [more, setMore] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
   const busyRef = useRef(false)
@@ -57,10 +61,11 @@ export default function ReceiverPage() {
     catch (e) { if (!fail(e)) setError(t('error.generic')) }
     finally { if (!(ok && keepBusyOnSuccess)) { busyRef.current = false; setBusy(false) } }
   }
+  // 검사는 새 창으로 연다. 이 화면은 남으므로 버튼을 [이어서 하기]로 바꾼다 (10-29 검수)
   const launch = () => guard(async () => {
-    const r = await api<LaunchResponse>('forward/launch', { token })
-    window.location.assign(r.url)
-  }, true)
+    await openInNewWindow(async () => (await api<LaunchResponse>('forward/launch', { token })).url)
+    setPage((p) => p && { ...p, launched: true })
+  }, false)
   const showCode = () => guard(async () => setCode((await api<CodeResponse>('forward/code', { token })).code), false)
 
   if (!valid) return <StatePage kind="notFound" />
@@ -76,8 +81,8 @@ export default function ReceiverPage() {
         <Button variant="contained" size="large" disabled={busy} onClick={launch}>
           {t(page.launched ? 'action.continue' : 'action.launch')}
         </Button>
-        <Accordion disableGutters elevation={0}>
-          <AccordionSummary><Typography variant="body2">{t('forward.more')}</Typography></AccordionSummary>
+        <Accordion disableGutters elevation={0} expanded={more} onChange={(_, v) => setMore(v)}>
+          <AccordionSummary><Typography variant="body2">{t(more ? 'forward.less' : 'forward.more')}</Typography></AccordionSummary>
           <AccordionDetails>
             <Button variant="outlined" fullWidth disabled={busy} onClick={showCode}>{t('receiver.codePc')}</Button>
           </AccordionDetails>
@@ -88,14 +93,8 @@ export default function ReceiverPage() {
           <Typography variant="caption" color="text.secondary">{t('receiver.scam')}</Typography>
         </Stack>
       </Stack>
-      <ConfirmDialog
-        open={code !== null}
-        title={t('code.title')}
-        message={code ? `${code}\n${t('code.pcNote')}` : ''}
-        confirmLabel={t('common.close')}
-        onConfirm={() => setCode(null)}
-        onCancel={() => setCode(null)}
-      />
+      <CodeDialog code={code} onClose={() => setCode(null)} onCopied={() => { setCode(null); setCopied(true) }} />
+      <Toast message={t('code.copied')} open={copied} onClose={() => setCopied(false)} />
     </Box>
   )
 }

@@ -2,7 +2,8 @@ import { t } from './copy.ko.ts'
 import { formatKstMonthDay } from './time.ts'
 
 export type LineAction = 'launch' | 'continue' | 'result' | 'forward' | 'resend' | 'reforward' | 'contact' | 'result_help'
-export type LineTone = 'neutral' | 'info' | 'success' | 'warning' | 'muted'
+// warm: 사람 사이의 일(전달함). 화면은 호박빛 칩으로 칠한다
+export type LineTone = 'neutral' | 'info' | 'success' | 'warning' | 'muted' | 'warm'
 // disabled: 보이지만 누를 수 없는 버튼 (상담 신청서를 내기 전의 실시하기·전달하기). 누를 수 있는 버튼은 actions 뿐이다
 export type LineStatus = { label: string; tone: LineTone; actions: LineAction[]; disabled?: LineAction[]; note?: string }
 export type LineInput = {
@@ -29,7 +30,8 @@ function core(i: LineInput): LineStatus {
     return { label: t('line.unusable'), tone: 'muted', actions: ['contact'] }
   }
   // 상담 신청서를 내기 전: 신청서로 가는 길은 서랍 맨 위 상담 카드 하나, 검사 줄은 꺼진 버튼만 (10-29 건우님)
-  if (i.lockReasons.includes('counsel_pending')) return { label: t('line.counselLocked'), tone: 'info', actions: [], disabled: ['launch', 'forward'] }
+  // 칩은 짧게, 왜 잠겼는지는 칩 아래 한 줄로 (UX 진단 R3: 같은 말을 칩·카드·버튼에서 세 번 하지 않는다)
+  if (i.lockReasons.includes('counsel_pending')) return { label: t('line.waiting'), tone: 'neutral', actions: [], disabled: ['launch', 'forward'], note: t('line.counselLocked') }
   if (i.lockReasons.length > 0) return { label: t('line.checking'), tone: 'warning', actions: ['contact'] }
   if (i.examStatusEnabled && i.examStatus === 'completed') return { label: t('line.completed'), tone: 'success', actions: ['result_help'] }
   if (i.examStatusEnabled && i.examStatus === 'in_progress') return { label: t('line.inProgress'), tone: 'info', actions: ['continue'] }
@@ -39,10 +41,14 @@ function core(i: LineInput): LineStatus {
   if (i.forward) {
     const note = i.forward.openedAt ? t('line.forwardOpened') : t('line.forwardNotOpened')
     // 직접 공유는 보낼 번호가 없어 다시 보내기가 없다. 받는 분이 코드를 봤으면 다른 분께도 없다.
-    if (i.forward.direct) return { label: t('line.forwardedDirect'), tone: 'info', actions: i.forward.codeExposed ? [] : ['reforward'], note }
+    // 호칭을 남겼으면 "연인에게 전달함" (10-30)
+    if (i.forward.direct) {
+      const label = i.forward.displayName ? t('line.forwardedTo', { name: i.forward.displayName }) : t('line.forwardedDirect')
+      return { label, tone: 'warm', actions: i.forward.codeExposed ? [] : ['reforward'], note }
+    }
     return {
       label: t('line.forwarded', { name: i.forward.displayName }),
-      tone: 'info',
+      tone: 'warm',
       actions: i.forward.codeExposed ? ['resend'] : ['resend', 'reforward'],
       note,
     }

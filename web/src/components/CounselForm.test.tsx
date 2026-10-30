@@ -64,3 +64,30 @@ describe('CounselForm', () => {
     expect(screen.getAllByText(t('form.error.required')).length).toBe(2)
   })
 })
+
+describe('CounselForm 작은 결함 (R1 restyle)', () => {
+  it('필수·선택 표시는 긴 제목 옆에서도 줄바꿈하지 않는다 ("선/택"으로 깨지지 않게)', () => {
+    render(<Harness />)
+    const tag = screen.getAllByText(t('form.optional'))[0]
+    expect(tag.style.whiteSpace).toBe('nowrap')
+    expect(tag.style.flexShrink).toBe('0')
+  })
+  it('제목이 이미 "(선택)"·"(필수)"로 끝나면 표시를 한 번 더 붙이지 않는다', () => {
+    const def: FormDefinition = { intro: '', fields: [
+      { id: 'c2', type: 'consent', label: '민감정보 수집·이용 동의(선택)', help: '복용 약물', consentKind: 'sensitive' },
+      { id: 'c3', type: 'consent', label: '제3자 제공 동의 (필수)', help: '상담센터', required: true, consentKind: 'third_party' },
+    ] }
+    render(<CounselForm definition={def} value={{}} onChange={() => {}} />)
+    expect(screen.queryByText(t('form.optional'))).toBeNull()
+    expect(screen.queryByText(t('form.required'))).toBeNull()
+  })
+})
+
+describe('CounselForm 선택지 통일 (10-30 검수)', () => {
+  it('시간대 칸·상담 방식은 MUI 버튼이 아니라 같은 선택지(Choice)로 그린다', () => {
+    const { container } = render(<Harness />)
+    expect(container.querySelector('.MuiToggleButton-root')).toBeNull()
+    expect(container.querySelector('[data-field="when"] .MuiButton-root')).toBeNull()
+    expect(container.querySelectorAll('[data-field="when"] [data-choice]').length).toBeGreaterThan(9)
+  })
+})

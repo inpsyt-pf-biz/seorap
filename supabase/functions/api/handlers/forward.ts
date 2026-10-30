@@ -14,7 +14,7 @@ import { loadOwnedVoucher, type VoucherRow } from '../lib/ownership.ts'
 import { requireSession, type Session } from '../lib/session.ts'
 import { getSettings, type Settings } from '../lib/settings.ts'
 
-type Body = { voucherId?: unknown; name?: unknown; phone?: unknown; clientRequestId?: unknown; confirmSelf?: unknown }
+type Body = { voucherId?: unknown; name?: unknown; phone?: unknown; clientRequestId?: unknown; confirmSelf?: unknown; label?: unknown; via?: unknown }
 type ApplyRow = { out_forward_id: string; out_message_id: string | null; out_access_link_id: string | null; out_created: boolean }
 
 const RPC_ERRORS: Record<string, string> = {
@@ -188,8 +188,21 @@ export async function forwardCancel(req: Request): Promise<Response> {
   return json(200, { forwardId: row.out_forward_id, created: row.out_created } satisfies ForwardResponse)
 }
 
+// 직접 전달의 호칭(선택)과 보낸 길. 호칭은 목록에서 고른 것이든 직접 적은 것이든 1~20자, 직접 적으면 실명일 수 있어 이름처럼 암호화한다
+function directInput(body: Body): { label: string | null; via: 'kakao' | 'native' } {
+  let label: string | null = null
+  if (body.label !== undefined && body.label !== null) {
+    label = typeof body.label === 'string' ? body.label.trim() : ''
+    if (label.length < 1 || label.length > 20) throw new ApiError('VALIDATION', { field: 'label' })
+  }
+  const via = body.via ?? 'native'
+  if (via !== 'kakao' && via !== 'native') throw new ApiError('VALIDATION', { field: 'via' })
+  return { label, via }
+}
+
 export async function forwardDirect(req: Request): Promise<Response> {
-  const { sess, v, s, clientRequestId } = await ctx(req)
+  const { sess, body, v, s, clientRequestId } = await ctx(req)
+  const { label, via } = directInput(body)
   await requireAction(v, s, 'forward')
   // 토큰 원문은 저장하지 않으므로, 반영 뒤에 실패할 수 있는 읽기·설정 확인은 먼저 끝내 둔다
   const sender = await senderMasked(sess.recipientId)
@@ -198,11 +211,12 @@ export async function forwardDirect(req: Request): Promise<Response> {
   const row = await apply({
     p_action: 'direct_share', p_voucher_id: v.id, p_client_request_id: clientRequestId, p_actor_type: 'recipient',
     p_token_hash: await hmac(`forward:${token}`), p_link_ttl_days: s.forward_link_ttl_days,
+    p_to_name_enc: label ? await encrypt('A', label) : null, p_to_name_masked: label ? maskName(label) : null,
   })
   // 되풀이 응답이면 이 요청이 만든 토큰은 어디에도 저장되지 않았다. 원문 토큰을 다시 만들 수 없으므로 죽은 링크를 주지 않고 거절한다.
   if (!row.out_created) throw new ApiError('CONFLICT', { reason: 'not_forwardable' })
-  await logEvent('direct_share', { recipientId: sess.recipientId, voucherId: v.id })
+  await logEvent('direct_share', { recipientId: sess.recipientId, voucherId: v.id, props: { via, labeled: label !== null } })
   const url = `${base}/f/${token}`
-  const res: DirectShareResponse = { url, text: t('forward.direct.text', { sender, url }) }
+  const res: DirectShareResponse = { url, text: t('forward.direct.text', { sender, url }), kakaoText: t('forward.kakao.text', { sender }) }
   return json(200, res)
 }

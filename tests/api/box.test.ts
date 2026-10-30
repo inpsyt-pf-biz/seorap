@@ -14,7 +14,7 @@ Deno.test('서랍: S1 온가족 패키지가 3줄, 같은 검사 2매는 1·2번
   assertEquals(adult.map((l: any) => [l.unitNo, l.unitsOfTest]), [[1, 2], [2, 2]])
   assertEquals(g.lines[0].status.label.startsWith('실시함'), true)
   assertEquals(adult[0].status.actions, ['launch', 'forward'])
-  assertEquals(adult[1].status.label, '전달함 · 김영희')
+  assertEquals(adult[1].status.label, '김영희님께 전달')
   assertEquals(adult[1].forwardTo, { name: '김영희', phone: '010-2222-3333' })
 })
 

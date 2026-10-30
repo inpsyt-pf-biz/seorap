@@ -20,7 +20,7 @@ Deno.test('전달: 이름·번호로 보내면 이력 1줄과 받는 분 링크'
   assertEquals(r.status, 200)
   assertEquals(r.body.created, true)
   const after = (await lines(c)).find((l: any) => l.voucherId === target.voucherId)
-  assertEquals(after.status.label, '전달함 · 이몽룡')
+  assertEquals(after.status.label, '이몽룡님께 전달')
   assertEquals(after.forwardTo.phone, '010-9876-5432')
   const hist = (await c.call('history')).body.items
   assertEquals(hist[0].toName, '이몽룡')
@@ -262,4 +262,41 @@ Deno.test('취소가 거절된 줄도 전달할 수 있다', async () => {
   assert(shown.status.actions.includes('forward'))
   const r = await c.call('forward/create', { voucherId: target.voucherId, name: '거절', phone: '01050030001', clientRequestId: rid() })
   assertEquals([r.status, r.body.created], [200, true])
+})
+
+// 10-30 전달 방식 개선: [카카오톡으로 전달]·[직접 전달] 둘 다 번호 없이 링크를 만들고, 호칭(선택)과 보낸 길을 받는다
+Deno.test('직접 전달: 호칭을 담으면 서랍 줄·이력에 호칭이 남고, 보낸 길은 기록에만 남는다', async () => {
+  const c = await login('S5', '8888')
+  const target = (await lines(c)).find((l: any) => l.status.actions.includes('forward'))
+  const r = await c.call('forward/direct', { voucherId: target.voucherId, clientRequestId: rid(), label: ' 연인 ', via: 'kakao' })
+  assertEquals(r.status, 200)
+  // 카카오 메시지는 링크를 [검사 열기] 버튼에 담으므로 글자에는 주소가 없다
+  assert(r.body.kakaoText.includes('검사 열기'))
+  assertEquals(r.body.kakaoText.includes('http'), false)
+  const shown = (await lines(c)).find((l: any) => l.voucherId === target.voucherId)
+  assertEquals(shown.status.label, '연인에게 전달함')
+  assertEquals(shown.status.actions, ['reforward'])
+  assertEquals(shown.forwardTo, { name: '연인', phone: '' })
+  const h = (await c.call('history')).body.items[0]
+  assertEquals([h.action, h.toName, h.toPhone], ['direct_share', '연인', ''])
+  const { data: ev } = await adminDb().from('events').select('props').eq('name', 'direct_share').eq('voucher_id', target.voucherId).single()
+  assertEquals(ev!.props, { via: 'kakao', labeled: true })
+})
+
+Deno.test('직접 전달: 호칭이 20자를 넘거나 보낸 길이 모르는 값이면 422, 링크를 만들지 않는다', async () => {
+  const c = await login('S5', '8888')
+  const target = (await lines(c)).find((l: any) => l.status.actions.includes('forward'))
+  const long = await c.call('forward/direct', { voucherId: target.voucherId, clientRequestId: rid(), label: '가'.repeat(21) })
+  assertEquals([long.status, long.body.error.extra.field], [422, 'label'])
+  const via = await c.call('forward/direct', { voucherId: target.voucherId, clientRequestId: rid(), via: 'sms' })
+  assertEquals([via.status, via.body.error.extra.field], [422, 'via'])
+  const still = (await lines(c)).find((l: any) => l.voucherId === target.voucherId)
+  assertEquals(still.status.actions.includes('forward'), true)
+})
+
+Deno.test('서랍 줄에 그 검사의 전달 대상 호칭 목록이 온다 (상품 매핑의 검사 줄마다)', async () => {
+  const c = await login('S2', '6666')
+  const all = await lines(c)
+  assert(all.length > 0)
+  for (const l of all) assertEquals(l.recipientLabels, ['연인', '배우자'])
 })

@@ -1,11 +1,10 @@
-import { Alert, Box, Button, Stack, TextField, Typography } from '@mui/material'
+import { Alert, Button, TextField, Typography } from '@mui/material'
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { t } from '@core/copy.ko.ts'
 import { checkPin } from '@core/pin.ts'
-import Wordmark from '../components/Wordmark'
+import ClosedShell from '../components/ClosedShell'
 import { api, ApiError } from '../lib/api'
-import { tokens } from '../theme/seorap'
 import StatePage from './StatePage'
 
 // OTP 를 막 통과한 사람이 PIN 을 정하는 화면 (처음 · 잊어서 다시 모두). build-spec §4-2a
@@ -41,9 +40,7 @@ export default function PinSetPage() {
   const ready = pin.length === 6
 
   return (
-    <Box component="main" sx={{ maxWidth: tokens.layout.maxWidth, mx: 'auto', px: 2, py: 4 }}>
-      <Stack spacing={3}>
-        <Wordmark />
+    <ClosedShell>
         <Typography variant="h5">{t('pin.set.title')}</Typography>
         <Typography variant="body1">{first === null ? t('pin.set.help') : t('pin.set.again')}</Typography>
         <TextField
@@ -59,7 +56,6 @@ export default function PinSetPage() {
           ? <Button variant="contained" size="large" disabled={!ready} onClick={next}>{t('pin.set.next')}</Button>
           : <Button variant="contained" size="large" disabled={!ready || busy} onClick={done}>{t('pin.set.done')}</Button>}
         {message && <Alert severity="warning">{message}</Alert>}
-      </Stack>
-    </Box>
+    </ClosedShell>
   )
 }

@@ -14,7 +14,7 @@ Deno.test('명세 §10 필수 키가 모두 있다', () => {
   const required = [
     'otp.sms', 'entry.title', 'entry.send', 'otp.wrong', 'otp.expired', 'otp.locked',
     'box.title', 'box.group', 'line.unit', 'forward.confirm', 'forward.self', 'forward.night',
-    'forward.direct.warn', 'history.line', 'maintenance',
+    'history.line', 'maintenance',
   ]
   for (const k of required) assertEquals(k in copy, true, k)
 })
@@ -26,4 +26,10 @@ Deno.test('결과 보기 버튼 문구', () => {
 
 Deno.test('문구에 엠대시가 없다', () => {
   for (const [k, v] of Object.entries(copy)) assertEquals(v.includes('—'), false, k)
+})
+
+Deno.test('줄 상태·주문 묶음 문구는 점(·)으로 이어 붙이지 않는다 (UX 진단 F5)', () => {
+  for (const [k, v] of Object.entries(copy)) {
+    if (/^(line\.|box\.group|counsel\.card\.|history\.)/.test(k)) assertEquals(v.includes('·'), false, k)
+  }
 })

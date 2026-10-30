@@ -103,7 +103,7 @@ describe('서랍 상담 카드', () => {
     groups: [{
       orderId: ORDER, purchasedAt: '2026-10-22T00:00:00Z', productName: 'GOLDEN 커플 상담 패키지', lineCount: 1, done: false,
       lines: [{
-        voucherId: 'v1', testItemId: 'T', testName: 'GOLDEN 성격유형검사', unitNo: 1, unitsOfTest: 1, firstLaunchedAt: null, forwardTo: null,
+        voucherId: 'v1', testItemId: 'T', testName: 'GOLDEN 성격유형검사', unitNo: 1, unitsOfTest: 1, firstLaunchedAt: null, forwardTo: null, recipientLabels: [],
         status: submitted
           ? { label: '실시 전', tone: 'neutral', actions: ['launch', 'forward'] }
           : { label: t('line.counselLocked'), tone: 'info', actions: [], disabled: ['launch', 'forward'] },

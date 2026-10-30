@@ -36,7 +36,7 @@ function open(items: unknown, status = 200) {
 }
 
 describe('HistoryPage', () => {
-  it('전달·취소·전달 3줄을 받은 순서(최신순) 그대로 문구 사전대로 보인다', async () => {
+  it('전달·취소·전달 3건을 받은 순서(최신순) 그대로, 받는 분·결과·검사·시각을 나눠 보인다 (점·빗금 이음 없이)', async () => {
     const fetchMock = open({
       items: [
         { ...base, id: 'h3', openedAt: '2026-10-08T04:00:00.000Z' },
@@ -44,18 +44,25 @@ describe('HistoryPage', () => {
         { ...base, id: 'h1', at: '2026-10-08T01:00:00.000Z', toName: '이순신', toPhone: '010-1111-2222', result: 'delivered_sms' },
       ] satisfies HistoryItem[],
     })
-    const first = await screen.findByText('유관순 / 010-3333-5555 님께 2026-10-08 12:00 검사링크 전달 · 알림톡 전달 완료')
-    const cancel = screen.getByText('2026-10-08 11:00 이순신님께 보낸 전달을 취소함')
-    const last = screen.getByText('이순신 / 010-1111-2222 님께 2026-10-08 10:00 검사링크 전달 · 문자로 전달 완료')
+    const first = await screen.findByText('유관순 010-3333-5555')
+    const cancel = screen.getByText('이순신님께 보낸 전달을 취소함')
+    const last = screen.getByText('이순신 010-1111-2222')
     expect(first.compareDocumentPosition(cancel) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
     expect(cancel.compareDocumentPosition(last) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
-    expect(screen.getByText('STS 성인 기질검사 1 · 받는 분이 열어 봄')).toBeTruthy()
+    expect(screen.getByText('알림톡 전달 완료')).toBeTruthy()
+    expect(screen.getByText('문자로 전달 완료')).toBeTruthy()
+    expect(screen.getByText('2026-10-08 12:00')).toBeTruthy()
+    expect(screen.getByText('2026-10-08 11:00')).toBeTruthy()
+    expect(screen.getAllByText('STS 성인 기질검사 1번째').length).toBeGreaterThan(0)
+    expect(screen.getByText('받는 분이 열어 봄')).toBeTruthy()
+    const list = screen.getByRole('list')
+    expect(list.textContent).not.toMatch(/ · | \/ /)
     expect(screen.queryByText(EMPTY)).toBeNull()
     expect(fetchMock).toHaveBeenCalledTimes(1)
     expect(fetchMock.mock.calls[0]).toEqual(['/api/history', expect.objectContaining({ method: 'GET' })])
   })
 
-  it('직접 공유·다시 보내기(보내는 중)·전달 실패 줄을 구분해 보인다', async () => {
+  it('직접 공유·다시 보내기(보내는 중)·전달 실패를 구분해 보인다', async () => {
     open({
       items: [
         { ...base, id: 'd', at: '2026-10-08T00:00:00.000Z', action: 'direct_share', toName: null, toPhone: null, result: null },
@@ -63,10 +70,25 @@ describe('HistoryPage', () => {
         { ...base, id: 'f', toName: '강감찬', toPhone: '010-4444-6666', result: 'failed' },
       ] satisfies HistoryItem[],
     })
-    expect(await screen.findByText('2026-10-08 09:00 링크 직접 공유 · 받는 분 미확인')).toBeTruthy()
-    expect(screen.getByText('유관순 / 010-3333-5555 님께 2026-10-08 12:00 검사링크 전달 · 보내는 중')).toBeTruthy()
-    expect(screen.getByText('STS 성인 기질검사 2 · 다시 보내기')).toBeTruthy()
-    expect(screen.getByText('강감찬 / 010-4444-6666 님께 2026-10-08 12:00 검사링크 전달 · 전달 실패')).toBeTruthy()
+    expect(await screen.findByText('링크 직접 공유')).toBeTruthy()
+    expect(screen.getByText('받는 분 미확인')).toBeTruthy()
+    expect(screen.getByText('보내는 중')).toBeTruthy()
+    expect(screen.getByText('STS 성인 기질검사 2번째')).toBeTruthy()
+    expect(screen.getByText('다시 보내기')).toBeTruthy()
+    expect(screen.getByText('강감찬 010-4444-6666')).toBeTruthy()
+    expect(screen.getByText('전달 실패')).toBeTruthy()
+  })
+
+  it('머리글은 내 검사 탭과 같다: 설정이 있고, 서랍에서 넘어오면 "○○님의 서랍" 제목도 보인다', async () => {
+    vi.stubGlobal('fetch', vi.fn(async () => json(200, { items: [] })))
+    render(
+      <MemoryRouter initialEntries={[{ pathname: '/box/history', state: { ownerName: '김서랍' } }]}>
+        <Routes><Route path="/box/history" element={<HistoryPage />} /></Routes>
+      </MemoryRouter>,
+    )
+    await screen.findByText(EMPTY)
+    expect(screen.getByRole('button', { name: '설정' })).toBeTruthy()
+    expect(screen.getByText('김서랍님의 서랍')).toBeTruthy()
   })
 
   it('이력이 없으면 안내 문구를 보인다', async () => {
@@ -97,5 +119,26 @@ describe('HistoryPage', () => {
     expect(screen.getByRole('tab', { name: '전달 이력' }).getAttribute('aria-selected')).toBe('true')
     await userEvent.click(screen.getByRole('tab', { name: '내 검사' }))
     expect(await screen.findByText('서랍 화면')).toBeTruthy()
+  })
+})
+
+describe('HistoryPage 리뷰 반영', () => {
+  it('링크 직접 공유 줄에도 어떤 검사를 공유했는지 보인다', async () => {
+    open({ items: [{ ...base, id: 'd', action: 'direct_share', toName: null, toPhone: null, result: null }] satisfies HistoryItem[] })
+    expect(await screen.findByText('링크 직접 공유')).toBeTruthy()
+    expect(screen.getByText('STS 성인 기질검사 1번째')).toBeTruthy()
+  })
+})
+
+describe('HistoryPage 10-30 전달 방식', () => {
+  it('호칭을 남긴 직접 전달은 "연인에게 전달"과 "링크 직접 공유"로, 호칭이 없으면 지금처럼 "받는 분 미확인"', async () => {
+    open({ items: [
+      { ...base, id: 'a', action: 'direct_share', toName: '연인', toPhone: '', result: null },
+      { ...base, id: 'b', action: 'direct_share', toName: null, toPhone: null, result: null },
+    ] })
+    expect(await screen.findByText('연인에게 전달')).toBeTruthy()
+    // 호칭 있는 줄은 칩, 호칭 없는 줄은 제목에 "링크 직접 공유"
+    expect(screen.getAllByText('링크 직접 공유')).toHaveLength(2)
+    expect(screen.getByText('받는 분 미확인')).toBeTruthy()
   })
 })
