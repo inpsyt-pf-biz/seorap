@@ -290,3 +290,29 @@ export function createCenter(v: CenterInput): Promise<string> {
 export function updateCenter(id: string, version: number, v: CenterInput): Promise<number> {
   return run<number>(supabase.rpc('rpc_update_center', { p_id: id, p_version: version, ...centerParams(v) }))
 }
+
+// 서랍 도움말 (10-30)
+export type HelpRow = {
+  id: string; position: number; question: string; answer_md: string; buttons: { label: string; url: string }[]; hidden: boolean; updated_at: string
+}
+export async function listHelpItems(): Promise<HelpRow[]> {
+  return run<HelpRow[]>(supabase.from('help_items').select('id, position, question, answer_md, buttons, hidden, updated_at').order('position'))
+}
+export async function getHelpContact(): Promise<string> {
+  const rows = await run<{ contact_md: string }[]>(supabase.from('help_settings').select('contact_md'))
+  return rows[0]?.contact_md ?? ''
+}
+export async function saveHelpItem(r: { id: string | null; question: string; answer_md: string; buttons: HelpRow['buttons']; hidden: boolean }): Promise<string> {
+  return run<string>(supabase.rpc('rpc_save_help_item', {
+    p_id: r.id, p_question: r.question, p_answer_md: r.answer_md, p_buttons: r.buttons, p_hidden: r.hidden,
+  }))
+}
+export async function deleteHelpItem(id: string): Promise<void> {
+  await run(supabase.rpc('rpc_delete_help_item', { p_id: id }))
+}
+export async function moveHelpItem(id: string, dir: -1 | 1): Promise<void> {
+  await run(supabase.rpc('rpc_move_help_item', { p_id: id, p_dir: dir }))
+}
+export async function saveHelpContact(md: string): Promise<void> {
+  await run(supabase.rpc('rpc_save_help_contact', { p_contact_md: md }))
+}

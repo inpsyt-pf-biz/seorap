@@ -9,6 +9,7 @@ import CenterDetailPage from './pages/admin/counsel/CenterDetailPage'
 import CenterFormPage from './pages/admin/counsel/CenterFormPage'
 import CentersListPage from './pages/admin/counsel/CentersListPage'
 import FormEditPage from './pages/admin/counsel/FormEditPage'
+import HelpAdminPage from './pages/admin/counsel/HelpAdminPage'
 import FormLinksPage from './pages/admin/counsel/FormLinksPage'
 import FormsListPage from './pages/admin/counsel/FormsListPage'
 import InboxPage from './pages/admin/counsel/InboxPage'
@@ -65,6 +66,7 @@ export default function App() {
         <Route path="forms" element={<FormsListPage />} />
         <Route path="forms/links" element={<FormLinksPage />} />
         <Route path="forms/:id" element={<FormEditPage />} />
+        <Route path="help" element={<HelpAdminPage />} />
       </Route>
       <Route path="*" element={<Home />} />
     </Routes>
