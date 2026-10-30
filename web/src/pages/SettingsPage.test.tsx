@@ -17,25 +17,22 @@ function open() {
         <Route path="/box" element={<div>서랍 화면</div>} />
         <Route path="/box/settings" element={<SettingsPage />} />
         <Route path="/box/settings/pin" element={<div>비밀번호 화면</div>} />
-        <Route path="/box/settings/nickname" element={<div>닉네임 화면</div>} />
       </Routes>
     </MemoryRouter>,
   )
 }
 
-// 설정 (10-30 검수): 비밀번호 바꾸기, 닉네임 설정, 로그아웃. 나의 종합 보고서는 추후 오픈이라 아직 보이지 않는다
+// 설정 (10-30 검수): 비밀번호 바꾸기, 로그아웃. 닉네임은 폐기, 나의 종합 보고서는 추후 오픈이라 아직 보이지 않는다
 describe('SettingsPage', () => {
-  it('비밀번호 바꾸기·닉네임 설정(전달할 때 표시된다는 설명 포함)이 있고, 종합 보고서는 아직 없다', async () => {
+  it('비밀번호 바꾸기로 간다', async () => {
     open()
     await userEvent.click(screen.getByRole('button', { name: /비밀번호 바꾸기/ }))
     expect(await screen.findByText('비밀번호 화면')).toBeTruthy()
   })
-  it('닉네임 설정으로 간다, 설명에 "검사를 전달할 때" 표시된다고 적혀 있다', async () => {
+  it('닉네임 설정과 종합 보고서는 없다', () => {
     open()
-    expect(screen.getByText('검사를 전달할 때 받는 분에게 보여요')).toBeTruthy()
+    expect(screen.queryByText(/닉네임/)).toBeNull()
     expect(screen.queryByText(/종합 보고서/)).toBeNull()
-    await userEvent.click(screen.getByRole('button', { name: /닉네임 설정/ }))
-    expect(await screen.findByText('닉네임 화면')).toBeTruthy()
   })
   it('[메인으로]는 서랍으로 간다', async () => {
     open()

@@ -8,11 +8,10 @@ import Wordmark from '../components/Wordmark'
 import { api, isSessionEnd } from '../lib/api'
 import { tokens } from '../theme/seorap'
 
-// 설정 (10-30 검수): 비밀번호 바꾸기, 닉네임 설정, 로그아웃.
+// 설정 (10-30 검수): 비밀번호 바꾸기, 로그아웃. 닉네임은 검토 끝에 폐기(10-30).
 // 나의 종합 보고서는 추후 오픈이라 아직 메뉴에 두지 않는다 (열 때 이 목록에 한 줄 더한다)
 const MENU: { to: string; label: string; help?: string }[] = [
   { to: '/box/settings/pin', label: t('settings.pin') },
-  { to: '/box/settings/nickname', label: t('settings.nickname'), help: t('settings.nicknameHelp') },
 ]
 
 function Chevron() {
@@ -25,7 +24,7 @@ function Chevron() {
 
 export default function SettingsPage() {
   const navigate = useNavigate()
-  // 비밀번호·닉네임을 바꾸고 돌아오면 한 줄 알림
+  // 비밀번호를 바꾸고 돌아오면 한 줄 알림
   const done = (useLocation().state as { toast?: string } | null)?.toast ?? null
   const [toastOpen, setToastOpen] = useState(!!done)
   const [error, setError] = useState(false)

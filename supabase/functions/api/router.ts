@@ -7,7 +7,6 @@ import { history } from './handlers/history.ts'
 import { logout } from './handlers/logout.ts'
 import { otpRequest, otpVerify } from './handlers/otp.ts'
 import { pinChange, pinSet, pinVerify } from './handlers/pin.ts'
-import { profile, profileNickname } from './handlers/profile.ts'
 import { forwardCode, forwardLaunch, forwardPage, help } from './handlers/receiver.ts'
 import { voucherCode, voucherLaunch } from './handlers/voucher.ts'
 import { ApiError, json } from './lib/http.ts'
@@ -21,8 +20,6 @@ export const routes: Record<string, Handler> = {
   'POST pin/verify': pinVerify,
   // 설정 화면 (10-30 검수)
   'POST pin/change': pinChange,
-  'GET profile': profile,
-  'POST profile/nickname': profileNickname,
   'POST logout': logout,
   'GET box': box,
   'GET history': history,
