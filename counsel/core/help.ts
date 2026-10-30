@@ -19,6 +19,7 @@ const EDITOR_KEYS: Record<string, CopyKey> = {
   'toolbar.removeItalic': 'help.fmt.italic',
   'toolbar.bulletedList': 'help.fmt.ul',
   'toolbar.numberedList': 'help.fmt.ol',
+  'toolbar.toggleGroup': 'help.fmt.lists',
   'toolbar.link': 'help.fmt.link',
   'toolbar.undo': 'help.fmt.undo',
   'toolbar.redo': 'help.fmt.redo',

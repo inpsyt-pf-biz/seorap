@@ -13,6 +13,7 @@ Deno.test('editorText: 쓰는 단추·링크 창은 한국어, 모르는 키는 
   assertEquals(editorText('toolbar.bold', 'Bold'), '굵게')
   assertEquals(editorText('toolbar.removeBold', 'Remove bold'), '굵게')
   assertEquals(editorText('toolbar.bulletedList', 'Bulleted list'), '글머리 목록')
+  assertEquals(editorText('toolbar.toggleGroup', 'toggle group'), '목록 종류')
   assertEquals(editorText('createLink.url', 'URL'), '주소 (https:// 또는 tel:)')
   assertEquals(editorText('toolbar.redo', 'Redo {{shortcut}}', { shortcut: 'Ctrl+Y' }), '다시 하기')
   assertEquals(editorText('toolbar.table', 'Insert {{what}}', { what: 'table' }), 'Insert table')

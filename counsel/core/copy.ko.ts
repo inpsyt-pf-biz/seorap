@@ -645,6 +645,7 @@ export const copy = {
   'help.fmt.italic': '기울임',
   'help.fmt.ul': '글머리 목록',
   'help.fmt.ol': '번호 목록',
+  'help.fmt.lists': '목록 종류',
   'help.fmt.link': '링크',
   'help.fmt.undo': '되돌리기',
   'help.fmt.redo': '다시 하기',
