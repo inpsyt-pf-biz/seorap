@@ -24,6 +24,11 @@ const realOrder = await sql`select id from counsel.help_items where question not
 async function cleanup() {
   await sql`delete from counsel.help_items where question like '[시험H]%'`
   await sql`update counsel.help_settings set contact_md = ${originalContact}`
+  // 순서 시험이 실제 질문의 순서도 바꾸므로 시작할 때의 순서로 되돌린다
+  if (typeof realOrder !== 'undefined') {
+    await sql`update counsel.help_items set position = -position where position > 0`
+    for (const [i, r] of realOrder.entries()) await sql`update counsel.help_items set position = ${i + 1} where id = ${r.id}`
+  }
 }
 await cleanup()
 
@@ -61,14 +66,35 @@ Deno.test('규칙 위반은 INVALID_INPUT: 빈 질문·긴 답·버튼 3개·htt
   await cleanup()
 })
 
-// Review Focus 5: 동시에 옮겨도 자리 번호가 겹치지 않는다
-Deno.test('순서 바꾸기: 위·아래로 한 칸, 동시에 해도 자리 번호가 겹치지 않는다', async () => {
-  const a = (await save(admin, { q: '[시험H] A' })).data as string
-  const b = (await save(admin, { q: '[시험H] B' })).data as string
-  await admin.rpc('rpc_move_help_item', { p_id: b, p_dir: -1 })
-  const order = async () => (await sql`select question from counsel.help_items where question like '[시험H]%' order by position`).map((r) => r.question)
-  assertEquals(await order(), ['[시험H] B', '[시험H] A'])
-  await Promise.all([admin.rpc('rpc_move_help_item', { p_id: a, p_dir: -1 }), admin.rpc('rpc_move_help_item', { p_id: b, p_dir: 1 })])
+const ids = async () => (await sql`select id from counsel.help_items order by position`).map((r) => r.id as string)
+const questions = async () => (await sql`select question from counsel.help_items where question like '[시험H]%' order by position`).map((r) => r.question)
+
+// 끌어 놓기(10-30): 화면이 본 순서 전체를 한 번에 저장한다
+Deno.test('순서 전체 저장: 준 순서대로 자리가 매겨진다', async () => {
+  await save(admin, { q: '[시험H] A' })
+  await save(admin, { q: '[시험H] B' })
+  const before = await ids()
+  assertEquals(await err(admin.rpc('rpc_reorder_help_items', { p_ids: [...before].reverse() })), 'no error')
+  assertEquals(await ids(), [...before].reverse())
+  assertEquals(await questions(), ['[시험H] B', '[시험H] A'])
+  await cleanup()
+})
+
+Deno.test('순서 전체 저장: 그사이 질문이 더해지거나 빠졌으면 VERSION_CONFLICT, 담당자는 FORBIDDEN', async () => {
+  const before = await ids()
+  await save(admin, { q: '[시험H] 그사이 추가' })
+  assertEquals(await err(admin.rpc('rpc_reorder_help_items', { p_ids: before })), 'COUNSEL:VERSION_CONFLICT')
+  const now = await ids()
+  assertEquals(await err(admin.rpc('rpc_reorder_help_items', { p_ids: [...now, now[0]] })), 'COUNSEL:VERSION_CONFLICT')
+  assertEquals(await err(manager.rpc('rpc_reorder_help_items', { p_ids: now })), 'COUNSEL:FORBIDDEN')
+  await cleanup()
+})
+
+// Review Focus 5: 두 관리자가 동시에 끌어 놓아도 자리 번호가 겹치지 않는다
+Deno.test('순서 전체 저장: 동시에 해도 자리 번호가 겹치지 않는다', async () => {
+  await save(admin, { q: '[시험H] A' })
+  const now = await ids()
+  await Promise.all([admin.rpc('rpc_reorder_help_items', { p_ids: [...now].reverse() }), admin.rpc('rpc_reorder_help_items', { p_ids: now })])
   const [{ n, d }] = await sql`select count(*)::int as n, count(distinct position)::int as d from counsel.help_items`
   assertEquals(n, d)
   await cleanup()
