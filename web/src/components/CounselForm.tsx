@@ -1,9 +1,10 @@
-import { Box, Button, Checkbox, Divider, FormControlLabel, FormHelperText, Radio, RadioGroup, Stack, TextField, ToggleButton, Typography } from '@mui/material'
+import { Box, Checkbox, Divider, FormControlLabel, FormHelperText, Radio, RadioGroup, Stack, TextField, Typography } from '@mui/material'
 import {
   type AnswerProblem, type Answers, type AvailabilityAnswer, type AvailabilityLabel, type FormDefinition, type FormField, DEFAULT_AVAILABILITY, LIMITS,
 } from '@core/counselForm.ts'
 import { type CopyKey, t } from '@core/copy.ko.ts'
 import { tokens } from '../theme/seorap'
+import Choice from './Choice'
 
 // 상담 신청서 화면 부품 (B2). 서랍 신청서 화면과 상담 어드민 미리보기가 같이 쓴다.
 // 값은 부모가 들고 있고(onChange 로 바뀐 답 전체를 돌려준다), 검사는 counselForm.checkAnswers 로 부모가 한다.
@@ -59,36 +60,30 @@ function Availability({ f, value, onChange, disabled }: { f: FormField; value: A
             const cell = `${d.id}|${s.id}`
             const on = a.cells.includes(cell)
             return (
-              <ToggleButton
-                key={cell} value={cell} selected={on} disabled={disabled} onChange={() => toggle(cell)}
-                aria-label={`${d.label} ${s.label} 상담 가능`} sx={{ minHeight: 44, borderRadius: tokens.radius.control }}
-              >
-                {on ? '✓' : ''}
-              </ToggleButton>
+              <Choice key={cell} selected={on} disabled={disabled} onClick={() => toggle(cell)} label={`${d.label} ${s.label} 상담 가능`} />
             )
           }),
         ])}
       </Box>
+      {/* 하위 질문은 모두 같은 규칙: 위에 라벨(본문 500), 아래 입력. 떠 있는 라벨을 쓰지 않는다 (10-30 검수) */}
       {cfg.askStartDate && (
-        <TextField
-          type="date" label={text('start')} value={a.startDate ?? ''} disabled={disabled}
-          onChange={(e) => onChange({ ...a, startDate: e.target.value || undefined })}
-          slotProps={{ inputLabel: { shrink: true } }}
-        />
+        <Stack spacing={1}>
+          <Typography variant="body1" sx={{ fontWeight: 500 }}>{text('start')}</Typography>
+          <TextField
+            type="date" value={a.startDate ?? ''} disabled={disabled}
+            onChange={(e) => onChange({ ...a, startDate: e.target.value || undefined })}
+            slotProps={{ htmlInput: { 'aria-label': text('start') } }}
+          />
+        </Stack>
       )}
       {([['method', 'method', cfg.methods], ['contactTime', 'contact', cfg.contactTimes]] as const).map(([key, label, opts]) =>
         opts.length > 0 && (
           <Stack key={key} spacing={1}>
-            <Typography variant="body2">{text(label)}</Typography>
+            <Typography variant="body1" sx={{ fontWeight: 500 }}>{text(label)}</Typography>
             {/* 손가락으로 누르기 쉽게 줄을 채우는 큰 버튼 (10-29 휴대폰 검수: 칩은 작다). 3개까지는 한 줄, 그보다 많으면 두 칸씩 */}
             <Box sx={{ display: 'grid', gridTemplateColumns: `repeat(${opts.length <= 3 ? opts.length : 2}, 1fr)`, gap: 1 }}>
               {opts.map((o) => (
-                <Button
-                  key={o} disabled={disabled} variant={a[key] === o ? 'contained' : 'outlined'} aria-pressed={a[key] === o}
-                  onClick={() => pick(key, o)} sx={{ minHeight: 48 }}
-                >
-                  {o}
-                </Button>
+                <Choice key={o} disabled={disabled} selected={a[key] === o} onClick={() => pick(key, o)}>{o}</Choice>
               ))}
             </Box>
           </Stack>

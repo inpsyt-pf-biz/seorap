@@ -12,9 +12,11 @@ describe('Wordmark (로고 C1 + 리디바탕 워드마크)', () => {
     expect(container.querySelector('img')).toBeNull()
   })
 
-  it('"인싸이트" 표시를 함께 보여 진짜 서비스임을 알린다', () => {
-    render(<Wordmark />)
-    expect(screen.getByText('인싸이트')).toBeTruthy()
+  it('"인싸이트"와 "서랍"을 같은 글꼴(리디바탕 윤곽선) 벡터로 그린다 (두 글꼴이 섞이지 않게, 10-30 검수)', () => {
+    const { container } = render(<Wordmark />)
+    expect(container.querySelector('[data-part="wordmark-parent"]')).toBeTruthy()
+    expect(container.querySelector('[data-part="wordmark-name"]')).toBeTruthy()
+    expect(screen.queryByText('인싸이트')).toBeNull()
   })
 
   it('종이 바탕에서는 로고 몸체가 청록, 손잡이가 호박빛이다', () => {

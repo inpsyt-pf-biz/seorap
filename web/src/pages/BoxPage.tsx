@@ -125,13 +125,13 @@ export default function BoxPage() {
       {/* 0매면 말할 것이 없다 (잠긴 줄·준비 중 줄만 있는 서랍에서 "실시 전 0매"가 오해를 부른다) */}
       <BoxHeader
         ownerName={box.ownerName}
-        summary={box.notStartedCount > 0 ? t('box.summary', { n: box.notStartedCount }) : null}
         tab={0}
         onTab={(v) => v === 1 && navigate('/box/history', { state: { ownerName: box.ownerName } })}
         onLogout={logout}
       />
       {/* 내용(종이). 묶음끼리는 넓게(32px), 묶음 안 제목과 줄은 붙여서(8~12px) 리듬으로 덩어리를 보인다 */}
-      <Stack data-region="content" spacing={4} sx={{ px: 2, pt: 3, pb: 5 }}>
+      <Stack data-region="content" spacing={3} sx={{ px: 2, pt: 3, pb: 5 }}>
+        {box.notStartedCount > 0 && <Typography variant="body2" color="text.secondary" sx={{ mb: -1 }}>{t('box.summary', { n: box.notStartedCount })}</Typography>}
         {box.noticeBanner && <Alert severity="info">{box.noticeBanner}</Alert>}
         {/* 상담 카드 (B2): 신청서를 내기 전에는 검사가 잠겨 있으므로 맨 위에 둔다 */}
         {box.counsel.map((c) => (
@@ -161,13 +161,14 @@ export default function BoxPage() {
           }
           // 주문 하나 = 제목 + 줄들. 판으로 감싸지 않고 간격(근접)으로 묶는다 (UX 진단 F4: 카드 안의 카드)
           return (
-            <Box key={g.orderId} data-region="order">
+            // 여러 매 주문은 한 판 안에 제목과 하위 검사들을 담아 어디까지가 이 주문인지 보이게 한다 (10-30 검수: 종속 관계)
+            <Box key={g.orderId} data-region="order" data-kind="group" sx={{ bgcolor: tokens.surface.group, borderRadius: tokens.radius.sheet, px: 1.5, py: 1 }}>
               <Accordion
                 expanded={expanded[g.orderId] ?? !g.done} onChange={(_, open) => toggle(g.orderId, open)}
                 disableGutters elevation={0} square
                 sx={{ bgcolor: 'transparent', '&::before': { display: 'none' } }}
               >
-                <AccordionSummary expandIcon={<ExpandChevron />} sx={{ px: 0, minHeight: 0, '& .MuiAccordionSummary-content': { my: 0.5 } }}>
+                <AccordionSummary expandIcon={<ExpandChevron />} sx={{ px: 0.5, minHeight: 0, '& .MuiAccordionSummary-content': { my: 0.5 } }}>
                   <Box>
                     <Typography variant="h5">{g.productName}</Typography>
                     <Typography variant="body2" color="text.secondary">
@@ -175,8 +176,8 @@ export default function BoxPage() {
                     </Typography>
                   </Box>
                 </AccordionSummary>
-                <AccordionDetails sx={{ px: 0, pt: 1.5, pb: 0 }}>
-                  <Stack spacing={1.5}>
+                <AccordionDetails sx={{ px: 0, pt: 1, pb: 0.5 }}>
+                  <Stack data-region="children" spacing={1}>
                     {g.lines.map((l) => <LineRow key={l.voucherId} line={l} onAction={(a, line) => onAction(a, line, g)} />)}
                   </Stack>
                 </AccordionDetails>

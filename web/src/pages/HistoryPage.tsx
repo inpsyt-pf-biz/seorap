@@ -69,7 +69,7 @@ export default function HistoryPage() {
                 <Box component="li" key={i.id} sx={{ border: 1, borderColor: 'divider', borderRadius: tokens.radius.card, p: 1.5, bgcolor: 'background.paper' }}>
                   <Stack spacing={0.5}>
                     <Stack direction="row" spacing={1} sx={{ justifyContent: 'space-between', alignItems: 'flex-start' }}>
-                      <Typography variant="body1" sx={{ fontWeight: 600, minWidth: 0 }}>{h.title}</Typography>
+                      <Typography variant="body1" sx={{ fontWeight: 500, minWidth: 0 }}>{h.title}</Typography>
                       {h.chip && <Chip size="small" label={h.chip} sx={{ flexShrink: 0, bgcolor: tone.bg, color: tone.fg }} />}
                     </Stack>
                     <Stack direction="row" spacing={1.5} useFlexGap sx={{ flexWrap: 'wrap' }}>

@@ -475,3 +475,31 @@ describe('BoxPage 1매 주문·바닥 (10-30 비평)', () => {
     expect(within(floor).getByRole('link', { name: '도움말' }).getAttribute('href')).toBe('/help')
   })
 })
+
+describe('BoxPage 10-30 검수 2차', () => {
+  it('바닥에는 도움말만 둔다 (인싸이트 서랍 병기 없음)', async () => {
+    stubApi([launchable], {})
+    open()
+    await screen.findByRole('button', { name: '실시하기' })
+    const floor = document.querySelector('[data-region="floor"]') as HTMLElement
+    expect(within(floor).queryByText(/인싸이트/)).toBeNull()
+  })
+  it('"실시 전 N매"는 머리 판이 아니라 내 검사 탭 아래 내용에 있다 (탭을 오가도 머리 판 높이가 같게)', async () => {
+    stubApi([launchable, { ...launchable, voucherId: 'v3', unitNo: 2, unitsOfTest: 2 }], {})
+    open()
+    await screen.findByText('실시 전 2매')
+    const shell = document.querySelector('[data-region="shell"]') as HTMLElement
+    const content = document.querySelector('[data-region="content"]') as HTMLElement
+    expect(within(shell).queryByText('실시 전 2매')).toBeNull()
+    expect(within(content).getByText('실시 전 2매')).toBeTruthy()
+  })
+  it('여러 매 주문은 한 판(group) 안에 제목과 하위 검사들이 들어가 종속 관계가 보인다', async () => {
+    stubApi([launchable, { ...launchable, voucherId: 'v3', unitNo: 2, unitsOfTest: 2 }], {})
+    open()
+    await screen.findByText('실시 전 2매')
+    const order = document.querySelector('[data-region="order"]') as HTMLElement
+    expect(order.getAttribute('data-kind')).toBe('group')
+    const children = order.querySelector('[data-region="children"]') as HTMLElement
+    expect(within(children).getAllByRole('button', { name: '실시하기' }).length).toBe(2)
+  })
+})

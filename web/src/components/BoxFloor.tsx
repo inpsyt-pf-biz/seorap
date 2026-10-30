@@ -1,4 +1,4 @@
-import { Link, Stack, Typography } from '@mui/material'
+import { Link, Stack } from '@mui/material'
 import { Link as RouterLink } from 'react-router-dom'
 import { t } from '@core/copy.ko.ts'
 import { tokens } from '../theme/seorap'
@@ -9,11 +9,10 @@ export default function BoxFloor({ onTeal = false }: { onTeal?: boolean }) {
   const ink = onTeal ? tokens.teal[100] : tokens.text.secondary
   return (
     <Stack
-      data-region="floor" direction="row" spacing={2}
+      data-region="floor" direction="row"
       sx={{ alignItems: 'center', justifyContent: 'space-between', pt: 2, borderTop: 1, borderColor: onTeal ? tokens.teal[500] : 'divider' }}
     >
       <Link component={RouterLink} to="/help" variant="body2" sx={{ color: ink, textDecorationColor: 'currentColor' }}>{t('help.title')}</Link>
-      <Typography variant="caption" sx={{ color: ink }}>{t('brand.parent')} {t('brand.name')}</Typography>
     </Stack>
   )
 }

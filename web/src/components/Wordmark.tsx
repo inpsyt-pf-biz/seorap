@@ -1,5 +1,4 @@
-import { Box, Stack, Typography } from '@mui/material'
-import { t } from '@core/copy.ko.ts'
+import { Box, Stack } from '@mui/material'
 import { tokens } from '../theme/seorap'
 
 // 로고 C1 (01-plan §0 10-29): 청록 서랍장 + 호박빛 얕은 곡선 손잡이, 모서리 22%. 카카오 프로필만 정사각, 화면은 라운드
@@ -20,9 +19,15 @@ export default function Wordmark({ size = 'sm', onTeal = false }: { size?: 'sm' 
   return (
     <Stack direction="row" spacing={1.5} role="img" aria-label={tokens.logo.alt} sx={{ alignItems: 'center' }}>
       <LogoMark size={logo} onTeal={onTeal} />
+      {/* "인싸이트"와 "서랍" 모두 리디바탕 윤곽선. 두 글꼴이 섞이지 않게 (10-30 검수) */}
       <Stack spacing={0.5} sx={{ color: ink }}>
-        <Typography variant="caption" sx={{ color: onTeal ? ink : 'text.secondary', lineHeight: 1 }}>{t('brand.parent')}</Typography>
-        <Box component="svg" viewBox={tokens.brandVector.wordmarkViewBox} aria-hidden="true" focusable="false" sx={{ height: word, width: word * 1.9, display: 'block' }}>
+        <Box
+          component="svg" data-part="wordmark-parent" viewBox={tokens.brandVector.parentViewBox} aria-hidden="true" focusable="false"
+          sx={{ height: word * 0.5, width: word * 0.5 * 3.78, display: 'block', opacity: 0.8 }}
+        >
+          <path d={tokens.brandVector.parentPath} fill="currentColor" />
+        </Box>
+        <Box component="svg" data-part="wordmark-name" viewBox={tokens.brandVector.wordmarkViewBox} aria-hidden="true" focusable="false" sx={{ height: word, width: word * 1.9, display: 'block' }}>
           <path d={tokens.brandVector.wordmarkPath} fill="currentColor" />
         </Box>
       </Stack>

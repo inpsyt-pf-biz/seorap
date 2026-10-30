@@ -82,3 +82,12 @@ describe('CounselForm 작은 결함 (R1 restyle)', () => {
     expect(screen.queryByText(t('form.required'))).toBeNull()
   })
 })
+
+describe('CounselForm 선택지 통일 (10-30 검수)', () => {
+  it('시간대 칸·상담 방식은 MUI 버튼이 아니라 같은 선택지(Choice)로 그린다', () => {
+    const { container } = render(<Harness />)
+    expect(container.querySelector('.MuiToggleButton-root')).toBeNull()
+    expect(container.querySelector('[data-field="when"] .MuiButton-root')).toBeNull()
+    expect(container.querySelectorAll('[data-field="when"] [data-choice]').length).toBeGreaterThan(9)
+  })
+})

@@ -20,9 +20,12 @@ describe('theme', () => {
     expect(all).not.toContain('#0088FF')
   })
 
-  it('글자 입력 칸은 쪽 배경 위에서도 흰색이다', () => {
+  it('글자 입력 칸은 쨍한 흰색이 아니라 약관 상자와 같은 옅은 종이색이다 (10-30 검수)', () => {
     const root = theme.components?.MuiOutlinedInput?.styleOverrides?.root as { backgroundColor?: string } | undefined
-    expect(root?.backgroundColor).toBe('#FFFFFF')
+    expect(root?.backgroundColor).toBe(tokens.surface[50])
+  })
+  it('주문 묶음 판(group) 색 위에서도 보조 글자가 4.5:1 이상이다', () => {
+    expect(contrast(tokens.text.secondary, tokens.surface.group)).toBeGreaterThanOrEqual(4.5)
   })
 
   it('주 컬럼 폭의 기준값은 하나다', () => {
