@@ -143,7 +143,7 @@ await boxLink(r2, 'S2')
 await order({
   recipientId: r2, recipientName: '김철수', orderNo: '2026102200002', paidAt: '2026-10-22T02:00:00Z',
   productName: 'STS 커플상담 패키지', optionName: '커플상담 1회 + STS 성인 기질검사 2매', amount: 150000,
-  tests: [STS_COUPLE], units: [{}, {}], counsel: true, manageCode: 'STS-CPL-S',
+  tests: [STS_COUPLE], units: [{}, {}], counsel: true, manageCode: 'STS-CPL-R',
 })
 
 // S4 선물 주문 (구매자 ≠ 수취인)
@@ -237,7 +237,7 @@ if (extraFile) {
       // 가짜 검사 코드가 주문번호 끝 4자리를 쓰므로 9001~ 로 잡아 위 시나리오(0001~0016)와 겹치지 않게
       recipientId: r, recipientName: name, orderNo: `202610290${9000 + n}`, paidAt: '2026-10-29T01:00:00Z',
       productName: 'STS 커플상담 패키지', optionName: '커플상담 1회 + STS 성인 기질검사 2매', amount: 150000,
-      tests: [STS_COUPLE], units: [{}, {}], counsel: true, manageCode: 'STS-CPL-S',
+      tests: [STS_COUPLE], units: [{}, {}], counsel: true, manageCode: 'STS-CPL-R',
     })
   }
   console.log(`추가 서랍 ${names.length}개 (T1~T${names.length})`)

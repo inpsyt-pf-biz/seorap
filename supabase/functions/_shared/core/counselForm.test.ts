@@ -1,6 +1,7 @@
 import { assertEquals } from '@std/assert'
 import {
   type FormDefinition, checkDefinition, checkAnswers, splitAnswers, summarizeAvailability, DEFAULT_AVAILABILITY,
+  hasProviders, takesAnswer, withProviders,
 } from './counselForm.ts'
 
 const DEF: FormDefinition = {
@@ -124,4 +125,33 @@ Deno.test('가능 시간대: 관리자가 바꾼 상담 방식·연락 시간·�
   assertEquals(checkAnswers(def, { when: { cells: ['weekday|morning'], method: '화상' } }), { when: 'option' })
   // 연락 시간 선택지를 비우면 묻지 않는다: 값이 오면 없는 선택지
   assertEquals(checkAnswers(def, { when: { cells: ['weekday|morning'], contactTime: '평일 오전' } }), { when: 'option' })
+})
+
+Deno.test('제공받는 업체 정보 블록: 답을 받지 않고, 답이 오면 unknown', () => {
+  const def: FormDefinition = {
+    intro: '',
+    fields: [
+      { id: 'c1', type: 'consent', label: '개인정보 제3자 제공 동의', required: true, consentKind: 'third_party' },
+      { id: 'pv', type: 'providers', label: '제공받는 업체 정보' },
+    ],
+  }
+  assertEquals(takesAnswer(def.fields[1]), false)
+  assertEquals(checkDefinition(def), [])
+  assertEquals(checkAnswers(def, { c1: true }), {})
+  assertEquals(checkAnswers(def, { c1: true, pv: 'x' }), { pv: 'unknown' })
+  assertEquals(hasProviders(def), true)
+  assertEquals(hasProviders({ intro: '', fields: [def.fields[0]] }), false)
+})
+
+Deno.test('제3자 제공 동의 기록에 그때 보인 업체 이름을 남긴다 (업체 정보 블록이 있을 때만)', () => {
+  const consents = [
+    { id: 'c1', label: '제3자 제공', kind: 'third_party' as const, agreed: true },
+    { id: 'c2', label: '민감정보', kind: 'sensitive' as const, agreed: false },
+  ]
+  const providers = [{ name: '가 센터', phone: '02-1', address: '서울' }, { name: '나 센터', phone: null, address: null }]
+  assertEquals(withProviders(consents, providers, true), [
+    { id: 'c1', label: '제3자 제공', kind: 'third_party', agreed: true, providers: ['가 센터', '나 센터'] },
+    { id: 'c2', label: '민감정보', kind: 'sensitive', agreed: false },
+  ])
+  assertEquals(withProviders(consents, providers, false), consents)
 })

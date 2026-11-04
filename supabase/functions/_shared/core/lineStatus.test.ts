@@ -19,11 +19,11 @@ Deno.test('4 사용할 수 없음 (폐기)', () => {
 })
 // 누를 수 있는 버튼은 없고, 실시하기·전달하기가 꺼진 채로 보인다 (신청서는 서랍 맨 위 상담 카드에서)
 Deno.test('5 상담 신청서 잠금', () => assertEquals(s({ lockReasons: ['counsel_pending'] }), {
-  label: '대기 중', tone: 'neutral', actions: [], disabled: ['launch', 'forward'], note: '상담 신청서를 제출하면 열려요',
+  label: '대기 중', tone: 'neutral', actions: [], disabled: ['launch', 'forward'], note: '상담 예약이 확정되면 열려요',
 }))
 Deno.test('6 그 밖 잠금, 여러 개 겹쳐도 상담이 먼저', () => {
   assertEquals(s({ lockReasons: ['admin_hold'] }).label, '확인 중')
-  assertEquals(s({ lockReasons: ['admin_hold', 'counsel_pending'] }).note, '상담 신청서를 제출하면 열려요')
+  assertEquals(s({ lockReasons: ['admin_hold', 'counsel_pending'] }).note, '상담 예약이 확정되면 열려요')
 })
 Deno.test('7~9 응시상태는 꺼져 있으면 무시', () => {
   assertEquals(s({ examStatus: 'completed' }).label, '실시 전')

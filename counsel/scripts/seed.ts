@@ -5,7 +5,7 @@ import postgres from 'postgres'
 import { toIntakeParts, type NaverIntakeRow, type NaverProductOrderDetail } from '../core/naverIntake.ts'
 import { localEnv, localStatus, SEED_ACCOUNTS, WEB_ENV_FILE } from './local.ts'
 import { piiTools } from './pii.ts'
-import { SEED_FORM, SEED_FORM_MANAGE_CODE } from './seedForms.ts'
+import { SEED_FORM, SEED_FORM_MANAGE_CODE, SEED_MAIN_FORM, SEED_MAIN_FORM_MANAGE_CODE } from './seedForms.ts'
 
 const status = await localStatus()
 const env = await localEnv()
@@ -299,8 +299,11 @@ try {
       const [{ id }] = await tx<{ id: string }[]>`select counsel.rpc_create_form_template(${SEED_FORM.name}, ${tx.json(SEED_FORM.definition)}) as id`
       await tx`select counsel.rpc_publish_form_template(${id}, 1)`
       await tx`select counsel.rpc_set_form_link(${SEED_FORM_MANAGE_CODE}, ${id}, 'sponsored', true, 'STS 커플상담(협찬)')`
+      const [{ id: mainId }] = await tx<{ id: string }[]>`select counsel.rpc_create_form_template(${SEED_MAIN_FORM.name}, ${tx.json(SEED_MAIN_FORM.definition)}) as id`
+      await tx`select counsel.rpc_publish_form_template(${mainId}, 1)`
+      await tx`select counsel.rpc_set_form_link(${SEED_MAIN_FORM_MANAGE_CODE}, ${mainId}, 'counsel_main', true, 'STS 커플상담(상담메인)')`
     })
-    console.log(`시드 완료: 신청서 템플릿 1개 (관리코드 ${SEED_FORM_MANAGE_CODE})`)
+    console.log(`시드 완료: 신청서 템플릿 2개 (관리코드 ${SEED_FORM_MANAGE_CODE} · ${SEED_MAIN_FORM_MANAGE_CODE})`)
   }
   if (centersSeeded && purchasesSeeded) {
     const [{ at }] = await sql<{ at: string }[]>`select to_char(clock_timestamp() at time zone 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"') as at`

@@ -1,5 +1,5 @@
 import type { CounselFormResponse, CounselSubmitResponse } from '../../_shared/core/apiTypes.ts'
-import { checkAnswers, splitAnswers, type Answers } from '../../_shared/core/counselForm.ts'
+import { checkAnswers, hasProviders, splitAnswers, withProviders, type Answers } from '../../_shared/core/counselForm.ts'
 import { counsel, counselItems, type CounselItem } from '../lib/counsel.ts'
 import { db, must } from '../lib/db.ts'
 import { logEvent } from '../lib/events.ts'
@@ -8,7 +8,7 @@ import { requireSession, type Session } from '../lib/session.ts'
 import { getSettings, type Settings } from '../lib/settings.ts'
 
 // 상담 신청서 (B2, build-spec §4-6). 문항은 상담 어드민의 템플릿에서 가져오고, 답은 서랍에 남기지 않고 상담 원장으로 넘긴다.
-// 제출이 원장에 들어간 뒤에만 서랍에 제출 기록을 남기고 그 주문의 검사 잠금을 푼다.
+// 제출이 원장에 들어간 뒤에만 서랍에 제출 기록을 남긴다. 검사 잠금은 예약이 확정된 뒤 서랍을 열 때 푼다(lib/counsel.counselViews).
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
 
@@ -44,6 +44,7 @@ export async function counselForm(req: Request): Promise<Response> {
   const form = await formOf(item, s)
   const body: CounselFormResponse = {
     orderId: item.orderId, productName: item.productName, templateId: form.templateId, version: form.version, definition: form.definition,
+    providers: hasProviders(form.definition) ? form.providers : [],
   }
   return json(200, body)
 }
@@ -73,7 +74,7 @@ export async function counselSubmit(req: Request): Promise<Response> {
     naver_product_order_id: item.naverProductOrderId, external_order_id: item.externalOrderId, manage_code: item.manageCode!,
     product_name: item.productName, template_id: form.templateId, template_version: form.version, submitted_at: new Date().toISOString(),
     application: { ...split.standard, ...split.sensitive, consent_third_party: thirdParty },
-    extra: split.extra, sensitive_extra: split.sensitiveExtra, consents: split.consents,
+    extra: split.extra, sensitive_extra: split.sensitiveExtra, consents: withProviders(split.consents, form.providers, hasProviders(form.definition)),
   })
 
   must(await db().rpc('counsel_record_submission', {

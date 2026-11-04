@@ -32,6 +32,7 @@ async function cleanup() {
       await tx`delete from ${tx('counsel.' + table)} where purchase_id in (select id from gone)`
     }
     await tx`delete from counsel.purchases where id in (select id from gone)`
+    await tx`delete from counsel.centers where name like '[시험F]%'`
     await tx`delete from counsel.form_product_links where manage_code like 'TF-%'`
     await tx`delete from counsel.form_template_versions where template_id in (select id from counsel.form_templates where name like '[시험F]%')`
     await tx`delete from counsel.form_templates where name like '[시험F]%'`
@@ -180,6 +181,40 @@ Deno.test({ name: '신청서 템플릿', sanitizeResources: false, sanitizeOps: 
     assert((await rpcErr(service.rpc('rpc_seorap_submit_application', { p: submission(id16(), code, id, 9) }))).includes('COUNSEL:INVALID_INPUT'))
     await link(code, id, false)
     assert((await rpcErr(service.rpc('rpc_seorap_submit_application', { p: submission(id16(), code, id, 1) }))).includes('COUNSEL:INVALID_INPUT'))
+  })
+  await t.step('서랍 가져오기: 운영 중인 협력센터를 제공받는 업체(providers)로 함께, 본사·운영 중 아님·담당자 칸은 빼고', async () => {
+    const { id } = await newPublished()
+    const code = `TF-${tag()}`
+    await link(code, id)
+    const on = `[시험F] 운영 ${tag()}`
+    const off = `[시험F] 중단 ${tag()}`
+    await sql`insert into counsel.centers (name, status, phone, address, contact_name, contact_phone)
+      values (${on}, 'active', '02-123-4567', '서울시 시험구 1', '담당자', '010-9999-0000'), (${off}, 'paused', '02-000-0000', '서울시 시험구 2', null, null)`
+    const f = await rpcOk<{ providers: Record<string, unknown>[] }>(service.rpc('rpc_seorap_form_for', { p_manage_code: code }))
+    const mine = f.providers.find((p) => p.name === on)
+    assertEquals(mine, { name: on, phone: '02-123-4567', address: '서울시 시험구 1' })
+    assert(!f.providers.some((p) => p.name === off))
+    const [hq] = await sql`select name from counsel.centers where is_headquarters`
+    assert(!f.providers.some((p) => p.name === hq.name))
+    const names = f.providers.map((p) => p.name as string)
+    assertEquals(names, [...names].sort((a, b) => a < b ? -1 : a > b ? 1 : 0))
+  })
+
+  await t.step('서랍 예약 상태: 구매 건의 회차 줄(상태·예약 일시·센터 이름), 직원 계정은 부를 수 없다', async () => {
+    const { id } = await newPublished()
+    const code = `TF-${tag()}`
+    await link(code, id)
+    const r = await rpcOk<{ purchase_id: string }>(service.rpc('rpc_seorap_submit_application', { p: submission(id16(), code, id, 1) }))
+    type Row = { purchase_id: string; seq: number; status: string; scheduled_at: string | null; center_name: string | null }
+    const before = await rpcOk<Row[]>(service.rpc('rpc_seorap_counsel_status', { p_purchase_ids: [r.purchase_id] }))
+    assertEquals(before, [{ purchase_id: r.purchase_id, seq: 1, status: 'unassigned', scheduled_at: null, center_name: null }])
+    const name = `[시험F] 센터 ${tag()}`
+    const [c] = await sql`insert into counsel.centers (name, status) values (${name}, 'active') returning id`
+    await sql`update counsel.sessions set status = 'confirmed', center_id = ${c.id}, scheduled_at = '2026-11-26T05:00:00Z' where purchase_id = ${r.purchase_id}`
+    const after = await rpcOk<Row[]>(service.rpc('rpc_seorap_counsel_status', { p_purchase_ids: [r.purchase_id] }))
+    assertEquals([after[0].status, Date.parse(after[0].scheduled_at!), after[0].center_name], ['confirmed', Date.parse('2026-11-26T05:00:00Z'), name])
+    assertEquals(await rpcOk(service.rpc('rpc_seorap_counsel_status', { p_purchase_ids: [] })), [])
+    assert((await rpcErr(admin.rpc('rpc_seorap_counsel_status', { p_purchase_ids: [r.purchase_id] }))) !== 'no error')
   })
 } })
 

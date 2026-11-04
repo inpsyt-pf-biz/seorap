@@ -788,6 +788,8 @@ export const copy = {
   'forms.type.date': '날짜',
   'forms.type.availability': '가능 시간대',
   'forms.type.consent': '동의',
+  'forms.type.providers': '제공받는 업체 정보',
+  'forms.edit.providersHelp': '운영 중인 협력센터의 업체명·대표 전화·주소가 자동으로 들어가요. 담당자 정보는 보이지 않아요. 센터를 추가하거나 운영 상태를 바꾸면 신청서를 다시 게시하지 않아도 바로 반영돼요',
   'forms.type.notice': '안내문',
   'forms.type.section': '섹션 제목',
   'forms.std.client_name': '성함',

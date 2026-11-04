@@ -1,7 +1,8 @@
 // 상담 신청서 템플릿의 문항 정의와 답 검사 (B2). 서랍 신청서 화면·서랍 서버·상담 어드민(편집·미리보기·원장 저장)이 같이 쓴다.
 // 정의는 상담 어드민에서 게시한 판(form_template_versions.definition)에 JSON 으로 들어 있다.
 
-export type FieldType = 'consent' | 'notice' | 'section' | 'short' | 'long' | 'single' | 'multi' | 'date' | 'availability'
+// providers: 제공받는 업체 정보(11-04). 글을 쓰지 않고, 상담 어드민의 운영 중인 협력센터 목록이 들어간다
+export type FieldType = 'consent' | 'notice' | 'section' | 'providers' | 'short' | 'long' | 'single' | 'multi' | 'date' | 'availability'
 // 상담 원장(counsel.applications · application_sensitive)의 기존 칸. 연결하지 않은 답은 추가 답변으로 간다
 export type StandardField =
   | 'client_name' | 'client_birth' | 'residence' | 'reason' | 'preferred_schedule' | 'preferred_method'
@@ -47,6 +48,10 @@ export type FormField = {
   availability?: AvailabilityConfig
 }
 export type FormDefinition = { intro: string; fields: FormField[] }
+
+// 개인정보를 제공받는 업체(운영 중인 협력센터). 담당자 이름·연락처는 넣지 않는다
+export type Provider = { name: string; phone: string | null; address: string | null }
+export const hasProviders = (def: FormDefinition) => def.fields.some((f) => f.type === 'providers')
 
 // 가능 시간대 답: 고른 칸은 "요일id|시간대id"
 export type AvailabilityAnswer = { cells: string[]; startDate?: string; method?: string; contactTime?: string }
@@ -202,4 +207,12 @@ export function splitAnswers(def: FormDefinition, answers: Answers): SplitAnswer
     }
   }
   return out
+}
+
+export type ConsentRecord = SplitAnswers['consents'][number] & { providers?: string[] }
+
+// 업체 정보 블록이 있는 신청서면, 제3자 제공 동의 기록에 그때 보인 업체 이름을 함께 남긴다 ("누구에게 제공하는 데 동의했는지")
+export function withProviders(consents: SplitAnswers['consents'], providers: Provider[], shown: boolean): ConsentRecord[] {
+  if (!shown) return consents
+  return consents.map((c) => (c.kind === 'third_party' ? { ...c, providers: providers.map((p) => p.name) } : c))
 }

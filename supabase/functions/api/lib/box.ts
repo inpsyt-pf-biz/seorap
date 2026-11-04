@@ -2,7 +2,7 @@ import type { BoxGroup, BoxLine, BoxResponse, HistoryItem, HistoryResponse, Hist
 import { type LineInput, lineStatus } from '../../_shared/core/lineStatus.ts'
 import { formatPhone, maskPhone } from '../../_shared/core/phone.ts'
 import { decrypt } from '../../_shared/crypto.ts'
-import { counselItems } from './counsel.ts'
+import { counselViews } from './counsel.ts'
 import { db, must } from './db.ts'
 import { type VoucherRow, VOUCHER_COLS } from './ownership.ts'
 import type { Settings } from './settings.ts'
@@ -118,7 +118,11 @@ async function recipientLabels(items: { id: string; mapping_id: string | null }[
 export async function buildBox(recipientId: string, s: Settings): Promise<BoxResponse> {
   const rec = must(await db().from('recipients').select('name_enc, pin_hash').eq('id', recipientId).single(), 'recipient read') as
     { name_enc: string | null; pin_hash: string | null }
-  const { orders, items, vouchers } = await myVouchers(recipientId, s)
+  let mine = await myVouchers(recipientId, s)
+  // 예약이 확정된 상담 건은 여기서 검사 잠금을 푼다 → 풀었으면 줄을 다시 읽는다
+  const counselOf = await counselViews(mine.orders.map((o) => o.id), s)
+  if (counselOf.unlocked) mine = await myVouchers(recipientId, s)
+  const { orders, items, vouchers } = mine
   const inputs = await lineInputs(vouchers, s)
   const labelsOf = await recipientLabels(items)
   const unitsOf = new Map<string, number>()
@@ -147,8 +151,9 @@ export async function buildBox(recipientId: string, s: Settings): Promise<BoxRes
     notStartedCount: groups.flatMap((g) => g.lines).filter((l) => l.status.actions.includes('launch')).length,
     noticeBanner: s.notice_banner,
     pinSet: rec.pin_hash !== null,
-    counsel: (await counselItems(orders.map((o) => o.id))).map((c) => ({
+    counsel: counselOf.views.map((c) => ({
       orderId: c.orderId, productName: c.productName, submitted: c.submittedAt !== null, submittedAt: c.submittedAt,
+      booking: c.booking, testsOpen: c.testsOpen,
     })),
     groups,
   }

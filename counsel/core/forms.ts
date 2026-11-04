@@ -1,7 +1,8 @@
 // 신청서 템플릿 편집 규칙 (서랍 B2). 문항 정의와 검사의 정본은 서랍 _shared/core/counselForm.ts 이고,
 // 여기에는 편집 화면이 쓰는 이름표·새 문항 만들기·순서 바꾸기만 둔다.
 import {
-  DEFAULT_AVAILABILITY, STANDARD_FIELDS, type AvailabilityConfig, type AvailabilityLabel, type FieldType, type FormDefinition, type FormField, type StandardField,
+  DEFAULT_AVAILABILITY, STANDARD_FIELDS, type AvailabilityConfig, type AvailabilityLabel, type FieldType, type FormDefinition, type FormField, type Provider,
+  type StandardField,
 } from '../../supabase/functions/_shared/core/counselForm.ts'
 import { t, type CopyKey } from './copy.ko.ts'
 import { errorText, type CounselError } from './errors.ts'
@@ -15,7 +16,7 @@ export type FormLink = {
   manage_code: string; template_id: string; purchase_type: PurchaseType; flow: 'counsel_first'; enabled: boolean; label: string | null
 }
 
-export const FIELD_TYPES: FieldType[] = ['short', 'long', 'single', 'multi', 'date', 'availability', 'consent', 'notice', 'section']
+export const FIELD_TYPES: FieldType[] = ['short', 'long', 'single', 'multi', 'date', 'availability', 'consent', 'providers', 'notice', 'section']
 export const fieldTypeLabel = (ft: FieldType) => `forms.type.${ft}` as CopyKey
 export const standardFieldLabel = (s: StandardField) => `forms.std.${s}` as CopyKey
 export { STANDARD_FIELDS }
@@ -42,7 +43,16 @@ export function newField(type: FieldType, fields: FormField[]): FormField {
   if (type === 'single' || type === 'multi') return { ...base, options: [] }
   if (type === 'availability') return { ...base, required: true, availability: structuredClone(DEFAULT_AVAILABILITY) }
   if (type === 'consent') return { ...base, required: true, consentKind: 'third_party' }
+  if (type === 'providers') return { ...base, label: t('forms.type.providers') }
   return base
+}
+
+// 편집기 미리보기의 "제공받는 업체 정보": 서랍이 받는 목록(rpc_seorap_form_for 의 providers)과 같은 규칙.
+// 운영 중인 협력센터만 이름순, 업체명·대표 전화·주소만 (센터 목록은 본사를 이미 뺀 것)
+export function previewProviders(centers: { name: string; status: string; phone: string | null; address: string | null }[]): Provider[] {
+  return centers.filter((c) => c.status === 'active')
+    .map((c) => ({ name: c.name, phone: c.phone, address: c.address }))
+    .sort((a, b) => (a.name < b.name ? -1 : a.name > b.name ? 1 : 0))
 }
 
 export function moveField(fields: FormField[], index: number, delta: -1 | 1): FormField[] {

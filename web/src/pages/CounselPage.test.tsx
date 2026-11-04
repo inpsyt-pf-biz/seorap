@@ -3,6 +3,7 @@ import userEvent from '@testing-library/user-event'
 import { MemoryRouter, Route, Routes } from 'react-router-dom'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import type { BoxResponse, CounselFormResponse } from '@core/apiTypes.ts'
+import type { Booking } from '@core/counselBooking.ts'
 import { t } from '@core/copy.ko.ts'
 import { DEFAULT_AVAILABILITY } from '@core/counselForm.ts'
 import BoxPage from './BoxPage'
@@ -22,10 +23,15 @@ const FORM = (version = 1, intro = '안내'): CounselFormResponse => ({
     intro,
     fields: [
       { id: 'c1', type: 'consent', label: '개인정보 제3자 제공 동의', required: true, consentKind: 'third_party' },
+      { id: 'pv', type: 'providers', label: '제공받는 업체 정보' },
       { id: 'name', type: 'short', label: '성함', required: true },
       { id: 'when', type: 'availability', label: '상담 가능한 시간대', required: true, availability: DEFAULT_AVAILABILITY },
     ],
   },
+  providers: [
+    { name: '마음숲 상담센터', phone: '02-123-4567', address: '서울시 마포구 1' },
+    { name: '바다빛 심리연구소', phone: null, address: '부산시 해운대구 2' },
+  ],
 })
 
 function stubApi(routes: Record<string, (body: any) => Response>) {
@@ -89,6 +95,18 @@ describe('상담 신청서 화면', () => {
     expect((screen.getByLabelText('성함') as HTMLInputElement).value).toBe('홍길동')
   })
 
+  it('제공받는 업체 정보는 "N곳"으로 접혀 있고, 누르면 업체명·전화·주소가 보인다', async () => {
+    stubApi({ 'counsel/form': () => json(200, FORM()) })
+    open()
+    const head = await screen.findByRole('button', { name: /제공받는 업체 정보/ })
+    expect(head.textContent).toContain(t('form.providers.count', { n: 2 }))
+    expect(head.getAttribute('aria-expanded')).toBe('false')
+    expect(screen.queryByText('마음숲 상담센터')).toBeNull()
+    await userEvent.click(head)
+    expect(head.getAttribute('aria-expanded')).toBe('true')
+    for (const text of ['마음숲 상담센터', '02-123-4567', '서울시 마포구 1', '바다빛 심리연구소', '부산시 해운대구 2']) expect(screen.getByText(text)).toBeTruthy()
+  })
+
   it('인증한 지 오래됐으면 다시 인증 안내', async () => {
     stubApi({ 'counsel/form': () => json(401, { error: { code: 'REAUTH_REQUIRED', extra: { reason: 'counsel_fresh_auth' } } }) })
     open()
@@ -97,14 +115,17 @@ describe('상담 신청서 화면', () => {
 })
 
 describe('서랍 상담 카드', () => {
-  const boxWith = (submitted: boolean): BoxResponse => ({
+  const WAITING: Booking = { state: 'waiting', scheduledAt: null, centerName: null }
+  const BOOKED: Booking = { state: 'confirmed', scheduledAt: '2026-11-26T05:00:00Z', centerName: '마음숲 상담센터' }
+  // 검사는 예약이 확정된 뒤에 열린다 (testsOpen). 제출 전에는 booking 이 없다
+  const boxWith = (submitted: boolean, booking: Booking | null = submitted ? WAITING : null, open = booking?.state !== 'waiting' && booking !== null): BoxResponse => ({
     ownerName: '김철수', notStartedCount: 0, noticeBanner: null, pinSet: true,
-    counsel: [{ orderId: ORDER, productName: 'GOLDEN 커플 상담 패키지', submitted, submittedAt: submitted ? '2026-10-29T00:00:00Z' : null }],
+    counsel: [{ orderId: ORDER, productName: 'GOLDEN 커플 상담 패키지', submitted, submittedAt: submitted ? '2026-10-29T00:00:00Z' : null, booking, testsOpen: open }],
     groups: [{
       orderId: ORDER, purchasedAt: '2026-10-22T00:00:00Z', productName: 'GOLDEN 커플 상담 패키지', lineCount: 1, done: false,
       lines: [{
         voucherId: 'v1', testItemId: 'T', testName: 'GOLDEN 성격유형검사', unitNo: 1, unitsOfTest: 1, firstLaunchedAt: null, forwardTo: null, recipientLabels: [],
-        status: submitted
+        status: open
           ? { label: '실시 전', tone: 'neutral', actions: ['launch', 'forward'] }
           : { label: t('line.counselLocked'), tone: 'info', actions: [], disabled: ['launch', 'forward'] },
       }],
@@ -123,10 +144,36 @@ describe('서랍 상담 카드', () => {
     expect(await screen.findByRole('button', { name: t('counsel.submit') })).toBeTruthy()
   })
 
-  it('낸 뒤: 제출 완료 카드, 버튼 없음', async () => {
+  it('낸 뒤(예약 확정 전): 제출 완료 카드에 연락 대기 문구, 버튼 없음, 검사는 아직 잠겨 있다', async () => {
     stubApi({ box: () => json(200, boxWith(true)) })
     open('/box')
     expect(await screen.findByText(t('counsel.card.doneTitle'))).toBeTruthy()
+    expect(screen.getByText(t('counsel.card.doneBody'))).toBeTruthy()
     expect(screen.queryByRole('button', { name: t('counsel.card.button') })).toBeNull()
+    expect((screen.getByRole('button', { name: t('action.launch') }) as HTMLButtonElement).disabled).toBe(true)
+  })
+
+  it('예약 확정 뒤: 예약 일시·센터·검사 완료 권장일(상담 3일 전)을 보이고 검사가 열린다', async () => {
+    stubApi({ box: () => json(200, boxWith(true, BOOKED)) })
+    open('/box')
+    expect(await screen.findByText(t('counsel.card.bookedTitle'))).toBeTruthy()
+    expect(screen.getByText('11월 26일(목) 오후 2시')).toBeTruthy()
+    expect(screen.getByText('마음숲 상담센터')).toBeTruthy()
+    expect(screen.getByText(t('counsel.card.bookedDue', { due: '11월 23일(월)' }))).toBeTruthy()
+    expect((screen.getByRole('button', { name: t('action.launch') }) as HTMLButtonElement).disabled).toBe(false)
+  })
+
+  it('상담을 마친 뒤: 상담을 마쳤어요', async () => {
+    stubApi({ box: () => json(200, boxWith(true, { ...BOOKED, state: 'completed' })) })
+    open('/box')
+    expect(await screen.findByText(t('counsel.card.completedTitle'))).toBeTruthy()
+    expect(screen.queryByText(t('counsel.card.bookedDue', { due: '11월 23일(월)' }))).toBeNull()
+  })
+
+  it('검사가 열린 뒤 예약이 취소되면: 검사는 열린 채, 카드는 다시 연락한다는 문구', async () => {
+    stubApi({ box: () => json(200, boxWith(true, WAITING, true)) })
+    open('/box')
+    expect(await screen.findByText(t('counsel.card.rebookBody'))).toBeTruthy()
+    expect(screen.queryByText(t('counsel.card.doneBody'))).toBeNull()
   })
 })

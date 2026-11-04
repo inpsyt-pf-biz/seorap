@@ -91,3 +91,20 @@ describe('CounselForm 선택지 통일 (10-30 검수)', () => {
     expect(container.querySelectorAll('[data-field="when"] [data-choice]').length).toBeGreaterThan(9)
   })
 })
+
+describe('CounselForm 제공받는 업체 정보', () => {
+  const def: FormDefinition = { intro: '', fields: [{ id: 'pv', type: 'providers', label: '제공받는 업체 정보' }] }
+
+  it('필수·선택 표시를 붙이지 않고, 업체가 없으면 준비 중 안내', async () => {
+    render(<CounselForm definition={def} value={{}} onChange={() => {}} providers={[]} />)
+    expect(screen.queryByText(t('form.required'))).toBeNull()
+    expect(screen.queryByText(t('form.optional'))).toBeNull()
+    await userEvent.click(screen.getByRole('button', { name: /제공받는 업체 정보/ }))
+    expect(screen.getByText(t('form.providers.empty'))).toBeTruthy()
+  })
+
+  it('업체 목록을 주지 않으면(어드민 미리보기 불러오는 중) 0곳으로 보인다', () => {
+    render(<CounselForm definition={def} value={{}} onChange={() => {}} />)
+    expect(screen.getByRole('button', { name: /제공받는 업체 정보/ }).textContent).toContain(t('form.providers.count', { n: 0 }))
+  })
+})

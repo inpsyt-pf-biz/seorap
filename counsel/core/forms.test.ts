@@ -1,6 +1,6 @@
-import { assertEquals } from '@std/assert'
+import { assert, assertEquals } from '@std/assert'
 import { checkDefinition } from '../../supabase/functions/_shared/core/counselForm.ts'
-import { MANAGE_CODE_RE, moveField, newField, nextFieldId, nextRowId, parseSlot, slotText, tidyDefinition } from './forms.ts'
+import { FIELD_TYPES, MANAGE_CODE_RE, moveField, newField, nextFieldId, nextRowId, parseSlot, previewProviders, slotText, tidyDefinition } from './forms.ts'
 
 Deno.test('nextFieldId: 지운 자리를 다시 쓰지 않고 겹치지 않는 id', () => {
   assertEquals(nextFieldId([]), 'f1')
@@ -74,4 +74,17 @@ Deno.test('parseSlot·slotText: 시간대 배지는 "이름 시간" 한 칸으�
 Deno.test('MANAGE_CODE_RE: 영문·숫자·-·_ 20자', () => {
   assertEquals(['STS-CPL-S', 'G_ADU', 'A'.repeat(20)].map((c) => MANAGE_CODE_RE.test(c)), [true, true, true])
   assertEquals(['한글', '', 'A'.repeat(21), 'A B'].map((c) => MANAGE_CODE_RE.test(c)), [false, false, false, false])
+})
+
+Deno.test('제공받는 업체 정보 블록: 고를 수 있고, 새로 넣으면 이름이 채워져 있다', () => {
+  assert(FIELD_TYPES.includes('providers'))
+  assertEquals(newField('providers', []).label, '제공받는 업체 정보')
+})
+
+Deno.test('미리보기 업체 목록: 운영 중인 센터만 이름순, 업체명·대표 전화·주소만', () => {
+  const c = (name: string, status: string) => ({ name, status, phone: '02-1', address: '서울', contact_name: '담당', contact_phone: '010-1' })
+  assertEquals(previewProviders([c('나', 'active'), c('다', 'paused'), c('가', 'active'), c('라', 'onboarding')]), [
+    { name: '가', phone: '02-1', address: '서울' },
+    { name: '나', phone: '02-1', address: '서울' },
+  ])
 })

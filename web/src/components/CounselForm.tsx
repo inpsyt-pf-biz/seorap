@@ -1,6 +1,7 @@
-import { Box, Checkbox, Divider, FormControlLabel, FormHelperText, Radio, RadioGroup, Stack, TextField, Typography } from '@mui/material'
+import { Box, ButtonBase, Checkbox, Collapse, Divider, FormControlLabel, FormHelperText, Radio, RadioGroup, Stack, TextField, Typography } from '@mui/material'
+import { useState } from 'react'
 import {
-  type AnswerProblem, type Answers, type AvailabilityAnswer, type AvailabilityLabel, type FormDefinition, type FormField, DEFAULT_AVAILABILITY, LIMITS,
+  type AnswerProblem, type Answers, type AvailabilityAnswer, type AvailabilityLabel, type FormDefinition, type FormField, type Provider, DEFAULT_AVAILABILITY, LIMITS,
 } from '@core/counselForm.ts'
 import { type CopyKey, t } from '@core/copy.ko.ts'
 import { tokens } from '../theme/seorap'
@@ -15,6 +16,8 @@ type Props = {
   onChange: (next: Answers) => void
   errors?: Record<string, AnswerProblem>
   disabled?: boolean
+  // "제공받는 업체 정보" 블록에 넣을 협력센터 (서랍: 서버가 상담 어드민에서 받아 줌, 어드민 미리보기: 센터 목록)
+  providers?: Provider[]
 }
 
 // 제목이 이미 "(필수)"·"(선택)"으로 끝나면 표시를 다시 붙이지 않는다 (템플릿 문구가 스스로 밝힌 경우)
@@ -92,7 +95,41 @@ function Availability({ f, value, onChange, disabled }: { f: FormField; value: A
   )
 }
 
-export default function CounselForm({ definition, value, onChange, errors = {}, disabled }: Props) {
+// 제공받는 업체 정보 (11-04). 센터가 늘어나도 신청서가 길어지지 않게 "N곳"으로 접어 두고, 눌러서 펼친다
+function Providers({ f, providers }: { f: FormField; providers: Provider[] }) {
+  const [open, setOpen] = useState(false)
+  return (
+    <Box sx={{ borderRadius: tokens.radius.card, bgcolor: tokens.surface[50], border: `1px solid ${tokens.surface[200]}` }}>
+      <ButtonBase
+        onClick={() => setOpen((o) => !o)} aria-expanded={open}
+        sx={{ width: '100%', p: 2, justifyContent: 'space-between', textAlign: 'left', borderRadius: tokens.radius.card }}
+      >
+        <Stack direction="row" spacing={1} sx={{ alignItems: 'baseline', minWidth: 0 }}>
+          <Typography variant="subtitle2" sx={{ fontWeight: 700 }}>{f.label}</Typography>
+          <Typography variant="body2" color="text.secondary" style={{ whiteSpace: 'nowrap' }}>{t('form.providers.count', { n: providers.length })}</Typography>
+        </Stack>
+        <Box component="svg" viewBox="0 0 24 24" aria-hidden sx={{ width: 20, height: 20, flexShrink: 0, transition: 'transform .2s', transform: open ? 'rotate(180deg)' : 'none' }}>
+          <path d="M7 10l5 5 5-5" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" />
+        </Box>
+      </ButtonBase>
+      <Collapse in={open} unmountOnExit>
+        <Stack spacing={1.5} sx={{ px: 2, pb: 2 }}>
+          <Help text={f.help} />
+          {providers.length === 0 && <Typography variant="body2" color="text.secondary">{t('form.providers.empty')}</Typography>}
+          {providers.map((p) => (
+            <Stack key={p.name} spacing={0.25} sx={{ pt: 1.5, borderTop: `1px solid ${tokens.surface[200]}` }}>
+              <Typography variant="body2" sx={{ fontWeight: 600 }}>{p.name}</Typography>
+              {p.phone && <Typography variant="body2" color="text.secondary">{p.phone}</Typography>}
+              {p.address && <Typography variant="body2" color="text.secondary">{p.address}</Typography>}
+            </Stack>
+          ))}
+        </Stack>
+      </Collapse>
+    </Box>
+  )
+}
+
+export default function CounselForm({ definition, value, onChange, errors = {}, disabled, providers = [] }: Props) {
   const set = (id: string, v: unknown) => onChange({ ...value, [id]: v })
 
   return (
@@ -111,6 +148,7 @@ export default function CounselForm({ definition, value, onChange, errors = {}, 
             </Stack>
           )
         }
+        if (f.type === 'providers') return <Providers key={f.id} f={f} providers={providers} />
         if (f.type === 'notice') {
           return (
             <Box key={f.id} sx={{ p: 2, borderRadius: tokens.radius.card, bgcolor: tokens.surface[50], border: `1px solid ${tokens.surface[200]}` }}>

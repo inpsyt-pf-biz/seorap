@@ -5,6 +5,7 @@ import type { BoxGroup, BoxLine, BoxResponse, ForwardResponse, LaunchResponse } 
 import { t } from '@core/copy.ko.ts'
 import type { LineAction } from '@core/lineStatus.ts'
 import { formatKstDate } from '@core/time.ts'
+import { bookingWhen, testDueDay } from '@core/counselBooking.ts'
 import ConfirmDialog from '../components/ConfirmDialog'
 import ForwardSheet from '../components/ForwardSheet'
 import LineRow from '../components/LineRow'
@@ -36,15 +37,30 @@ type Pending =
   | { kind: 'reforward'; line: BoxLine }
   | null
 
-// 상담 신청서 카드 (B2). 패키지 주문 판 안 첫 자리에 놓인다. 신청서를 내기 전에는 아래 검사가 잠겨 있다
+// 상담 신청서 카드 (B2). 패키지 주문 판 안 첫 자리에 놓인다.
+// 아래 검사는 신청서를 내고 상담센터가 예약을 확정한 뒤에 열린다 (11-04, 시나리오 §5-1): 제출 전 → 연락 대기 → 예약 확정 → 상담 완료
 function CounselCard({ c, onOpen }: { c: BoxResponse['counsel'][number]; onOpen: () => void }) {
+  const b = c.booking
+  const title = !c.submitted ? 'counsel.card.title'
+    : b?.state === 'confirmed' ? 'counsel.card.bookedTitle'
+    : b?.state === 'completed' ? 'counsel.card.completedTitle'
+    : 'counsel.card.doneTitle'
+  const muted = (text: string) => <Typography variant="body2" color="text.secondary">{text}</Typography>
   return (
     <Box sx={{ p: 2, borderRadius: tokens.radius.card, bgcolor: tokens.surface[0], border: `1px solid ${c.submitted ? tokens.surface[200] : tokens.teal[500]}` }}>
       <Stack spacing={1}>
-        <Typography variant="subtitle1" sx={{ fontWeight: 600 }}>{t(c.submitted ? 'counsel.card.doneTitle' : 'counsel.card.title')}</Typography>
-        <Typography variant="body2" color="text.secondary">
-          {c.submitted ? t('counsel.card.doneBody') : t('counsel.card.bodyInGroup')}
-        </Typography>
+        <Typography variant="subtitle1" sx={{ fontWeight: 600 }}>{t(title)}</Typography>
+        {!c.submitted && muted(t('counsel.card.bodyInGroup'))}
+        {c.submitted && b?.state === 'confirmed' && (
+          <>
+            <Stack spacing={0.25}>
+              {b.scheduledAt && <Typography variant="body1" sx={{ fontWeight: 600 }}>{bookingWhen(b.scheduledAt)}</Typography>}
+              {b.centerName && <Typography variant="body2">{b.centerName}</Typography>}
+            </Stack>
+            {b.scheduledAt && muted(t('counsel.card.bookedDue', { due: testDueDay(b.scheduledAt) }))}
+          </>
+        )}
+        {c.submitted && (!b || b.state === 'waiting') && muted(t(c.testsOpen ? 'counsel.card.rebookBody' : 'counsel.card.doneBody'))}
         {!c.submitted && <Button variant="contained" onClick={onOpen}>{t('counsel.card.button')}</Button>}
       </Stack>
     </Box>

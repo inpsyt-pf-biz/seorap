@@ -7,20 +7,20 @@ import {
 import CounselForm from '@seorap-web/components/CounselForm'
 import { tokens as seorapTokens } from '@seorap-web/theme/seorap'
 import {
-  type Answers, type AvailabilityConfig, type AvailabilityLabel, type FieldType, type FormDefinition, type FormField,
+  type Answers, type AvailabilityConfig, type AvailabilityLabel, type FieldType, type FormDefinition, type FormField, type Provider,
   DEFAULT_AVAILABILITY, checkDefinition, takesAnswer,
 } from '@seorap-core/counselForm.ts'
 import { t as seorapT } from '@seorap-core/copy.ko.ts'
 import { t, type CopyKey } from '@counsel-core/copy.ko.ts'
 import { toCounselError, type CounselError } from '@counsel-core/errors.ts'
 import {
-  FIELD_TYPES, STANDARD_FIELDS, fieldTypeLabel, formErrorText, moveField, newField, nextRowId, parseSlot, slotText, standardFieldLabel,
+  FIELD_TYPES, STANDARD_FIELDS, fieldTypeLabel, formErrorText, moveField, newField, nextRowId, parseSlot, previewProviders, slotText, standardFieldLabel,
   tidyDefinition,
   type FormTemplateDetail,
 } from '@counsel-core/forms.ts'
 import ChipListEditor from '../../../components/ChipListEditor'
 import { ErrorBox, Loading } from '../../../components/PageState'
-import { duplicateFormTemplate, getFormTemplate, publishFormTemplate, saveFormDraft } from '../../../lib/api'
+import { duplicateFormTemplate, getFormTemplate, listCenters, publishFormTemplate, saveFormDraft } from '../../../lib/api'
 import { hasCap, useSession } from '../../../shell/session'
 
 const CONSENT_KINDS = ['third_party', 'sensitive', 'other'] as const
@@ -121,6 +121,7 @@ function FieldCard({ f, index, count, readOnly, onChange, onMove, onRemove }: {
         <TextField size="small" label={t('forms.edit.label')} value={f.label} disabled={readOnly} onChange={(e) => set({ label: e.target.value })} />
         <TextField size="small" label={t('forms.edit.help')} value={f.help ?? ''} disabled={readOnly} multiline minRows={1}
           onChange={(e) => set({ help: e.target.value })} />
+        {f.type === 'providers' && <Typography variant="caption" color="text.secondary">{t('forms.edit.providersHelp')}</Typography>}
         {(f.type === 'single' || f.type === 'multi') && (
           <StringChips label={t('forms.edit.options')} items={f.options ?? []} readOnly={readOnly} onChange={(options) => set({ options })} />
         )}
@@ -181,6 +182,9 @@ export default function FormEditPage() {
   const [toast, setToast] = useState<string | null>(null)
   const [addType, setAddType] = useState<FieldType>('short')
   const [preview, setPreview] = useState<Answers>({})
+  // 미리보기의 "제공받는 업체 정보" (서랍이 받는 목록과 같은 규칙). 못 불러오면 0곳으로 보인다
+  const [providers, setProviders] = useState<Provider[]>([])
+  useEffect(() => { listCenters().then((cs) => setProviders(previewProviders(cs)), () => {}) }, [])
 
   const apply = (d: FormTemplateDetail) => { setTpl(d); setName(d.name); setDraft(d.draft); setDirty(false) }
   useEffect(() => { getFormTemplate(id).then(apply, (e: unknown) => setError(toCounselError(e))) }, [id])
@@ -283,7 +287,7 @@ export default function FormEditPage() {
           <Typography variant="subtitle2" color="text.secondary" sx={{ mb: 1 }}>{t('forms.edit.preview')}</Typography>
           <Paper variant="outlined" sx={{ p: 2, maxHeight: { lg: 'calc(100vh - 120px)' }, overflowY: 'auto', bgcolor: seorapTokens.surface.page }}>
             <Paper sx={{ p: 2 }}>
-              <CounselForm definition={draft} value={preview} onChange={setPreview} />
+              <CounselForm definition={draft} value={preview} onChange={setPreview} providers={providers} />
             </Paper>
           </Paper>
         </Box>
