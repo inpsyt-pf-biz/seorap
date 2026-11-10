@@ -1,5 +1,5 @@
 import type { CounselFormResponse, CounselSubmitResponse } from '../../_shared/core/apiTypes.ts'
-import { checkAnswers, hasProviders, splitAnswers, withProviders, type Answers } from '../../_shared/core/counselForm.ts'
+import { checkAnswers, hasProviders, ledgerConsents, splitAnswers, withProviders, type Answers } from '../../_shared/core/counselForm.ts'
 import { counsel, counselItems, type CounselItem } from '../lib/counsel.ts'
 import { db, must } from '../lib/db.ts'
 import { logEvent } from '../lib/events.ts'
@@ -69,11 +69,10 @@ export async function counselSubmit(req: Request): Promise<Response> {
   if (Object.keys(problems).length) throw new ApiError('VALIDATION', { field: 'answers', problems })
 
   const split = splitAnswers(form.definition, answers)
-  const thirdParty = split.consents.some((c) => c.kind === 'third_party' && c.agreed)
   const ledger = await counsel(s).submit({
     naver_product_order_id: item.naverProductOrderId, external_order_id: item.externalOrderId, manage_code: item.manageCode!,
     product_name: item.productName, template_id: form.templateId, template_version: form.version, submitted_at: new Date().toISOString(),
-    application: { ...split.standard, ...split.sensitive, consent_third_party: thirdParty },
+    application: { ...split.standard, ...split.sensitive, ...ledgerConsents(split.consents) },
     extra: split.extra, sensitive_extra: split.sensitiveExtra, consents: withProviders(split.consents, form.providers, hasProviders(form.definition)),
   })
 

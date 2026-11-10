@@ -747,6 +747,7 @@ export const copy = {
   'forms.edit.consentKind': '동의 종류',
   'forms.edit.consent.third_party': '제3자 제공',
   'forms.edit.consent.sensitive': '민감정보',
+  'forms.edit.consent.refund': '취소·환불 규정',
   'forms.edit.consent.other': '그 밖의 동의',
   'forms.edit.consentOption': '체크 문구 (비우면 "동의합니다")',
   'forms.edit.avail.title': '가능 시간대 설정',

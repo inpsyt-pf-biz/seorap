@@ -212,7 +212,7 @@ export const SEED_MAIN_FORM: { name: string; definition: FormDefinition } = {
         "type": "consent",
         "label": "취소 및 환불 규정 확인",
         "required": true,
-        "consentKind": "other"
+        "consentKind": "refund"
       }
     ]
   }

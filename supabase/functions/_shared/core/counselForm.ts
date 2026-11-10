@@ -11,7 +11,8 @@ export const STANDARD_FIELDS: StandardField[] = [
   'client_name', 'client_birth', 'residence', 'reason', 'preferred_schedule', 'preferred_method',
   'counseling_experience', 'expectation', 'medication_diagnosis',
 ]
-export type ConsentKind = 'third_party' | 'sensitive' | 'other'
+// refund: 취소·환불 규정 확인 (11-10). 원장의 refund_policy_checked 칸을 이 종류의 동의로 채운다
+export type ConsentKind = 'third_party' | 'sensitive' | 'refund' | 'other'
 
 export type AvailabilityConfig = {
   days: { id: string; label: string }[]
@@ -215,4 +216,10 @@ export type ConsentRecord = SplitAnswers['consents'][number] & { providers?: str
 export function withProviders(consents: SplitAnswers['consents'], providers: Provider[], shown: boolean): ConsentRecord[] {
   if (!shown) return consents
   return consents.map((c) => (c.kind === 'third_party' ? { ...c, providers: providers.map((p) => p.name) } : c))
+}
+
+// 상담 원장의 동의 칸(구매 건 상세·수기 등록이 쓰는 칸). 원문 동의 기록(consents)과 어긋나지 않게 종류로만 찾는다
+export function ledgerConsents(consents: SplitAnswers['consents']): { consent_third_party: boolean; refund_policy_checked: boolean } {
+  const agreed = (kind: ConsentKind) => consents.some((c) => c.kind === kind && c.agreed)
+  return { consent_third_party: agreed('third_party'), refund_policy_checked: agreed('refund') }
 }

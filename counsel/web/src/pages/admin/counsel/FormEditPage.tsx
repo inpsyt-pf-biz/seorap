@@ -23,7 +23,7 @@ import { ErrorBox, Loading } from '../../../components/PageState'
 import { duplicateFormTemplate, getFormTemplate, listCenters, publishFormTemplate, saveFormDraft } from '../../../lib/api'
 import { hasCap, useSession } from '../../../shell/session'
 
-const CONSENT_KINDS = ['third_party', 'sensitive', 'other'] as const
+const CONSENT_KINDS = ['third_party', 'sensitive', 'refund', 'other'] as const
 
 function ChipSection({ label, help, children }: { label: string; help?: string; children: ReactNode }) {
   return (

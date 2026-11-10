@@ -1,7 +1,7 @@
 import { assertEquals } from '@std/assert'
 import {
   type FormDefinition, checkDefinition, checkAnswers, splitAnswers, summarizeAvailability, DEFAULT_AVAILABILITY,
-  hasProviders, takesAnswer, withProviders,
+  hasProviders, takesAnswer, withProviders, ledgerConsents,
 } from './counselForm.ts'
 
 const DEF: FormDefinition = {
@@ -154,4 +154,12 @@ Deno.test('제3자 제공 동의 기록에 그때 보인 업체 이름을 남긴
     { id: 'c2', label: '민감정보', kind: 'sensitive', agreed: false },
   ])
   assertEquals(withProviders(consents, providers, false), consents)
+})
+
+Deno.test('원장 동의 칸: 제3자 제공·취소·환불 규정 동의를 종류로 찾아 채운다 (11-10)', () => {
+  const c = (kind: 'third_party' | 'sensitive' | 'refund' | 'other', agreed: boolean) => ({ id: kind, label: kind, kind, agreed })
+  assertEquals(ledgerConsents([c('third_party', true), c('refund', true)]), { consent_third_party: true, refund_policy_checked: true })
+  assertEquals(ledgerConsents([c('third_party', true), c('refund', false)]), { consent_third_party: true, refund_policy_checked: false })
+  // 환불 동의가 "그 밖의 동의"로 남은 옛 템플릿은 칸을 채우지 않는다 (글자로 짐작하지 않는다)
+  assertEquals(ledgerConsents([c('third_party', true), c('other', true)]), { consent_third_party: true, refund_policy_checked: false })
 })
