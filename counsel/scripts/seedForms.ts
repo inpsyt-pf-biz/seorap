@@ -63,7 +63,7 @@ const EXPECTATION = "다루었으면 하는 내용이나 궁금한 점을 적어
 export const SEED_MAIN_FORM: { name: string; definition: FormDefinition } = {
   name: '[상담메인] STS 커플상담 신청서',
   // 11-10 단계형 화면에 맞춘 판: 동의는 맨 앞(시작 화면에서 한 번에), 예약 질문 먼저, 상담 준비 질문은 뒤.
-  // 관계·기간은 커플·예비부부·부부를 함께 받고, 이야기 주제를 고르면 그 주제가 갈등 기간 질문 제목에 들어간다
+  // 기간 질문 하나로 커플·예비부부·부부를 함께 받고, 이야기 주제를 고르면 그 주제가 갈등 기간 질문 제목에 들어간다
   definition: {
     intro: INTRO,
     fields: [
@@ -86,7 +86,7 @@ export const SEED_MAIN_FORM: { name: string; definition: FormDefinition } = {
       { id: 'residence', type: 'short', label: '지금 사시는 지역을 알려 주세요', help: '대면 상담 센터를 정할 때 참고해요. 예: 서울 마포구', mapsTo: 'residence' },
       { id: 'name', type: 'short', label: '신청하시는 분 성함을 알려 주세요', help: '커플 중 대표 한 분', required: true, mapsTo: 'client_name' },
       { id: 'birth', type: 'date', label: '생년월일을 알려 주세요', help: '커플 중 대표 한 분', required: true, mapsTo: 'client_birth' },
-      { id: 'relation', type: 'single', label: '두 분은 어떤 사이인가요?', required: true, options: ['연애 중이에요', '결혼을 준비하고 있어요', '결혼했어요'] },
+      // 11-10 검수: "두 분은 어떤 사이인가요?"는 뺀다. 아래 기간 질문의 답(연애 1년, 결혼 3년)이 관계까지 알려 준다
       { id: 'dating', type: 'short', label: '연애 기간 또는 결혼 기간을 작성해 주세요', help: '커플 예: 1년\n부부 예: 연애 1년, 결혼 3년', required: true },
       { id: 'topics', type: 'multi', label: '이야기하고 싶은 주제를 선택해 주세요', options: ['소통', '가치관', '대인관계 (예: 여사친·남사친)', '금전적/경제적 문제'], other: true },
       {
@@ -94,7 +94,8 @@ export const SEED_MAIN_FORM: { name: string; definition: FormDefinition } = {
         options: ['최근 3개월 이내', '3개월~6개월 이내', '6개월~1년 이내', '1년~3년', '3년 이상', '잘 모르겠음'],
         showIf: { field: 'topics' },
       },
-      { id: 'reason', type: 'short', label: '상담을 신청하신 이유가 있나요?', help: '적어 주시면 상담사가 미리 준비해요', mapsTo: 'reason' },
+      // 11-10 검수: 길게 써도 된다는 것이 보이게 장문형(4줄 칸)으로
+      { id: 'reason', type: 'long', label: '상담을 신청하신 이유가 있나요?', help: '적어 주시면 상담사가 미리 준비해요', mapsTo: 'reason' },
       { id: 'consent_sensitive', type: 'consent', label: '민감정보 수집·이용 동의(선택)', consentKind: 'sensitive', help: SENSITIVE },
       { id: 'drug', type: 'long', label: '복용 중인 약이나 진단받은 질환이 있나요?', help: '예: 항우울제, 수면제', sensitive: true, mapsTo: 'medication_diagnosis' },
       { id: 'experience', type: 'single', label: '심리상담을 받아 본 적 있나요?', options: ['있음', '없음'], mapsTo: 'counseling_experience' },

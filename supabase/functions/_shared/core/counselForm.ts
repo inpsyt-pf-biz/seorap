@@ -263,6 +263,16 @@ export function answerText(f: FormField, v: unknown): string {
   return String(v).trim()
 }
 
+// 만 나이 (11-10): 올해 생일이 지났으면 해 차이, 아직이면 하나 뺀다. 날짜 모양이 아니거나 미래면 null
+const ISO_DAY = /^(\d{4})-(\d{2})-(\d{2})$/
+export function ageOn(birth: string, today: string): number | null {
+  const b = ISO_DAY.exec(birth)
+  const d = ISO_DAY.exec(today)
+  if (!b || !d) return null
+  const age = Number(d[1]) - Number(b[1]) - (`${d[2]}${d[3]}` < `${b[2]}${b[3]}` ? 1 : 0)
+  return age < 0 ? null : age
+}
+
 export type SplitAnswers = {
   standard: Partial<Record<Exclude<StandardField, 'medication_diagnosis'>, string>>
   sensitive: Partial<Record<'medication_diagnosis', string>>

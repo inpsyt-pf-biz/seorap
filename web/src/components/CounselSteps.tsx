@@ -1,12 +1,14 @@
-import { Box, Button, ButtonBase, Collapse, InputBase, LinearProgress, Stack, TextField, Typography } from '@mui/material'
+import { Box, Button, ButtonBase, InputBase, LinearProgress, Stack, TextField, Typography } from '@mui/material'
+import { visuallyHidden } from '@mui/utils'
 import { type ReactNode, useEffect, useRef, useState } from 'react'
 import {
   type AnswerProblem, type Answers, type AvailabilityAnswer, type AvailabilityLabel, type FormDefinition, type FormField, type Provider,
-  DEFAULT_AVAILABILITY, LIMITS, answerText, checkAnswers, fieldLabel, hiddenIds, pruneHidden, takesAnswer,
+  DEFAULT_AVAILABILITY, LIMITS, ageOn, answerText, checkAnswers, fieldLabel, hiddenIds, pruneHidden, takesAnswer,
 } from '@core/counselForm.ts'
 import { type CopyKey, t } from '@core/copy.ko.ts'
 import { tokens } from '../theme/seorap'
 import Choice from './Choice'
+import ConsentSheet from './ConsentSheet'
 import { Providers } from './CounselForm'
 
 // 상담 신청서 단계형 화면 (11-10). 한 화면에 질문 하나, 고르는 질문은 누르면 0.25초 뒤 다음으로 넘어간다.
@@ -22,6 +24,8 @@ type Step =
 type QStep = Exclude<Step, { key: 'start' } | { key: 'review' }>
 
 const ADVANCE_MS = 250
+// 생년월일은 만 나이를 읽을 틈을 두고 넘긴다
+const AGE_MS = 700
 const isNote = (f: FormField) => f.type === 'section' || f.type === 'notice'
 // 시작 화면에 모으는 동의: 민감정보 동의는 그 질문 바로 앞에서 따로 묻는다
 const isStartConsent = (f: FormField) => f.type === 'consent' && f.consentKind !== 'sensitive'
@@ -108,13 +112,45 @@ function OtherChoice({ text, onText, onEnter, disabled }: { text: string; onText
 // 8자리 숫자 → YYYY-MM-DD. 키패드에 엔터가 없는 휴대폰을 위해 다 쓰면 넘어간다
 const toIso = (d: string) => (d.length === 8 ? `${d.slice(0, 4)}-${d.slice(4, 6)}-${d.slice(6)}` : '')
 const toDigits = (v: unknown) => (typeof v === 'string' ? v.replace(/\D/g, '').slice(0, 8) : '')
+const pad = (n: number) => String(n).padStart(2, '0')
+const todayIso = () => { const d = new Date(); return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}` }
+// 신청자 생년월일 칸이면 만 나이를 붙인다 (다른 날짜 문항은 나이가 아니다)
+const ageOf = (f: FormField, iso: string) => (f.mapsTo === 'client_birth' ? ageOn(iso, todayIso()) : null)
+// 확인 화면의 날짜: 1995. 3. 12. (만 31세)
+function dateText(f: FormField, iso: string) {
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(iso)
+  if (!m) return iso
+  const age = ageOf(f, iso)
+  return `${m[1]}. ${Number(m[2])}. ${Number(m[3])}.${age === null ? '' : ` (${t('steps.age', { n: age })})`}`
+}
+
+// 약관 한 줄: 동의했으면 청록 체크, 누르면 바텀시트로 본문을 연다
+function TermRow({ f, on, onView, first }: { f: FormField; on: boolean; onView: () => void; first?: boolean }) {
+  return (
+    <ButtonBase
+      onClick={onView}
+      sx={{ width: '100%', minHeight: 52, px: 2, gap: 1.25, justifyContent: 'flex-start', textAlign: 'left', borderTop: first ? 'none' : `1px solid ${tokens.surface[200]}` }}
+    >
+      <Box component="svg" viewBox="0 0 24 24" aria-hidden sx={{ width: 22, height: 22, flexShrink: 0, color: on ? tokens.teal[700] : tokens.surface[300] }}>
+        <path d="M5 12.5l4.5 4.5L19 7.5" fill="none" stroke="currentColor" strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round" />
+      </Box>
+      <Typography variant="body2" sx={{ flex: 1, fontWeight: 500, wordBreak: 'keep-all' }}>
+        {/* 앞에 [필수]·[선택]을 달므로 제목 끝의 "(선택)"은 뺀다 */}
+        <Box component="span" sx={{ color: f.required ? tokens.teal[700] : tokens.text.secondary }}>[{t(f.required ? 'form.required' : 'form.optional')}]</Box>{' '}
+        {f.label.replace(/\s*\((선택|필수)\)$/, '')}
+        {on && <Box component="span" sx={visuallyHidden}>, {t('steps.agreed')}</Box>}
+      </Typography>
+      <Typography variant="body2" color="text.secondary" sx={{ flexShrink: 0 }}>{t('steps.view')} ›</Typography>
+    </ButtonBase>
+  )
+}
 
 export default function CounselSteps({ definition: def, value, onChange, onSubmit, providers = [], errors, message, busy, preview, minHeight = 'calc(var(--frame-min-h) - 120px)' }: Props) {
   const [cur, setCur] = useState<string>('start')
   const [problem, setProblem] = useState<AnswerProblem | null>(null)
   const [backToReview, setBackToReview] = useState(false)
-  const [openHelp, setOpenHelp] = useState<string | null>(null)
-  const [touched, setTouched] = useState(false)
+  // 열린 약관 시트: ids 를 차례로 보여 주고, 마지막에 동의하면 then 이 'advance' 일 때 다음 질문으로
+  const [sheet, setSheet] = useState<{ ids: string[]; i: number; then: 'advance' | 'stay' } | null>(null)
   const [startErr, setStartErr] = useState(false)
   const [digits, setDigits] = useState('')
   const lock = useRef(false)
@@ -157,11 +193,11 @@ export default function CounselSteps({ definition: def, value, onChange, onSubmi
   }
 
   // 고르는 질문: 고른 칸을 잠깐 보여 주고 넘긴다. 그동안 들어온 터치는 무시한다 (다음 질문의 같은 자리를 잘못 누르지 않게)
-  const choose = (ans: Answers) => {
+  const choose = (ans: Answers, ms = ADVANCE_MS) => {
     if (lock.current) return
     lock.current = true
     onChange(ans)
-    setTimeout(() => { lock.current = false; advance(ans) }, ADVANCE_MS)
+    setTimeout(() => { lock.current = false; advance(ans) }, ms)
   }
 
   const set = (id: string, v: unknown) => {
@@ -178,6 +214,17 @@ export default function CounselSteps({ definition: def, value, onChange, onSubmi
     const p = checkAnswers(def, value)[s.f.id]
     if (p) { setProblem(p); return }
     advance(value)
+  }
+
+  // 시트에서 동의(또는 선택 약관을 동의하지 않음)하면 다음 약관으로, 마지막이면 닫고 필요하면 다음 질문으로
+  const sheetField = sheet ? def.fields.find((f) => f.id === sheet.ids[sheet.i]) ?? null : null
+  const answerSheet = (agreed: boolean) => {
+    if (!sheet || !sheetField) return
+    setStartErr(false)
+    const ans = set(sheetField.id, agreed)
+    if (sheet.i + 1 < sheet.ids.length) { setSheet({ ...sheet, i: sheet.i + 1 }); return }
+    setSheet(null)
+    if (sheet.then === 'advance') advance(ans)
   }
 
   const back = () => {
@@ -236,15 +283,11 @@ export default function CounselSteps({ definition: def, value, onChange, onSubmi
 
   let body: ReactNode
   if (step.key === 'start') {
-    const allChecked = startConsents.every((c) => value[c.id] === true)
+    // 시작하기: 아직 동의하지 않은 약관을 은행 앱처럼 하나씩 시트로 보여 준다 (이미 고른 선택 약관은 다시 묻지 않는다)
     const begin = () => {
-      if (!touched || allChecked) {
-        const next = { ...value }
-        startConsents.forEach((c) => { next[c.id] = true })
-        onChange(next); advance(next); return
-      }
-      if (startConsents.some((c) => c.required && value[c.id] !== true)) { setStartErr(true); return }
-      advance(value)
+      const pending = startConsents.filter((c) => value[c.id] !== true && (c.required || value[c.id] === undefined))
+      if (pending.length) setSheet({ ids: pending.map((c) => c.id), i: 0, then: 'advance' })
+      else advance(value)
     }
     const notes = def.fields.slice(0, Math.max(0, def.fields.findIndex((f) => takesAnswer(f) && !isStartConsent(f)))).filter(isNote)
     body = (
@@ -263,49 +306,17 @@ export default function CounselSteps({ definition: def, value, onChange, onSubmi
         ))}
         <Box sx={{ mt: 'auto !important' }} />
         {startConsents.length > 0 && (
-          <Stack sx={{ border: `1px solid ${tokens.surface[300]}`, borderRadius: tokens.radius.card, px: 2, py: 0.5 }}>
-            {startConsents.map((c, i) => {
-              const on = value[c.id] === true
-              return (
-                <Box key={c.id} sx={{ py: 1, borderTop: i ? `1px solid ${tokens.surface[200]}` : 'none' }}>
-                  <Stack direction="row" spacing={1} sx={{ alignItems: 'center' }}>
-                    <ButtonBase
-                      role="checkbox" aria-checked={on} aria-label={c.label}
-                      onClick={() => { setTouched(true); setStartErr(false); set(c.id, !on) }}
-                      sx={{ flex: 1, justifyContent: 'flex-start', gap: 1, py: 0.5, textAlign: 'left', borderRadius: tokens.radius.control }}
-                    >
-                      <Box component="svg" viewBox="0 0 24 24" aria-hidden sx={{ width: 22, height: 22, flexShrink: 0, color: on ? tokens.teal[700] : tokens.surface[300] }}>
-                        <path d="M5 12.5l4.5 4.5L19 7.5" fill="none" stroke="currentColor" strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round" />
-                      </Box>
-                      <Typography variant="body2" sx={{ fontWeight: 500 }}>
-                        [{t(c.required ? 'form.required' : 'form.optional')}] {c.label}
-                      </Typography>
-                    </ButtonBase>
-                    {c.help && (
-                      <Button size="small" variant="text" onClick={() => setOpenHelp(openHelp === c.id ? null : c.id)} aria-expanded={openHelp === c.id}>
-                        {t(openHelp === c.id ? 'steps.hide' : 'steps.view')}
-                      </Button>
-                    )}
-                  </Stack>
-                  <Collapse in={openHelp === c.id} unmountOnExit>
-                    <Box sx={{ mt: 1, p: 1.5, maxHeight: 220, overflowY: 'auto', borderRadius: tokens.radius.control, bgcolor: tokens.surface[50] }}>
-                      <Help text={c.help} />
-                    </Box>
-                  </Collapse>
-                  {c.consentKind === 'third_party' && def.fields.some((f) => f.type === 'providers') && (
-                    <Box sx={{ mt: 1 }}>
-                      <Providers f={def.fields.find((f) => f.type === 'providers')!} providers={providers} />
-                    </Box>
-                  )}
-                </Box>
-              )
-            })}
+          <Stack spacing={1}>
+            <Typography variant="body2" color="text.secondary">{t('steps.start.terms')}</Typography>
+            <Box sx={{ bgcolor: tokens.surface[0], border: `1px solid ${tokens.surface[200]}`, borderRadius: tokens.radius.card, overflow: 'hidden' }}>
+              {startConsents.map((c, i) => (
+                <TermRow key={c.id} f={c} first={i === 0} on={value[c.id] === true} onView={() => setSheet({ ids: [c.id], i: 0, then: 'stay' })} />
+              ))}
+            </Box>
           </Stack>
         )}
         {startErr && <Typography role="alert" variant="body2" color="error">{t('steps.consentNeeded')}</Typography>}
-        <Button variant="contained" size="large" fullWidth onClick={begin}>
-          {t(!touched || allChecked ? (startConsents.length ? 'steps.agreeAll' : 'steps.begin') : 'steps.begin')}
-        </Button>
+        <Button variant="contained" size="large" fullWidth onClick={begin}>{t('steps.begin')}</Button>
       </Stack>
     )
   } else if (step.key === 'review') {
@@ -315,29 +326,47 @@ export default function CounselSteps({ definition: def, value, onChange, onSubmi
     body = (
       <Stack spacing={2} sx={{ flex: 1 }}>
         {title(t('steps.review.title'), <Help text={t('steps.review.body')} />)}
-        <Stack>
-          {rows.map((f) => {
+        {/* 11-10 검수: 표처럼 좌우로 두지 않고, 흰 카드 안에 질문(작은 회색) 위 · 답(크고 진하게) 아래로 쌓는다 */}
+        <Box sx={{ bgcolor: tokens.surface[0], border: `1px solid ${tokens.surface[200]}`, borderRadius: tokens.radius.card, overflow: 'hidden' }}>
+          {rows.map((f, i) => {
             const v = value[f.id]
             const empty = v === undefined || v === '' || (Array.isArray(v) && v.length === 0)
               || (f.type === 'availability' && !(v as AvailabilityAnswer).cells?.length)
+            const text = empty ? t('steps.review.empty') : f.type === 'date' ? dateText(f, String(v)) : answerText(f, v)
             return (
               <ButtonBase
                 key={f.id} onClick={() => { setBackToReview(true); goTo(stepOf(all, f.id)) }}
-                sx={{ py: 1.5, gap: 2, justifyContent: 'space-between', textAlign: 'left', borderBottom: `1px solid ${tokens.surface[200]}` }}
+                sx={{
+                  width: '100%', px: 2, py: 1.75, gap: 1.5, alignItems: 'flex-start', justifyContent: 'flex-start', textAlign: 'left',
+                  borderTop: i ? `1px solid ${tokens.surface[200]}` : 'none',
+                }}
               >
-                <Typography variant="body2" color="text.secondary" sx={{ flex: '0 0 40%' }}>{fieldLabel(def, f, value)}</Typography>
-                <Typography variant="body2" sx={{ textAlign: 'right', color: empty ? tokens.text.disabled : tokens.text.primary, wordBreak: 'keep-all' }}>
-                  {empty ? t('steps.review.empty') : answerText(f, v)}
-                </Typography>
+                <Box sx={{ flex: 1, minWidth: 0 }}>
+                  <Typography sx={{ fontSize: 13, lineHeight: 1.5, color: tokens.text.secondary, wordBreak: 'keep-all' }}>{fieldLabel(def, f, value)}</Typography>
+                  <Typography
+                    sx={{
+                      mt: 0.5, fontSize: 16, lineHeight: 1.5, fontWeight: empty ? 400 : 600,
+                      color: empty ? tokens.text.disabled : tokens.text.primary,
+                      whiteSpace: 'pre-line', wordBreak: 'keep-all', overflowWrap: 'anywhere',
+                      display: '-webkit-box', WebkitBoxOrient: 'vertical', WebkitLineClamp: 4, overflow: 'hidden',
+                    }}
+                  >
+                    {text}
+                  </Typography>
+                </Box>
+                <Typography sx={{ flexShrink: 0, fontSize: 13, lineHeight: 1.5, fontWeight: 600, color: tokens.teal[700] }}>{t('steps.review.edit')}</Typography>
               </ButtonBase>
             )
           })}
-        </Stack>
+        </Box>
         {message && <Typography role="alert" variant="body2" color="error">{message}</Typography>}
         {preview && <Typography variant="body2" color="text.secondary">{t('steps.preview')}</Typography>}
-        <Button variant="contained" size="large" fullWidth disabled={busy || preview} onClick={submit} sx={{ mt: 'auto !important' }}>
-          {t('steps.submit')}
-        </Button>
+        {/* 확인 목록이 길어도 신청 버튼은 화면 바닥에 붙어 늘 보인다 (목록과 붙지 않게 위 여백) */}
+        <Box sx={{ mt: 'auto !important', position: 'sticky', bottom: 0, pt: 2, pb: 1, bgcolor: tokens.surface.page }}>
+          <Button variant="contained" size="large" fullWidth disabled={busy || preview} onClick={submit}>
+            {t('steps.submit')}
+          </Button>
+        </Box>
       </Stack>
     )
   } else {
@@ -354,18 +383,18 @@ export default function CounselSteps({ definition: def, value, onChange, onSubmi
       body = (
         <Stack spacing={2} sx={{ flex: 1 }}>
           {notes}
-          {title(s.next ? fieldLabel(def, s.next, value) : f.label, (
-            <>
-              <Typography variant="body2" sx={{ fontWeight: 600 }}>{f.label}</Typography>
-              {f.help && (
-                <Box sx={{ p: 1.5, maxHeight: 220, overflowY: 'auto', borderRadius: tokens.radius.control, bgcolor: tokens.surface[50], border: `1px solid ${tokens.surface[200]}` }}>
-                  <Help text={f.help} />
-                </Box>
-              )}
-            </>
-          ))}
+          {title(s.next ? fieldLabel(def, s.next, value) : f.label, <Help text={t('steps.sensitive.why')} />)}
+          <Box sx={{ bgcolor: tokens.surface[0], border: `1px solid ${tokens.surface[200]}`, borderRadius: tokens.radius.card, overflow: 'hidden' }}>
+            <TermRow f={f} first on={value[f.id] === true} onView={() => setSheet({ ids: [f.id], i: 0, then: 'stay' })} />
+          </Box>
           <Stack spacing={1} sx={{ mt: 'auto !important' }}>
-            <Button variant="contained" size="large" fullWidth onClick={() => advance(set(f.id, true))}>{t('steps.sensitive.agree')}</Button>
+            {/* 동의하고 적기: 약관 시트를 먼저 보여 주고, 시트에서 동의하면 질문으로 */}
+            <Button
+              variant="contained" size="large" fullWidth
+              onClick={() => (value[f.id] === true ? advance(value) : setSheet({ ids: [f.id], i: 0, then: 'advance' }))}
+            >
+              {t('steps.sensitive.agree')}
+            </Button>
             <Button variant="text" size="large" fullWidth onClick={() => advance(set(f.id, false))}>{t('steps.sensitive.skip')}</Button>
           </Stack>
         </Stack>
@@ -459,8 +488,9 @@ export default function CounselSteps({ definition: def, value, onChange, onSubmi
         const ans = { ...value, [f.id]: toIso(d) }
         const p = checkAnswers(def, ans)[f.id]
         if (p) { onChange(ans); setProblem(p); return }
-        choose(ans)
+        choose(ans, ageOf(f, toIso(d)) === null ? ADVANCE_MS : AGE_MS)
       }
+      const age = digits.length === 8 && !problem ? ageOf(f, toIso(digits)) : null
       body = (
         <Stack spacing={2} sx={{ flex: 1 }}>
           {notes}
@@ -471,6 +501,9 @@ export default function CounselSteps({ definition: def, value, onChange, onSubmi
             slotProps={{ htmlInput: { inputMode: 'numeric', maxLength: 8, 'aria-label': f.label, enterKeyHint: 'next' } }}
             onKeyDown={(e) => { if (e.key === 'Enter') confirm(s) }}
           />
+          {age !== null && (
+            <Typography role="status" sx={{ fontSize: 16, fontWeight: 700, color: tokens.teal[700] }}>{t('steps.age', { n: age })}</Typography>
+          )}
           <ErrorText p={problem} />
           {bottom(s, digits === '')}
         </Stack>
@@ -508,6 +541,16 @@ export default function CounselSteps({ definition: def, value, onChange, onSubmi
       >
         {body}
       </Box>
+      <ConsentSheet
+        f={sheetField}
+        count={sheet ? { i: sheet.i + 1, n: sheet.ids.length } : undefined}
+        extra={sheetField?.consentKind === 'third_party' && def.fields.some((x) => x.type === 'providers')
+          ? <Providers f={def.fields.find((x) => x.type === 'providers')!} providers={providers} />
+          : undefined}
+        onAgree={() => answerSheet(true)}
+        onDecline={sheetField && !sheetField.required ? () => answerSheet(false) : undefined}
+        onClose={() => setSheet(null)}
+      />
     </Stack>
   )
 }

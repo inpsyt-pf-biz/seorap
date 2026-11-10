@@ -1,8 +1,17 @@
 import { assertEquals } from '@std/assert'
 import {
   type FormDefinition, checkDefinition, checkAnswers, splitAnswers, summarizeAvailability, DEFAULT_AVAILABILITY,
-  hasProviders, takesAnswer, withProviders, ledgerConsents, pruneHidden, hiddenIds, fieldLabel,
+  hasProviders, takesAnswer, withProviders, ledgerConsents, pruneHidden, hiddenIds, fieldLabel, ageOn,
 } from './counselForm.ts'
+
+Deno.test('만 나이: 생일 전날까지는 하나 적고, 생일부터 하나 늘며, 날짜가 아니거나 미래면 없음', () => {
+  assertEquals(ageOn('1995-03-12', '2026-03-11'), 30)
+  assertEquals(ageOn('1995-03-12', '2026-03-12'), 31)
+  assertEquals(ageOn('1995-12-31', '2026-11-10'), 30)
+  assertEquals(ageOn('2026-11-10', '2026-11-10'), 0)
+  assertEquals(ageOn('2027-01-01', '2026-11-10'), null)
+  assertEquals(ageOn('19950312', '2026-11-10'), null)
+})
 
 const DEF: FormDefinition = {
   intro: '원활한 상담 진행을 위해 아래 문답에 답해 주세요.',

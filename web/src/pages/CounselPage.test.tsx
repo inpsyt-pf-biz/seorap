@@ -54,9 +54,14 @@ const open = (path = `/box/counsel/${ORDER}`) => render(
     </Routes>
   </MemoryRouter>,
 )
+// 시작하기 → 약관 시트에서 동의 (11-10 은행 앱처럼 약관을 하나씩)
+const agree = async () => {
+  await userEvent.click(await screen.findByRole('button', { name: t('steps.begin') }))
+  await userEvent.click(await screen.findByRole('button', { name: t('steps.sheet.agree') }))
+}
 // 단계형 화면 (11-10): 동의 → 성함 → 상담 방식 → 시간 칸 → 시작일 → 연락 시간 → 확인
 const fill = async () => {
-  await userEvent.click(await screen.findByRole('button', { name: t('steps.agreeAll') }))
+  await agree()
   await userEvent.type(await screen.findByLabelText('성함'), '홍길동{Enter}')
   await userEvent.click(await screen.findByRole('button', { name: t('steps.skip') }))
   await userEvent.click(await screen.findByRole('button', { name: '평일 저녁 상담 가능' }))
@@ -72,7 +77,7 @@ describe('상담 신청서 화면', () => {
   it('필수가 비면 다음으로 넘어가지 않고 서버에도 보내지 않는다', async () => {
     const calls = stubApi({ 'counsel/form': () => json(200, FORM()) })
     open()
-    await userEvent.click(await screen.findByRole('button', { name: t('steps.agreeAll') }))
+    await agree()
     await userEvent.click(await screen.findByRole('button', { name: t('steps.next') }))
     expect(screen.getByText(t('form.error.required'))).toBeTruthy()
     expect(screen.getByLabelText('성함')).toBeTruthy()
@@ -106,7 +111,7 @@ describe('상담 신청서 화면', () => {
   it('고르는 질문은 누르면 넘어가고, 넘어가는 사이 한 번 더 눌러도 다음 질문에 답이 들어가지 않는다', async () => {
     stubApi({ 'counsel/form': () => json(200, FORM()) })
     open()
-    await userEvent.click(await screen.findByRole('button', { name: t('steps.agreeAll') }))
+    await agree()
     await userEvent.type(await screen.findByLabelText('성함'), '홍길동{Enter}')
     const pick = await screen.findByRole('button', { name: '화상' })
     await userEvent.click(pick)
@@ -118,17 +123,20 @@ describe('상담 신청서 화면', () => {
   it('쓰던 답은 화면을 다시 열어도 남아 있고, 내면 지운다', async () => {
     stubApi({ 'counsel/form': () => json(200, FORM()), 'counsel/submit': () => json(200, { submitted: true }) })
     open()
-    await userEvent.click(await screen.findByRole('button', { name: t('steps.agreeAll') }))
+    await agree()
     await userEvent.type(await screen.findByLabelText('성함'), '홍길동')
     cleanup()
     open()
-    await userEvent.click(await screen.findByRole('button', { name: t('steps.agreeAll') }))
+    // 동의도 남아 있어 약관 시트 없이 바로 첫 질문으로
+    await userEvent.click(await screen.findByRole('button', { name: t('steps.begin') }))
     expect(((await screen.findByLabelText('성함')) as HTMLInputElement).value).toBe('홍길동')
   })
 
-  it('제공받는 업체 정보는 "N곳"으로 접혀 있고, 누르면 업체명·전화·주소가 보인다', async () => {
+  it('제공받는 업체 정보는 제3자 제공 약관 시트 안에 "N곳"으로 접혀 있고, 누르면 업체명·전화·주소가 보인다', async () => {
     stubApi({ 'counsel/form': () => json(200, FORM()) })
     open()
+    await userEvent.click(await screen.findByRole('button', { name: /개인정보 제3자 제공 동의/ }))
+    await screen.findByRole('dialog', { name: '개인정보 제3자 제공 동의' })
     const head = await screen.findByRole('button', { name: /제공받는 업체 정보/ })
     expect(head.textContent).toContain(t('form.providers.count', { n: 2 }))
     expect(head.getAttribute('aria-expanded')).toBe('false')
@@ -172,7 +180,7 @@ describe('서랍 상담 카드', () => {
     const buttons = screen.getAllByRole('button', { name: t('counsel.card.button') })
     expect(buttons.length).toBe(1)
     await userEvent.click(buttons[0])
-    expect(await screen.findByRole('button', { name: t('steps.agreeAll') })).toBeTruthy()
+    expect(await screen.findByRole('button', { name: t('steps.begin') })).toBeTruthy()
   })
 
   it('낸 뒤(예약 확정 전): 제출 완료 카드에 연락 대기 문구, 버튼 없음, 검사는 아직 잠겨 있다', async () => {
