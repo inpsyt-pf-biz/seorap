@@ -87,6 +87,7 @@ function Availability({ f, value, onChange, disabled }: { f: FormField; value: A
       {cfg.askStartDate && (
         <Stack spacing={1}>
           <Typography variant="body1" sx={{ fontWeight: 500 }}>{text('start')}</Typography>
+          {cfg.helps?.start && <Typography variant="body2" color="text.secondary" sx={{ whiteSpace: 'pre-line' }}>{cfg.helps.start}</Typography>}
           <TextField
             type="date" value={a.startDate ?? ''} disabled={disabled}
             onChange={(e) => onChange({ ...a, startDate: e.target.value || undefined })}
@@ -98,6 +99,7 @@ function Availability({ f, value, onChange, disabled }: { f: FormField; value: A
         opts.length > 0 && (
           <Stack key={key} spacing={1}>
             <Typography variant="body1" sx={{ fontWeight: 500 }}>{text(label)}</Typography>
+            {cfg.helps?.[label] && <Typography variant="body2" color="text.secondary" sx={{ whiteSpace: 'pre-line' }}>{cfg.helps[label]}</Typography>}
             {/* 손가락으로 누르기 쉽게 줄을 채우는 큰 버튼 (10-29 휴대폰 검수: 칩은 작다). 3개까지는 한 줄, 그보다 많으면 두 칸씩 */}
             <Box sx={{ display: 'grid', gridTemplateColumns: `repeat(${opts.length <= 3 ? opts.length : 2}, 1fr)`, gap: 1 }}>
               {opts.map((o) => (

@@ -189,3 +189,26 @@ describe('상담 신청서 단계형 화면', () => {
     expect((await screen.findByLabelText('생년월일') as HTMLInputElement).value).toBe('950312')
   })
 })
+
+describe('가능 시간대의 질문 아래 설명 (11-10)', () => {
+  it('상담 방식 질문 아래에 어드민에서 적은 설명이 보인다', async () => {
+    const def: FormDefinition = {
+      intro: '',
+      fields: [{
+        id: 'when', type: 'availability', label: '상담 가능한 시간대', required: true,
+        availability: {
+          days: [{ id: 'weekday', label: '평일' }], slots: [{ id: 'evening', label: '저녁', hours: '18~21시' }],
+          askStartDate: false, methods: ['대면 (방문)', '비대면 (ZOOM)'], contactTimes: [],
+          helps: { method: '대면 상담은 서울시 마포구 홍대입구 인근의 직영 상담센터에서 진행됩니다.' },
+        },
+      }],
+    }
+    function H() {
+      const [v, setV] = useState<Answers>({})
+      return <CounselSteps definition={def} value={v} onChange={setV} onSubmit={vi.fn()} />
+    }
+    render(<H />)
+    await userEvent.click(screen.getByRole('button', { name: t('steps.begin') }))
+    expect(await screen.findByText('대면 상담은 서울시 마포구 홍대입구 인근의 직영 상담센터에서 진행됩니다.')).toBeTruthy()
+  })
+})

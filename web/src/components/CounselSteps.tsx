@@ -453,7 +453,7 @@ export default function CounselSteps({ definition: def, value, onChange, onSubmi
         body = (
           <Stack spacing={2.5} sx={{ flex: 1 }}>
             {notes}
-            {title(text('start'))}
+            {title(text('start'), <Help text={cfg.helps?.start} />)}
             <TextField
               type="date" value={a.startDate ?? ''}
               onChange={(e) => { const d = e.target.value || undefined; if (d) choose(put({ startDate: d })); else set(f.id, { ...a, startDate: undefined }) }}
@@ -468,7 +468,7 @@ export default function CounselSteps({ definition: def, value, onChange, onSubmi
         body = (
           <Stack spacing={1.5} sx={{ flex: 1 }}>
             {notes}
-            {title(text(s.part === 'method' ? 'method' : 'contact'))}
+            {title(text(s.part === 'method' ? 'method' : 'contact'), <Help text={cfg.helps?.[s.part === 'method' ? 'method' : 'contact']} />)}
             <Box sx={{ pt: 1 }} />
             {opts.map((o) => <Choice key={o} selected={a[key] === o} onClick={() => choose(put({ [key]: o }))}>{o}</Choice>)}
             <Button variant="text" size="large" fullWidth onClick={() => advance(value)} sx={{ mt: 'auto !important' }}>{t('steps.skip')}</Button>

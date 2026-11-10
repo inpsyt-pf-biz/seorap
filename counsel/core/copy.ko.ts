@@ -764,6 +764,7 @@ export const copy = {
   'forms.edit.avail.emptyHelp': '배지를 모두 빼면 이 질문은 묻지 않아요',
   'forms.edit.avail.contact': '연락 시간 질문',
   'forms.edit.avail.contactTimes': '연락 시간 선택지',
+  'forms.edit.avail.help': '질문 아래 설명 (비우면 없음)',
   'forms.edit.avail.defaultHint': '비우면 흐린 글씨의 기본 문구가 보여요',
   'forms.edit.up': '위로',
   'forms.edit.down': '아래로',

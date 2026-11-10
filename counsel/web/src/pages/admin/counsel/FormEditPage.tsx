@@ -8,7 +8,7 @@ import CounselForm from '@seorap-web/components/CounselForm'
 import CounselSteps from '@seorap-web/components/CounselSteps'
 import { tokens as seorapTokens } from '@seorap-web/theme/seorap'
 import {
-  type Answers, type AvailabilityConfig, type AvailabilityLabel, type FieldType, type FormDefinition, type FormField, type Provider,
+  type Answers, type AvailabilityConfig, type AvailabilityHelp, type AvailabilityLabel, type FieldType, type FormDefinition, type FormField, type Provider,
   DEFAULT_AVAILABILITY, checkDefinition, takesAnswer,
 } from '@seorap-core/counselForm.ts'
 import { t as seorapT } from '@seorap-core/copy.ko.ts'
@@ -78,6 +78,12 @@ function AvailabilityEditor({ a, readOnly, onChange }: {
       helperText={t('forms.edit.avail.defaultHint')} disabled={readOnly} slotProps={{ inputLabel: { shrink: true } }}
       onChange={(e) => set({ labels: { ...a.labels, [k]: e.target.value } })} />
   )
+  // 질문 아래 작은 설명 (11-10). 비우면 설명 없음
+  const helpField = (k: AvailabilityHelp) => (
+    <TextField size="small" label={t('forms.edit.avail.help')} value={a.helps?.[k] ?? ''} disabled={readOnly} multiline minRows={1}
+      slotProps={{ inputLabel: { shrink: true } }}
+      onChange={(e) => set({ helps: { ...a.helps, [k]: e.target.value || undefined } })} />
+  )
   return (
     <Stack spacing={2} sx={{ p: 1.5, bgcolor: 'action.hover', borderRadius: 1 }}>
       <Typography variant="subtitle2">{t('forms.edit.avail.title')}</Typography>
@@ -89,10 +95,13 @@ function AvailabilityEditor({ a, readOnly, onChange }: {
       <FormControlLabel label={t('forms.edit.avail.askStart')} disabled={readOnly}
         control={<Switch checked={a.askStartDate} onChange={(e) => set({ askStartDate: e.target.checked })} />} />
       {a.askStartDate && labelField('start')}
+      {a.askStartDate && helpField('start')}
       {labelField('method')}
+      {helpField('method')}
       <StringChips label={t('forms.edit.avail.methods')} help={t('forms.edit.avail.emptyHelp')} items={a.methods} readOnly={readOnly}
         onChange={(methods) => set({ methods })} />
       {labelField('contact')}
+      {helpField('contact')}
       <StringChips label={t('forms.edit.avail.contactTimes')} help={t('forms.edit.avail.emptyHelp')} items={a.contactTimes} readOnly={readOnly}
         onChange={(contactTimes) => set({ contactTimes })} />
     </Stack>

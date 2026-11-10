@@ -22,8 +22,11 @@ export type AvailabilityConfig = {
   contactTimes: string[]
   // 신청서에 보이는 안내·질문 문구. 비우면 서랍 기본 문구(form.avail.*)
   labels?: Partial<Record<AvailabilityLabel, string>>
+  // 11-10 질문 아래 작은 설명 (예: 상담 방식 → "대면 상담은 서울시 마포구 홍대입구 인근의 직영 상담센터에서 진행됩니다.")
+  helps?: Partial<Record<AvailabilityHelp, string>>
 }
 export type AvailabilityLabel = 'pick' | 'start' | 'method' | 'contact'
+export type AvailabilityHelp = 'start' | 'method' | 'contact'
 export const DEFAULT_AVAILABILITY: AvailabilityConfig = {
   days: [{ id: 'weekday', label: '평일' }, { id: 'sat', label: '토요일' }, { id: 'sun', label: '일요일' }],
   slots: [
