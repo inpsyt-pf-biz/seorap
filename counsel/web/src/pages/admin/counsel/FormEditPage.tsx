@@ -123,6 +123,10 @@ function FieldCard({ f, index, count, readOnly, earlier, onChange, onMove, onRem
         <TextField size="small" label={t('forms.edit.label')} value={f.label} disabled={readOnly} onChange={(e) => set({ label: e.target.value })} />
         <TextField size="small" label={t('forms.edit.help')} value={f.help ?? ''} disabled={readOnly} multiline minRows={1}
           onChange={(e) => set({ help: e.target.value })} />
+        {(f.type === 'short' || f.type === 'long') && (
+          <TextField size="small" label={t('forms.edit.placeholder')} helperText={t('forms.edit.placeholderHelp')} value={f.placeholder ?? ''} disabled={readOnly}
+            onChange={(e) => set({ placeholder: e.target.value || undefined })} />
+        )}
         {f.type === 'providers' && <Typography variant="caption" color="text.secondary">{t('forms.edit.providersHelp')}</Typography>}
         {(f.type === 'single' || f.type === 'multi') && (
           <StringChips label={t('forms.edit.options')} items={f.options ?? []} readOnly={readOnly} onChange={(options) => set({ options })} />

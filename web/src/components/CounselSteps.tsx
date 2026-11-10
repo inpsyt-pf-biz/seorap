@@ -112,6 +112,21 @@ function OtherChoice({ text, onText, onEnter, disabled }: { text: string; onText
 // 8자리 숫자 → YYYY-MM-DD. 키패드에 엔터가 없는 휴대폰을 위해 다 쓰면 넘어간다
 const toIso = (d: string) => (d.length === 8 ? `${d.slice(0, 4)}-${d.slice(4, 6)}-${d.slice(6)}` : '')
 const toDigits = (v: unknown) => (typeof v === 'string' ? v.replace(/\D/g, '').slice(0, 8) : '')
+// 신청자 생년월일은 6자리(950312)가 기본이고 8자리(19950312)도 받는다 (11-10 건우님 "19 안 써도 되면").
+// 19·20으로 시작하는 6자리는 8자리를 쓰는 중일 수 있어 기다리고, [다음]·엔터를 누르면 6자리로 읽는다.
+// 6자리 연도: 올해 두 자리보다 크면 1900년대, 아니면 2000년대
+const isBirth = (f: FormField) => f.mapsTo === 'client_birth'
+function parseDigits(f: FormField, d: string, force: boolean): string {
+  if (d.length === 8) return toIso(d)
+  if (!isBirth(f) || d.length !== 6 || (!force && /^(19|20)/.test(d))) return ''
+  const yy = Number(d.slice(0, 2))
+  return `${yy > new Date().getFullYear() % 100 ? 19 : 20}${d.slice(0, 2)}-${d.slice(2, 4)}-${d.slice(4)}`
+}
+// 저장된 날짜를 칸에 다시 넣을 때: 생년월일은 6자리로
+const digitsOf = (f: FormField, v: unknown) => {
+  const d = toDigits(v)
+  return isBirth(f) && d.length === 8 ? d.slice(2) : d
+}
 const pad = (n: number) => String(n).padStart(2, '0')
 const todayIso = () => { const d = new Date(); return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}` }
 // 신청자 생년월일 칸이면 만 나이를 붙인다 (다른 날짜 문항은 나이가 아니다)
@@ -166,7 +181,7 @@ export default function CounselSteps({ definition: def, value, onChange, onSubmi
   const goTo = (key: string) => {
     setProblem(null); setStartErr(false); setCur(key)
     const s = buildSteps(def, value).find((x) => x.key === key)
-    if (s && 'kind' in s && s.f.type === 'date') setDigits(toDigits(value[s.f.id]))
+    if (s && 'kind' in s && s.f.type === 'date') setDigits(digitsOf(s.f, value[s.f.id]))
   }
 
   // 서버가 문제를 돌려주면 첫 문제 질문으로 (화면이 서버 응답에 맞추는 동기화)
@@ -189,7 +204,7 @@ export default function CounselSteps({ definition: def, value, onChange, onSubmi
     const next = list[i + 1]?.key ?? 'review'
     setCur(next)
     const s = list[i + 1]
-    if (s && 'kind' in s && s.f.type === 'date') setDigits(toDigits(ans[s.f.id]))
+    if (s && 'kind' in s && s.f.type === 'date') setDigits(digitsOf(s.f, ans[s.f.id]))
   }
 
   // 고르는 질문: 고른 칸을 잠깐 보여 주고 넘긴다. 그동안 들어온 터치는 무시한다 (다음 질문의 같은 자리를 잘못 누르지 않게)
@@ -211,9 +226,16 @@ export default function CounselSteps({ definition: def, value, onChange, onSubmi
   // 이 질문의 답을 검사하고 넘어간다
   const confirm = (s: QStep) => {
     if (s.kind === 'avail' && s.part !== 'cells') { advance(value); return }
-    const p = checkAnswers(def, value)[s.f.id]
+    let ans = value
+    // 날짜: 칸에 쓴 숫자를 지금 읽는다 (19·20으로 시작하는 6자리 생년월일은 여기서 6자리로 읽힌다)
+    if (s.f.type === 'date' && digits !== '') {
+      const iso = parseDigits(s.f, digits, true)
+      if (!iso) { setProblem('format'); return }
+      if (value[s.f.id] !== iso) { ans = { ...value, [s.f.id]: iso }; onChange(ans) }
+    }
+    const p = checkAnswers(def, ans)[s.f.id]
     if (p) { setProblem(p); return }
-    advance(value)
+    advance(ans)
   }
 
   // 시트에서 동의(또는 선택 약관을 동의하지 않음)하면 다음 약관으로, 마지막이면 닫고 필요하면 다음 질문으로
@@ -484,19 +506,22 @@ export default function CounselSteps({ definition: def, value, onChange, onSubmi
       const onDigits = (raw: string) => {
         const d = raw.replace(/\D/g, '').slice(0, 8)
         setDigits(d)
-        if (d.length < 8) { set(f.id, undefined); return }
-        const ans = { ...value, [f.id]: toIso(d) }
+        const iso = parseDigits(f, d, false)
+        if (!iso) { set(f.id, undefined); return }
+        const ans = { ...value, [f.id]: iso }
         const p = checkAnswers(def, ans)[f.id]
         if (p) { onChange(ans); setProblem(p); return }
-        choose(ans, ageOf(f, toIso(d)) === null ? ADVANCE_MS : AGE_MS)
+        choose(ans, ageOf(f, iso) === null ? ADVANCE_MS : AGE_MS)
       }
-      const age = digits.length === 8 && !problem ? ageOf(f, toIso(digits)) : null
+      const shownIso = parseDigits(f, digits, false)
+      const age = shownIso && !problem ? ageOf(f, shownIso) : null
+      const hint = t(isBirth(f) ? 'steps.birth' : 'steps.date')
       body = (
         <Stack spacing={2} sx={{ flex: 1 }}>
           {notes}
-          {title(fieldLabel(def, f, value), <Help text={f.help ? `${f.help}\n${t('steps.date')}` : t('steps.date')} />)}
+          {title(fieldLabel(def, f, value), <Help text={f.help ? `${f.help}\n${hint}` : hint} />)}
           <TextField
-            value={digits} autoFocus placeholder="19950312" error={!!problem}
+            value={digits} autoFocus placeholder={isBirth(f) ? '950312' : '20261110'} error={!!problem}
             onChange={(e) => onDigits(e.target.value)}
             slotProps={{ htmlInput: { inputMode: 'numeric', maxLength: 8, 'aria-label': f.label, enterKeyHint: 'next' } }}
             onKeyDown={(e) => { if (e.key === 'Enter') confirm(s) }}
@@ -515,7 +540,7 @@ export default function CounselSteps({ definition: def, value, onChange, onSubmi
           {notes}
           {title(fieldLabel(def, f, value), <Help text={f.help} />)}
           <TextField
-            value={typeof v === 'string' ? v : ''} autoFocus multiline={long} minRows={long ? 4 : undefined} error={!!problem}
+            value={typeof v === 'string' ? v : ''} autoFocus multiline={long} minRows={long ? 4 : undefined} error={!!problem} placeholder={f.placeholder}
             onChange={(e) => set(f.id, e.target.value)}
             onKeyDown={(e) => { if (!long && e.key === 'Enter') { e.preventDefault(); confirm(s) } }}
             slotProps={{ htmlInput: { maxLength: LIMITS[long ? 'long' : 'short'], 'aria-label': f.label, enterKeyHint: long ? undefined : 'next' } }}

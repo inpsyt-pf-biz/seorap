@@ -194,7 +194,7 @@ export default function CounselForm({ definition, value, onChange, errors = {}, 
                 <Help text={f.help} />
                 {(f.type === 'short' || f.type === 'long') && (
                   <TextField
-                    value={typeof v === 'string' ? v : ''} disabled={disabled} multiline={f.type === 'long'} minRows={f.type === 'long' ? 3 : undefined}
+                    value={typeof v === 'string' ? v : ''} disabled={disabled} multiline={f.type === 'long'} minRows={f.type === 'long' ? 3 : undefined} placeholder={f.placeholder}
                     onChange={(e) => set(f.id, e.target.value)} error={!!err}
                     slotProps={{ htmlInput: { maxLength: LIMITS[f.type], 'aria-label': f.label } }}
                   />

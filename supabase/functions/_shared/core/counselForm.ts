@@ -51,6 +51,8 @@ export type FormField = {
   other?: boolean
   // 11-10 조건부 표시: 앞 문항(field)에 답했을 때만(anyOf 가 있으면 그중 하나를 골랐을 때만) 보인다
   showIf?: { field: string; anyOf?: string[] }
+  // 11-10 입력 칸 안에 흐리게 보이는 예시 (단답·장문). 예: 서울 마포구
+  placeholder?: string
 }
 export type FormDefinition = { intro: string; fields: FormField[] }
 

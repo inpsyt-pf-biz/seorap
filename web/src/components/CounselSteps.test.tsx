@@ -84,6 +84,38 @@ describe('상담 신청서 단계형 화면', () => {
     expect(await screen.findByRole('heading', { name: '이야기하고 싶은 주제를 골라 주세요' })).toBeTruthy()
   })
 
+  it('생년월일은 6자리(950312)로 쓰면 바로 넘어가고, 돌아오면 6자리로 보인다', async () => {
+    render(<Harness onSubmit={vi.fn()} />)
+    await agreeTerms()
+    await userEvent.type(await screen.findByLabelText('생년월일'), '950312')
+    // 시트가 닫히는 잠깐 동안 뒤 화면이 접근성 트리에서 가려져 있어 글자로 찾는다
+    expect(screen.getByText(/^만 \d+세$/)).toBeTruthy()
+    await screen.findByRole('heading', { name: '이야기하고 싶은 주제를 골라 주세요' })
+    await userEvent.click(screen.getByRole('button', { name: t('steps.back') }))
+    expect((await screen.findByLabelText('생년월일') as HTMLInputElement).value).toBe('950312')
+  })
+
+  it('19·20으로 시작하는 6자리는 8자리를 쓰는 중일 수 있어 기다리고, 엔터를 누르면 6자리로 읽는다', async () => {
+    const onSubmit = vi.fn()
+    render(<Harness onSubmit={onSubmit} />)
+    await agreeTerms()
+    await userEvent.type(await screen.findByLabelText('생년월일'), '010203')
+    await screen.findByRole('heading', { name: '이야기하고 싶은 주제를 골라 주세요' })
+    await userEvent.click(screen.getByRole('button', { name: t('steps.back') }))
+    const input = await screen.findByLabelText('생년월일')
+    await userEvent.clear(input)
+    await userEvent.type(input, '200101')
+    expect(screen.getByLabelText('생년월일')).toBeTruthy()
+    await userEvent.type(input, '{Enter}')
+    await screen.findByRole('heading', { name: '이야기하고 싶은 주제를 골라 주세요' })
+    await userEvent.click(screen.getByRole('button', { name: t('steps.skip') }))
+    await userEvent.click(await screen.findByRole('button', { name: t('steps.sensitive.skip') }))
+    await userEvent.click(await screen.findByRole('button', { name: '없어요' }))
+    await screen.findByText(t('steps.review.title'))
+    await userEvent.click(screen.getByRole('button', { name: t('steps.submit') }))
+    expect(onSubmit.mock.calls[0][0].birth).toBe('2020-01-01')
+  })
+
   it('민감정보는 "동의하고 적기"를 누르면 약관 시트를 먼저 보여 주고, 동의하면 그 질문으로 간다', async () => {
     render(<Harness onSubmit={vi.fn()} />)
     await toTopics()
@@ -154,6 +186,6 @@ describe('상담 신청서 단계형 화면', () => {
     render(<Harness onSubmit={vi.fn()} />)
     await toTopics()
     await userEvent.click(screen.getByRole('button', { name: t('steps.back') }))
-    expect((await screen.findByLabelText('생년월일') as HTMLInputElement).value).toBe('19950312')
+    expect((await screen.findByLabelText('생년월일') as HTMLInputElement).value).toBe('950312')
   })
 })

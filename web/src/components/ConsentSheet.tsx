@@ -19,6 +19,9 @@ export default function ConsentSheet({ f, extra, count, onAgree, onDecline, onCl
   return (
     <Drawer
       anchor="bottom" open={!!f} onClose={onClose}
+      // 동의하면 시트가 닫히며 다음 질문이 열린다. 닫히는 동안 시트가 포커스를 붙잡거나 되돌리면
+      // 다음 질문의 입력 칸(예: 민감정보 동의 뒤 약 질문)이 포커스를 못 받아 휴대폰 키보드가 열리지 않는다
+      disableEnforceFocus disableRestoreFocus
       slotProps={{
         paper: {
           role: 'dialog', 'aria-modal': true, 'aria-labelledby': titleId,

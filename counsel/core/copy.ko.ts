@@ -736,6 +736,8 @@ export const copy = {
   'forms.edit.add': '문항 추가',
   'forms.edit.label': '질문',
   'forms.edit.help': '설명',
+  'forms.edit.placeholder': '입력 칸 예시',
+  'forms.edit.placeholderHelp': '입력 칸 안에 흐리게 보이는 예시예요. 예: 서울 마포구',
   'forms.edit.required': '필수',
   'forms.edit.sensitive': '민감정보',
   'forms.edit.sensitiveHelp': '건강·진단처럼 민감한 답. 민감정보 동의가 있어야 답할 수 있고, 원장에서 따로 보관해요',

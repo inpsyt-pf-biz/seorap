@@ -83,15 +83,15 @@ export const SEED_MAIN_FORM: { name: string; definition: FormDefinition } = {
           },
         },
       },
-      { id: 'residence', type: 'short', label: '지금 사시는 지역을 알려 주세요', help: '대면 상담 센터를 정할 때 참고해요. 예: 서울 마포구', mapsTo: 'residence' },
-      { id: 'name', type: 'short', label: '신청하시는 분 성함을 알려 주세요', help: '커플 중 대표 한 분', required: true, mapsTo: 'client_name' },
+      { id: 'residence', type: 'short', label: '지금 사시는 지역을 알려 주세요', help: '대면 상담 센터를 정할 때 참고해요', placeholder: '서울 마포구', mapsTo: 'residence' },
+      { id: 'name', type: 'short', label: '신청하시는 분 성함을 알려 주세요', help: '신청하시는 한 분의 성함만 적어 주세요', required: true, mapsTo: 'client_name' },
       { id: 'birth', type: 'date', label: '생년월일을 알려 주세요', help: '커플 중 대표 한 분', required: true, mapsTo: 'client_birth' },
       // 11-10 검수: "두 분은 어떤 사이인가요?"는 뺀다. 아래 기간 질문의 답(연애 1년, 결혼 3년)이 관계까지 알려 준다
       { id: 'dating', type: 'short', label: '연애 기간 또는 결혼 기간을 작성해 주세요', help: '커플 예: 1년\n부부 예: 연애 1년, 결혼 3년', required: true },
-      { id: 'topics', type: 'multi', label: '이야기하고 싶은 주제를 선택해 주세요', options: ['소통', '가치관', '대인관계 (예: 여사친·남사친)', '금전적/경제적 문제'], other: true },
+      { id: 'topics', type: 'multi', label: '이야기하고 싶은 주제를 선택해 주세요', options: ['소통', '가치관', '대인관계 (예: 여사친·남사친)', '경제적 문제'], other: true },
       {
         id: 'conflict_span', type: 'single', label: '{{topics}}에 대해 갈등이 있었다면, 지속된 기간을 알려 주세요',
-        options: ['최근 3개월 이내', '3개월~6개월 이내', '6개월~1년 이내', '1년~3년', '3년 이상', '잘 모르겠음'],
+        options: ['최근 3개월 이내', '3개월~6개월 이내', '6개월~1년 이내', '1년~3년 이내', '3년 이상', '잘 모르겠음'],
         showIf: { field: 'topics' },
       },
       // 11-10 검수: 길게 써도 된다는 것이 보이게 장문형(4줄 칸)으로
