@@ -20,6 +20,10 @@ export default function StatePage({ kind, message }: { kind: StateKind; message?
       <Stack spacing={3} sx={{ alignItems: 'center', maxWidth: tokens.layout.maxWidth, textAlign: 'center' }}>
         <Wordmark size="lg" />
         <Typography variant="body1" color="text.secondary">{message ?? t(KEY[kind])}</Typography>
+        {/* 세션이 끝났거나 로그아웃했으면 링크 없이도 다시 들어올 길 (11-10) */}
+        {(kind === 'sessionExpired' || kind === 'loggedOut') && (
+          <Link component={RouterLink} to="/" variant="body1">{t('state.toLogin')}</Link>
+        )}
         <Link component={RouterLink} to="/help" variant="body2">{t('help.title')}</Link>
       </Stack>
     </Box>

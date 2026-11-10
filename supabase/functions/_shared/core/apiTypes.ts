@@ -5,7 +5,7 @@ import type { LineStatus } from './lineStatus.ts'
 export type ErrorCode =
   | 'OTP_WRONG' | 'OTP_EXPIRED' | 'OTP_LOCKED' | 'RATE_LIMITED' | 'LINK_INVALID' | 'LINK_REVOKED'
   | 'SESSION_EXPIRED' | 'REAUTH_REQUIRED' | 'FORBIDDEN' | 'NOT_OWNER' | 'CONFLICT' | 'LIMIT_EXCEEDED'
-  | 'VALIDATION' | 'UPSTREAM_FAILED' | 'MAINTENANCE' | 'PIN_WRONG' | 'PIN_LOCKED'
+  | 'VALIDATION' | 'UPSTREAM_FAILED' | 'MAINTENANCE' | 'PIN_WRONG' | 'PIN_LOCKED' | 'LOGIN_FAILED'
 export type ApiErrorBody = { error: { code: ErrorCode; extra?: Record<string, unknown> } }
 
 // hasPin: PIN 으로 들어올 수 있는 서랍, pinLocked: 5번 틀려 OTP 만 남은 서랍

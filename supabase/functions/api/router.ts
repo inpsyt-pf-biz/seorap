@@ -4,6 +4,7 @@ import { devOutbox } from './handlers/dev.ts'
 import { entry } from './handlers/entry.ts'
 import { forwardCancel, forwardCreate, forwardDirect, forwardResend } from './handlers/forward.ts'
 import { history } from './handlers/history.ts'
+import { login } from './handlers/login.ts'
 import { logout } from './handlers/logout.ts'
 import { otpRequest, otpVerify } from './handlers/otp.ts'
 import { pinChange, pinSet, pinVerify } from './handlers/pin.ts'
@@ -20,6 +21,8 @@ export const routes: Record<string, Handler> = {
   'POST pin/verify': pinVerify,
   // 설정 화면 (10-30 검수)
   'POST pin/change': pinChange,
+  // 이름 + 휴대전화번호 + 비밀번호 로그인 (11-10)
+  'POST login': login,
   'POST logout': logout,
   'GET box': box,
   'GET history': history,

@@ -30,6 +30,8 @@ export class Client {
   // 마지막으로 받은 Set-Cookie 원문 (쿠키 속성 확인용)
   setCookie = ''
   ua = MOBILE_UA
+  // 더 붙일 머리글 (로그인 시험의 접속 주소 x-forwarded-for 등)
+  headers: Record<string, string> = {}
   async call(path: string, body?: unknown): Promise<{ status: number; body: any }> {
     const res = await fetch(`${BASE}/${path}`, {
       method: body === undefined ? 'GET' : 'POST',
@@ -37,6 +39,7 @@ export class Client {
         'User-Agent': this.ua,
         ...(body !== undefined ? { 'Content-Type': 'application/json' } : {}),
         ...(this.cookie ? { Cookie: this.cookie } : {}),
+        ...this.headers,
       },
       body: body === undefined ? undefined : JSON.stringify(body),
     })

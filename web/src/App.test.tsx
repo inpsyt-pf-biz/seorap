@@ -10,7 +10,12 @@ const PAPER = '#F6F2EA'
 beforeEach(() => {
   // 입장 화면은 열리자마자 서버를 부른다. 응답 없이 기다리게 해 "불러오는 중" 상태를 본다
   vi.stubGlobal('fetch', vi.fn(() => new Promise(() => {})))
-  document.head.innerHTML = '<meta name="theme-color" content="#000000">'
+  // <head> 를 통째로 바꾸면 MUI(emotion)가 넣어 둔 스타일 태그 기준점이 사라진다. theme-color 만 새로 둔다
+  document.querySelectorAll('meta[name="theme-color"]').forEach((m) => m.remove())
+  const meta = document.createElement('meta')
+  meta.setAttribute('name', 'theme-color')
+  meta.setAttribute('content', '#000000')
+  document.head.appendChild(meta)
 })
 afterEach(() => {
   cleanup()

@@ -3,7 +3,8 @@ import { lazy, Suspense } from 'react'
 import { Route, Routes } from 'react-router-dom'
 import { useThemeColor } from './lib/themeColor'
 import EntryPage from './pages/EntryPage'
-import Placeholder from './pages/Placeholder'
+// 첫 화면은 이름·번호·비밀번호 로그인 (11-10). 준비 중 안내(Placeholder)는 main 의 공개 주소에서만 쓴다
+import LoginPage from './pages/LoginPage'
 import StatePage from './pages/StatePage'
 import { tokens } from './theme/seorap'
 
@@ -42,7 +43,7 @@ export default function App() {
     >
     <Suspense fallback={null}>
       <Routes>
-        <Route path="/" element={<Placeholder />} />
+        <Route path="/" element={<LoginPage />} />
         <Route path="/box" element={<BoxPage />} />
         <Route path="/box/history" element={<HistoryPage />} />
         <Route path="/box/counsel/:orderId" element={<CounselPage />} />
