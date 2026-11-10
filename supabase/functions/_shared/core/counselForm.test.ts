@@ -1,7 +1,7 @@
 import { assertEquals } from '@std/assert'
 import {
   type FormDefinition, checkDefinition, checkAnswers, splitAnswers, summarizeAvailability, DEFAULT_AVAILABILITY,
-  hasProviders, takesAnswer, withProviders, ledgerConsents,
+  hasProviders, takesAnswer, withProviders, ledgerConsents, pruneHidden, hiddenIds, fieldLabel,
 } from './counselForm.ts'
 
 const DEF: FormDefinition = {
@@ -162,4 +162,92 @@ Deno.test('원장 동의 칸: 제3자 제공·취소·환불 규정 동의를 �
   assertEquals(ledgerConsents([c('third_party', true), c('refund', false)]), { consent_third_party: true, refund_policy_checked: false })
   // 환불 동의가 "그 밖의 동의"로 남은 옛 템플릿은 칸을 채우지 않는다 (글자로 짐작하지 않는다)
   assertEquals(ledgerConsents([c('third_party', true), c('other', true)]), { consent_third_party: true, refund_policy_checked: false })
+})
+
+// ── 11-10 기타 직접 입력 · 조건부 문항 · 응답 끼워 넣기 ──
+const TOPIC_DEF: FormDefinition = {
+  intro: '',
+  fields: [
+    { id: 'rel', type: 'single', label: '두 분은 어떤 사이인가요?', required: true, options: ['연애 중', '결혼했어요'] },
+    { id: 'wed_years', type: 'short', label: '결혼한 지 얼마나 됐나요?', required: true, showIf: { field: 'rel', anyOf: ['결혼했어요'] } },
+    { id: 'topics', type: 'multi', label: '이야기하고 싶은 주제', options: ['소통', '대인관계 (예: 여사친·남사친)', '금전적/경제적 문제'], other: true },
+    { id: 'span', type: 'single', label: '{{topics}}에 대해 갈등이 있었다면, 지속된 기간을 알려 주세요', required: true, options: ['최근 3개월 이내', '1년~3년'], showIf: { field: 'topics' } },
+    { id: 'pick', type: 'single', label: '하나만', options: ['가', '나'], other: true },
+  ],
+}
+
+Deno.test('기타 직접 입력: 선택지에 없는 값 하나를 기타 글로 받는다', () => {
+  const ok = { rel: '연애 중', topics: ['소통', '육아'], span: '1년~3년', pick: '다' }
+  assertEquals(checkAnswers(TOPIC_DEF, ok), {})
+  // 기타 글은 하나만, 기타를 받지 않는 문항은 그대로 option
+  assertEquals(checkAnswers(TOPIC_DEF, { ...ok, topics: ['육아', '돈'] }), { topics: 'option' })
+  assertEquals(checkAnswers(TOPIC_DEF, { ...ok, rel: '친구' }), { rel: 'option' })
+  // 빈 기타 글은 고르지 않은 것과 같다
+  assertEquals(checkAnswers(TOPIC_DEF, { ...ok, topics: ['소통', '  '] }), { topics: 'option' })
+  assertEquals(checkAnswers(TOPIC_DEF, { ...ok, pick: 'x'.repeat(201) }), { pick: 'too_long' })
+})
+
+Deno.test('조건부 문항: 조건이 안 맞으면 필수여도 묻지 않고, 답이 오면 unknown', () => {
+  assertEquals(checkAnswers(TOPIC_DEF, { rel: '연애 중' }), {})
+  assertEquals(checkAnswers(TOPIC_DEF, { rel: '결혼했어요' }), { wed_years: 'required' })
+  assertEquals(checkAnswers(TOPIC_DEF, { rel: '결혼했어요', wed_years: '3년' }), {})
+  assertEquals(checkAnswers(TOPIC_DEF, { rel: '연애 중', wed_years: '3년' }), { wed_years: 'unknown' })
+  // 주제를 고르면 기간이 필수가 된다
+  assertEquals(checkAnswers(TOPIC_DEF, { rel: '연애 중', topics: ['소통'] }), { span: 'required' })
+  assertEquals(checkAnswers(TOPIC_DEF, { rel: '연애 중', span: '1년~3년' }), { span: 'unknown' })
+})
+
+Deno.test('조건부 문항: 숨은 답을 지우고, 조건이 이어지면 함께 숨는다', () => {
+  const def: FormDefinition = {
+    intro: '',
+    fields: [
+      { id: 'a', type: 'single', label: 'a', options: ['예', '아니오'] },
+      { id: 'b', type: 'single', label: 'b', options: ['예', '아니오'], showIf: { field: 'a', anyOf: ['예'] } },
+      { id: 'c', type: 'short', label: 'c', showIf: { field: 'b', anyOf: ['예'] } },
+    ],
+  }
+  assertEquals(pruneHidden(def, { a: '아니오', b: '예', c: '글' }), { a: '아니오' })
+  assertEquals(pruneHidden(def, { a: '예', b: '예', c: '글' }), { a: '예', b: '예', c: '글' })
+  assertEquals([...hiddenIds(def, { a: '아니오', b: '예' })].sort(), ['b', 'c'])
+})
+
+Deno.test('민감정보 문항: 민감정보 동의를 하지 않으면 숨고, 답이 오면 consent_needed', () => {
+  assertEquals([...hiddenIds(DEF, { ...OK_ANSWERS, c2: false })], ['drug'])
+  assertEquals([...hiddenIds(DEF, { ...OK_ANSWERS, c2: true })], [])
+  assertEquals(pruneHidden(DEF, { c2: false, drug: '수면제' }), { c2: false })
+})
+
+Deno.test('응답 끼워 넣기: 고른 답을 쉼표로 잇고, 괄호 설명은 빼고, 기타는 쓴 글로', () => {
+  const span = TOPIC_DEF.fields[3]
+  assertEquals(fieldLabel(TOPIC_DEF, span, { topics: ['소통', '대인관계 (예: 여사친·남사친)', '육아'] }),
+    '소통, 대인관계, 육아에 대해 갈등이 있었다면, 지속된 기간을 알려 주세요')
+  assertEquals(fieldLabel(TOPIC_DEF, span, { topics: ['금전적/경제적 문제'] }),
+    '금전적/경제적 문제에 대해 갈등이 있었다면, 지속된 기간을 알려 주세요')
+  // 답이 없으면 그 문항의 제목으로 채운다
+  assertEquals(fieldLabel(TOPIC_DEF, span, {}), '이야기하고 싶은 주제에 대해 갈등이 있었다면, 지속된 기간을 알려 주세요')
+})
+
+Deno.test('원장 저장: 고객이 본 제목으로 남기고, 기타 글은 "기타: "를 붙인다', () => {
+  const s = splitAnswers(TOPIC_DEF, { rel: '연애 중', topics: ['소통', '육아'], span: '1년~3년', pick: '다' })
+  assertEquals(s.extra, [
+    { id: 'rel', label: '두 분은 어떤 사이인가요?', value: '연애 중' },
+    { id: 'topics', label: '이야기하고 싶은 주제', value: '소통, 기타: 육아' },
+    { id: 'span', label: '소통, 육아에 대해 갈등이 있었다면, 지속된 기간을 알려 주세요', value: '1년~3년' },
+    { id: 'pick', label: '하나만', value: '기타: 다' },
+  ])
+})
+
+Deno.test('checkDefinition: 조건과 끼워 넣기는 앞 문항만 가리킨다', () => {
+  assertEquals(checkDefinition(TOPIC_DEF), [])
+  const bad: FormDefinition = {
+    intro: '',
+    fields: [
+      { id: 'x', type: 'short', label: '{{y}} 이야기', showIf: { field: 'y' } },
+      { id: 'y', type: 'single', label: 'y', options: ['가'] },
+      { id: 'z', type: 'short', label: '{{nope}}', showIf: { field: 'y', anyOf: ['없는 답'] } },
+    ],
+  }
+  assertEquals(checkDefinition(bad).map((p) => `${p.fieldId}:${p.problem}`).sort(), [
+    'x:bad_condition', 'x:bad_reference', 'z:bad_condition', 'z:bad_reference',
+  ])
 })

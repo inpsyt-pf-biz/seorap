@@ -1,14 +1,31 @@
-import { Alert, Box, Button, Stack, Typography } from '@mui/material'
+import { Box, Button, Stack, Typography } from '@mui/material'
 import { useEffect, useRef, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import type { CounselFormResponse } from '@core/apiTypes.ts'
-import { type AnswerProblem, type Answers, checkAnswers } from '@core/counselForm.ts'
+import { type AnswerProblem, type Answers, type FormDefinition, checkAnswers, takesAnswer } from '@core/counselForm.ts'
 import { t } from '@core/copy.ko.ts'
-import CounselForm from '../components/CounselForm'
+import CounselSteps from '../components/CounselSteps'
 import Wordmark from '../components/Wordmark'
 import { api, ApiError } from '../lib/api'
 import { tokens } from '../theme/seorap'
 import StatePage from './StatePage'
+
+// 쓰던 답을 이 탭에 잠깐 둔다 (카톡에서 다른 앱을 다녀와 화면이 새로 열려도 이어 쓰게). 민감정보 답은 두지 않고, 내면 지운다
+const draftKey = (orderId: string) => `seorap.counsel.draft.${orderId}`
+function loadDraft(orderId: string, def: FormDefinition): Answers {
+  try {
+    const raw = JSON.parse(sessionStorage.getItem(draftKey(orderId)) ?? '{}') as Answers
+    const ok = new Set(def.fields.filter((f) => takesAnswer(f) && !f.sensitive).map((f) => f.id))
+    return Object.fromEntries(Object.entries(raw).filter(([id]) => ok.has(id)))
+  } catch { return {} }
+}
+function saveDraft(orderId: string, def: FormDefinition, a: Answers) {
+  try {
+    const keep = Object.fromEntries(Object.entries(a).filter(([id]) => !def.fields.find((f) => f.id === id)?.sensitive))
+    sessionStorage.setItem(draftKey(orderId), JSON.stringify(keep))
+  } catch { /* 저장이 막힌 브라우저면 그냥 넘어간다 */ }
+}
+const clearDraft = (orderId: string) => { try { sessionStorage.removeItem(draftKey(orderId)) } catch { /* 위와 같음 */ } }
 
 type View = 'loading' | 'form' | 'done' | 'noForm' | 'reauth' | 'expired' | 'error'
 
@@ -47,7 +64,7 @@ export default function CounselPage() {
   // 화면이 열릴 때 신청서를 불러오는 것은 서버와의 동기화다
   useEffect(() => {
     api<CounselFormResponse>('counsel/form', { orderId })
-      .then((f) => { setForm(f); setView('form') })
+      .then((f) => { setForm(f); setAnswers(loadDraft(orderId, f.definition)); setView('form') })
       .catch((e) => {
         const v = errorView(e)
         if (v === 'already') navigate('/box', { replace: true })
@@ -62,18 +79,17 @@ export default function CounselPage() {
     setAnswers((prev) => Object.fromEntries(Object.entries(prev).filter(([id]) => f.definition.fields.some((x) => x.id === id))))
   }
 
-  // 첫 문제 문항으로 화면을 옮긴다 (스크롤을 못 하는 환경이면 건너뛴다)
-  const scrollTo = (id: string) => document.querySelector(`[data-field="${id}"]`)?.scrollIntoView?.({ behavior: 'smooth', block: 'center' })
+  const change = (a: Answers) => { setAnswers(a); if (form) saveDraft(orderId, form.definition, a) }
 
-  const submit = async () => {
+  // 단계형 화면이 숨은 문항의 답을 뺀 답을 넘긴다
+  const submit = async (ready: Answers) => {
     if (!form || busyRef.current) return
-    const problems = checkAnswers(form.definition, answers)
-    setErrors(problems)
-    const first = form.definition.fields.find((f) => problems[f.id])
-    if (first) { setMessage(t('counsel.fix')); scrollTo(first.id); return }
+    const problems = checkAnswers(form.definition, ready)
+    if (Object.keys(problems).length) { setErrors(problems); setMessage(t('counsel.fix')); return }
     busyRef.current = true; setBusy(true); setMessage(null)
     try {
-      await api('counsel/submit', { orderId, templateId: form.templateId, version: form.version, answers, clientRequestId: crypto.randomUUID() })
+      await api('counsel/submit', { orderId, templateId: form.templateId, version: form.version, answers: ready, clientRequestId: crypto.randomUUID() })
+      clearDraft(orderId)
       setView('done')
     } catch (e) {
       if (e instanceof ApiError && e.code === 'CONFLICT' && e.extra.reason === 'form_changed') {
@@ -108,16 +124,11 @@ export default function CounselPage() {
             <Button variant="contained" size="large" onClick={() => navigate('/box', { replace: true })}>{t('counsel.back')}</Button>
           </Stack>
         ) : (
-          <>
-            <Stack spacing={0.5}>
-              <Typography variant="h5">{t('counsel.title')}</Typography>
-              <Typography variant="body2" color="text.secondary">{form.productName}</Typography>
-            </Stack>
-            {/* 흰 판으로 감싸지 않는다. 동의문·안내 상자가 한 겹이 되게 (UX 진단 F4: 카드 안의 카드) */}
-            <CounselForm definition={form.definition} value={answers} onChange={setAnswers} errors={errors} disabled={busy} providers={form.providers} />
-            {message && <Alert severity="warning">{message}</Alert>}
-            <Button variant="contained" size="large" disabled={busy} onClick={submit}>{t('counsel.submit')}</Button>
-          </>
+          // 한 화면 한 질문 (11-10). 제목·상품명은 시작 화면 안내로 대신한다
+          <CounselSteps
+            definition={form.definition} value={answers} onChange={change} onSubmit={submit}
+            errors={errors} message={message} busy={busy} providers={form.providers}
+          />
         )}
       </Stack>
     </Box>

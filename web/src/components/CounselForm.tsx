@@ -1,7 +1,8 @@
 import { Box, ButtonBase, Checkbox, Collapse, Divider, FormControlLabel, FormHelperText, Radio, RadioGroup, Stack, TextField, Typography } from '@mui/material'
-import { useState } from 'react'
+import { type ReactElement, useState } from 'react'
 import {
   type AnswerProblem, type Answers, type AvailabilityAnswer, type AvailabilityLabel, type FormDefinition, type FormField, type Provider, DEFAULT_AVAILABILITY, LIMITS,
+  fieldLabel, hiddenIds,
 } from '@core/counselForm.ts'
 import { type CopyKey, t } from '@core/copy.ko.ts'
 import { tokens } from '../theme/seorap'
@@ -23,16 +24,30 @@ type Props = {
 // 제목이 이미 "(필수)"·"(선택)"으로 끝나면 표시를 다시 붙이지 않는다 (템플릿 문구가 스스로 밝힌 경우)
 const SELF_TAGGED = /[(（]\s*(필수|선택)\s*[)）]\s*$/
 
-function Title({ f }: { f: FormField }) {
+function Title({ f, label }: { f: FormField; label: string }) {
   return (
     <Stack direction="row" spacing={1} sx={{ alignItems: 'baseline', justifyContent: 'space-between' }}>
-      <Typography variant="subtitle1" sx={{ fontWeight: 700, minWidth: 0 }}>{f.label}</Typography>
+      <Typography variant="subtitle1" sx={{ fontWeight: 700, minWidth: 0 }}>{label}</Typography>
       {!SELF_TAGGED.test(f.label) && (
         // 긴 제목 옆에서 "선/택"으로 깨지지 않게 줄바꿈·줄어듦을 막는다
         <Typography variant="caption" color={f.required ? 'primary' : 'text.secondary'} style={{ whiteSpace: 'nowrap', flexShrink: 0 }}>
           {t(f.required ? 'form.required' : 'form.optional')}
         </Typography>
       )}
+    </Stack>
+  )
+}
+
+// 기타(직접 입력) 한 줄: 표시 + 그 자리의 입력 칸 (한 장 화면·어드민 미리보기용)
+function OtherRow({ checked, text, control, onText, disabled }: { checked: boolean; text: string; control: ReactElement; onText: (s: string) => void; disabled?: boolean }) {
+  return (
+    <Stack direction="row" sx={{ alignItems: 'center' }}>
+      {control}
+      <TextField
+        variant="standard" size="small" value={text} disabled={disabled} placeholder={checked ? t('form.otherPlaceholder') : t('form.other')}
+        onChange={(e) => onText(e.target.value)} sx={{ flex: 1 }}
+        slotProps={{ htmlInput: { 'aria-label': t('form.other'), maxLength: LIMITS.short } }}
+      />
     </Stack>
   )
 }
@@ -96,7 +111,7 @@ function Availability({ f, value, onChange, disabled }: { f: FormField; value: A
 }
 
 // 제공받는 업체 정보 (11-04). 센터가 늘어나도 신청서가 길어지지 않게 "N곳"으로 접어 두고, 눌러서 펼친다
-function Providers({ f, providers }: { f: FormField; providers: Provider[] }) {
+export function Providers({ f, providers }: { f: FormField; providers: Provider[] }) {
   const [open, setOpen] = useState(false)
   return (
     <Box sx={{ borderRadius: tokens.radius.card, bgcolor: tokens.surface[50], border: `1px solid ${tokens.surface[200]}` }}>
@@ -131,11 +146,13 @@ function Providers({ f, providers }: { f: FormField; providers: Provider[] }) {
 
 export default function CounselForm({ definition, value, onChange, errors = {}, disabled, providers = [] }: Props) {
   const set = (id: string, v: unknown) => onChange({ ...value, [id]: v })
+  // 조건이 맞지 않는 문항·민감정보 동의 전의 민감정보 문항은 그리지 않는다 (11-10)
+  const hidden = hiddenIds(definition, value)
 
   return (
     <Stack spacing={3}>
       {definition.intro && <Typography variant="body1" sx={{ whiteSpace: 'pre-line' }}>{definition.intro}</Typography>}
-      {definition.fields.map((f) => {
+      {definition.fields.filter((f) => !hidden.has(f.id)).map((f) => {
         const err = errors[f.id]
         const errText = err ? <FormHelperText error>{t(`form.error.${err}` as CopyKey)}</FormHelperText> : null
         const v = value[f.id]
@@ -159,7 +176,7 @@ export default function CounselForm({ definition, value, onChange, errors = {}, 
         }
         return (
           <Stack key={f.id} spacing={1} data-field={f.id}>
-            <Title f={f} />
+            <Title f={f} label={fieldLabel(definition, f, value)} />
             {f.type === 'consent' ? (
               <>
                 {f.help && (
@@ -188,11 +205,21 @@ export default function CounselForm({ definition, value, onChange, errors = {}, 
                     onChange={(e) => set(f.id, e.target.value)} slotProps={{ htmlInput: { 'aria-label': f.label } }}
                   />
                 )}
-                {f.type === 'single' && (
-                  <RadioGroup value={typeof v === 'string' ? v : ''} onChange={(e) => set(f.id, e.target.value)} aria-label={f.label}>
-                    {(f.options ?? []).map((o) => <FormControlLabel key={o} value={o} control={<Radio disabled={disabled} />} label={o} />)}
-                  </RadioGroup>
-                )}
+                {f.type === 'single' && (() => {
+                  const opts = f.options ?? []
+                  const cur = typeof v === 'string' ? v : ''
+                  const isOther = cur !== '' && !opts.includes(cur)
+                  return (
+                    <RadioGroup value={isOther ? '__other__' : cur} onChange={(e) => set(f.id, e.target.value === '__other__' ? '' : e.target.value)} aria-label={f.label}>
+                      {opts.map((o) => <FormControlLabel key={o} value={o} control={<Radio disabled={disabled} />} label={o} />)}
+                      {f.other && (
+                        <OtherRow checked={isOther} text={isOther ? cur : ''} disabled={disabled}
+                          control={<Radio disabled={disabled} checked={isOther} onChange={() => {}} />}
+                          onText={(s) => set(f.id, s)} />
+                      )}
+                    </RadioGroup>
+                  )
+                })()}
                 {f.type === 'multi' && (
                   <Stack>
                     {(f.options ?? []).map((o) => {
@@ -205,6 +232,17 @@ export default function CounselForm({ definition, value, onChange, errors = {}, 
                         />
                       )
                     })}
+                    {f.other && (() => {
+                      const opts = f.options ?? []
+                      const list = Array.isArray(v) ? (v as string[]) : []
+                      const other = list.find((x) => !opts.includes(x)) ?? ''
+                      const picked = list.filter((x) => opts.includes(x))
+                      return (
+                        <OtherRow checked={other !== ''} text={other} disabled={disabled}
+                          control={<Checkbox disabled={disabled} checked={other !== ''} onChange={() => {}} />}
+                          onText={(s) => set(f.id, s === '' ? picked : [...picked, s])} />
+                      )
+                    })()}
                   </Stack>
                 )}
                 {f.type === 'availability' && (

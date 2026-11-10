@@ -5,6 +5,7 @@ import {
   TextField, Tooltip, Typography,
 } from '@mui/material'
 import CounselForm from '@seorap-web/components/CounselForm'
+import CounselSteps from '@seorap-web/components/CounselSteps'
 import { tokens as seorapTokens } from '@seorap-web/theme/seorap'
 import {
   type Answers, type AvailabilityConfig, type AvailabilityLabel, type FieldType, type FormDefinition, type FormField, type Provider,
@@ -19,6 +20,7 @@ import {
   type FormTemplateDetail,
 } from '@counsel-core/forms.ts'
 import ChipListEditor from '../../../components/ChipListEditor'
+import FieldLogic from './FieldLogic'
 import { ErrorBox, Loading } from '../../../components/PageState'
 import { duplicateFormTemplate, getFormTemplate, listCenters, publishFormTemplate, saveFormDraft } from '../../../lib/api'
 import { hasCap, useSession } from '../../../shell/session'
@@ -97,8 +99,8 @@ function AvailabilityEditor({ a, readOnly, onChange }: {
   )
 }
 
-function FieldCard({ f, index, count, readOnly, onChange, onMove, onRemove }: {
-  f: FormField; index: number; count: number; readOnly: boolean
+function FieldCard({ f, index, count, readOnly, earlier, onChange, onMove, onRemove }: {
+  f: FormField; index: number; count: number; readOnly: boolean; earlier: FormField[]
   onChange: (next: FormField) => void; onMove: (delta: -1 | 1) => void; onRemove: () => void
 }) {
   const set = (patch: Partial<FormField>) => onChange({ ...f, ...patch })
@@ -138,6 +140,7 @@ function FieldCard({ f, index, count, readOnly, onChange, onMove, onRemove }: {
         {f.type === 'availability' && (
           <AvailabilityEditor a={f.availability ?? DEFAULT_AVAILABILITY} readOnly={readOnly} onChange={(availability) => set({ availability })} />
         )}
+        {input && f.type !== 'consent' && <FieldLogic f={f} earlier={earlier} readOnly={readOnly} onChange={set} />}
         {input && (
           <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.5} sx={{ alignItems: { sm: 'center' } }}>
             <FormControlLabel label={t('forms.edit.required')} disabled={readOnly}
@@ -182,6 +185,8 @@ export default function FormEditPage() {
   const [toast, setToast] = useState<string | null>(null)
   const [addType, setAddType] = useState<FieldType>('short')
   const [preview, setPreview] = useState<Answers>({})
+  // 미리보기 모양: 서랍 고객 화면과 같은 단계형(기본) / 한눈에 보는 한 장
+  const [previewSteps, setPreviewSteps] = useState(true)
   // 미리보기의 "제공받는 업체 정보" (서랍이 받는 목록과 같은 규칙). 못 불러오면 0곳으로 보인다
   const [providers, setProviders] = useState<Provider[]>([])
   useEffect(() => { listCenters().then((cs) => setProviders(previewProviders(cs)), () => {}) }, [])
@@ -266,6 +271,7 @@ export default function FormEditPage() {
           <Typography variant="subtitle1" sx={{ fontWeight: 700 }}>{t('forms.edit.fields')}</Typography>
           {draft.fields.map((f, i) => (
             <FieldCard key={f.id} f={f} index={i} count={draft.fields.length} readOnly={readOnly}
+              earlier={draft.fields.slice(0, i).filter(takesAnswer)}
               onChange={(next) => setField(i, next)}
               onMove={(delta) => change({ ...draft, fields: moveField(draft.fields, i, delta) })}
               onRemove={() => change({ ...draft, fields: draft.fields.filter((_, j) => j !== i) })} />
@@ -284,10 +290,21 @@ export default function FormEditPage() {
         </Stack>
 
         <Box sx={{ position: { lg: 'sticky' }, top: 16 }}>
-          <Typography variant="subtitle2" color="text.secondary" sx={{ mb: 1 }}>{t('forms.edit.preview')}</Typography>
+          <Stack direction="row" sx={{ alignItems: 'center', justifyContent: 'space-between', mb: 1 }}>
+            <Typography variant="subtitle2" color="text.secondary">{t('forms.edit.preview')}</Typography>
+            <Stack direction="row" spacing={0.5}>
+              {([true, false] as const).map((steps) => (
+                <Chip key={String(steps)} size="small" label={t(steps ? 'forms.edit.previewSteps' : 'forms.edit.previewPage')}
+                  color={previewSteps === steps ? 'primary' : 'default'} variant={previewSteps === steps ? 'filled' : 'outlined'}
+                  aria-pressed={previewSteps === steps} onClick={() => setPreviewSteps(steps)} />
+              ))}
+            </Stack>
+          </Stack>
           <Paper variant="outlined" sx={{ p: 2, maxHeight: { lg: 'calc(100vh - 120px)' }, overflowY: 'auto', bgcolor: seorapTokens.surface.page }}>
             <Paper sx={{ p: 2 }}>
-              <CounselForm definition={draft} value={preview} onChange={setPreview} providers={providers} />
+              {previewSteps
+                ? <CounselSteps definition={draft} value={preview} onChange={setPreview} onSubmit={() => {}} providers={providers} preview minHeight={560} />
+                : <CounselForm definition={draft} value={preview} onChange={setPreview} providers={providers} />}
             </Paper>
           </Paper>
         </Box>
